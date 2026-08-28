@@ -241,12 +241,16 @@ class DependencyResolver:
         for dep in release.dependencies:
             # Check virtual mod base requirement
             if dep.is_virtual:
-                if dep.name == "base" and dep.version and self.target_factorio_branch:
+                if dep.name == "base" and self.target_factorio_branch:
                     target_v = FactorioVersion(self.target_factorio_branch)
-                    if len(target_v.parts) <= 2:
-                        is_compat = dep.version.is_compatible_major_minor(self.target_factorio_branch)
-                    else:
+                    if dep.version:
                         is_compat = dep.satisfies(target_v)
+                        # Check major version family compatibility (e.g. 2.x vs 1.x)
+                        if len(dep.version.parts) > 0 and len(target_v.parts) > 0:
+                            if dep.version.parts[0] != target_v.parts[0]:
+                                is_compat = False
+                    else:
+                        is_compat = True
 
                     if not is_compat:
                         self.warnings.append(
