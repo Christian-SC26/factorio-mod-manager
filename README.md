@@ -91,6 +91,9 @@ fmm install https://mods.factorio.com/mod/space-exploration
 # Download by mod name / Скачать по названию мода
 fmm install Krastorio2
 
+# Download multiple mods at once / Скачать сразу несколько модов через пробел
+fmm install Krastorio2 flib alien-biomes
+
 # List installed mods / Показать установленные моды
 fmm list
 

@@ -80,7 +80,7 @@ def format_tree(graph: dict, roots: list, indent: str = "", visited: set = None)
 def parse_multi_selection(raw_str: str, item_names: List[str]) -> Optional[List[int]]:
     """
     Parse a user selection string into list of 0-based indices.
-    Supports '1, 3, 5', '1-4', 'all', '*', names, or 'q' to cancel.
+    Supports space-separated '1 3 5', '1-4 7', 'all', '*', names, or 'q' to cancel.
     Returns None on cancellation.
     """
     s = raw_str.strip()
@@ -533,16 +533,17 @@ class CLIApp:
             print(i18n.t("cancelled"))
             return
 
-        if raw.isdigit():
-            idx = int(raw) - 1
-            if 0 <= idx < len(mod_names):
-                raw = mod_names[idx]
-
-        self.cmd_info(raw)
+        targets = [t.strip() for t in re.split(r"[,;\s]+", raw) if t.strip()]
+        for t in targets:
+            if t.isdigit():
+                idx = int(t) - 1
+                if 0 <= idx < len(mod_names):
+                    t = mod_names[idx]
+            self.cmd_info(t)
         pause_prompt()
 
     def _interactive_toggle_mods(self):
-        """Interactive enable/disable mod selector with multi-selection."""
+        """Interactive enable/disable mod selector with space-separated multi-selection."""
         installed = self.mod_list_mgr.scan_installed_mods()
         if not installed:
             print(f"\n{Colors.YELLOW}{i18n.t('no_mods_found', path=self.mods_dir)}{Colors.RESET}")
@@ -567,7 +568,7 @@ class CLIApp:
             return
 
         selected_names = [mod_names[i] for i in selected_indices]
-        print(f"\nSelected ({len(selected_names)}): {', '.join(selected_names)}")
+        print(f"\nSelected ({len(selected_names)}): {' '.join(selected_names)}")
 
         action_choice = input(f"{Colors.BOLD}{i18n.t('prompt_toggle_action')}{Colors.RESET}").strip().lower()
         if action_choice in ("q", "cancel", "c"):
@@ -589,7 +590,7 @@ class CLIApp:
         pause_prompt()
 
     def _interactive_remove_mods(self):
-        """Interactive mod remover with multi-selection and confirmation."""
+        """Interactive mod remover with space-separated multi-selection and confirmation."""
         installed = self.mod_list_mgr.scan_installed_mods()
         if not installed:
             print(f"\n{Colors.YELLOW}{i18n.t('no_mods_found', path=self.mods_dir)}{Colors.RESET}")
@@ -614,7 +615,7 @@ class CLIApp:
             return
 
         selected_names = [mod_names[i] for i in selected_indices]
-        print(f"\n{Colors.YELLOW}Selected to remove ({len(selected_names)}):{Colors.RESET} {', '.join(selected_names)}")
+        print(f"\n{Colors.YELLOW}Selected to remove ({len(selected_names)}):{Colors.RESET} {' '.join(selected_names)}")
         
         confirm = input(f"{Colors.BOLD}{i18n.t('prompt_confirm_remove', count=len(selected_names))}{Colors.RESET}").strip().lower()
         if confirm not in ("y", "yes", "д", "да"):
@@ -665,11 +666,15 @@ class CLIApp:
             elif choice == "1":
                 try:
                     raw = input(f"\n{Colors.BOLD}{i18n.t('prompt_mod_input')}{Colors.RESET}").strip()
-                    if raw and raw.lower() not in ("q", "cancel", "c"):
-                        opt_ans = input(f"{Colors.BOLD}{i18n.t('prompt_include_optional')}{Colors.RESET}").strip().lower()
-                        include_opt = opt_ans in ("y", "yes", "д", "да", "1", "+")
-                        self.cmd_install([raw], include_optional=include_opt)
-                        pause_prompt()
+                    if raw and raw.lower() not in ("q", "quit", "cancel", "c", "отмена"):
+                        targets = [t.strip() for t in re.split(r"[,;\s]+", raw) if t.strip()]
+                        if targets:
+                            opt_ans = input(f"{Colors.BOLD}{i18n.t('prompt_include_optional')}{Colors.RESET}").strip().lower()
+                            include_opt = opt_ans in ("y", "yes", "д", "да", "1", "+")
+                            self.cmd_install(targets, include_optional=include_opt)
+                            pause_prompt()
+                        else:
+                            print(i18n.t("cancelled"))
                     else:
                         print(i18n.t("cancelled"))
                 except (KeyboardInterrupt, EOFError):
