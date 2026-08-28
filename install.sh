@@ -4,7 +4,7 @@ set -e
 # Factorio Mod Manager (FMM) Installer
 INSTALL_DIR="${HOME}/.local/share/factorio-mod-manager"
 BIN_DIR="${HOME}/.local/bin"
-REPO_URL="https://github.com/USERNAME/factorio-mod-manager.git"
+REPO_URL="https://github.com/Christian-SC26/factorio-mod-manager.git"
 
 echo "==> Installing Factorio Mod Manager (FMM)..."
 
@@ -25,7 +25,7 @@ else
         git clone --depth 1 "${REPO_URL}" "${INSTALL_DIR}" --quiet
     else
         mkdir -p "${INSTALL_DIR}"
-        curl -fsSL "https://github.com/USERNAME/factorio-mod-manager/archive/refs/heads/main.tar.gz" | tar -xz -C "${INSTALL_DIR}" --strip-components=1
+        curl -fsSL "https://github.com/Christian-SC26/factorio-mod-manager/archive/refs/heads/main.tar.gz" | tar -xz -C "${INSTALL_DIR}" --strip-components=1
     fi
 fi
 
