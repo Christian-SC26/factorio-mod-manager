@@ -175,14 +175,21 @@ class ModDownloader:
             print(f"[{i}/{total_count}] {mod.name} v{mod.release.version}...")
 
             start_t = time.time()
+            last_draw_t = [0.0]
 
             def progress_cb(name: str, cur: int, tot: int):
-                elapsed = max(0.001, time.time() - start_t)
+                now = time.time()
+                # Throttle redraws to ~15 FPS to prevent terminal buffer lag, always draw 100% completion
+                if tot > 0 and cur < tot and (now - last_draw_t[0]) < 0.06:
+                    return
+                last_draw_t[0] = now
+
+                elapsed = max(0.001, now - start_t)
                 speed = cur / elapsed
                 speed_str = f"{format_bytes(speed)}/s"
                 size_str = f"{format_bytes(cur)} / {format_bytes(tot) if tot else '?'}"
                 bar = render_progress_bar(cur, tot, prefix=f"  ->", suffix=f"{size_str} ({speed_str})")
-                sys.stdout.write(f"\r{bar}")
+                sys.stdout.write(f"\r{bar:<80}")
                 sys.stdout.flush()
 
             res = self.download_single(mod, on_progress=progress_cb)
