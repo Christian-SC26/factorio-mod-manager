@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+from .i18n import i18n
 from .version import FactorioVersion
 
 
@@ -308,18 +309,16 @@ class ModListManager:
         self.ensure_mods_dir()
         profile_file = self.profiles_dir / f"{profile_name}.json"
         if not profile_file.exists():
-            return False, f"Профиль '{profile_name}' не найден", []
+            return False, i18n.t("profile_not_found", name=profile_name), []
 
         try:
             with open(profile_file, "r", encoding="utf-8") as f:
                 target_data = json.load(f)
         except Exception as e:
-            return False, f"Ошибка чтения профиля: {e}", []
+            return False, str(e), []
 
-        # Write directly to mod-list.json
         self.write_mod_list_json(target_data)
 
-        # Check if any enabled mods are physically missing from disk
         installed = self.scan_installed_mods()
         missing = []
         for item in target_data.get("mods", []):
@@ -329,7 +328,7 @@ class ModListManager:
                     if mod_name not in installed:
                         missing.append(mod_name)
 
-        return True, f"Профиль '{profile_name}' успешно активирован!", missing
+        return True, i18n.t("profile_activated", name=profile_name), missing
 
     def delete_profile(self, profile_name: str) -> bool:
         """Delete a saved profile."""

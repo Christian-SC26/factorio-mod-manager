@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
 from .api import ModInfo, ModPortalClient, ReleaseInfo, parse_mod_input
+from .i18n import i18n
 from .mod_list import LocalMod, ModListManager
 from .version import Dependency, DependencyType, FactorioVersion
 
@@ -114,7 +115,7 @@ class DependencyResolver:
         is_root: bool = False,
     ):
         # Ignore virtual base mods
-        if mod_name.lower() in ("base", "core", "quality", "space-age", "elevated-rails"):
+        if mod_name.lower() in ("base", "core", "quality", "space-age", "elevated-rails", "recycler"):
             return
 
         # Track graph
@@ -124,7 +125,7 @@ class DependencyResolver:
             if mod_name not in self.graph[parent]:
                 self.graph[parent].append(mod_name)
 
-        # If already resolved, update required_by and check version constraint
+        # If already resolved in this session, update required_by and verify constraint
         if mod_name in self.resolved:
             existing = self.resolved[mod_name]
             if parent:
@@ -136,10 +137,8 @@ class DependencyResolver:
                     existing.optional_by.add(parent)
 
             if version_req and op:
-                # Validate that currently selected release satisfies this additional constraint
                 dep_check = Dependency(name=mod_name, op=op, version=FactorioVersion(version_req))
                 if not dep_check.satisfies(existing.release.version):
-                    # Try to find a release that satisfies both
                     new_rel = existing.info.find_release(
                         version_req=version_req,
                         op=op,
@@ -149,8 +148,14 @@ class DependencyResolver:
                         existing.release = new_rel
                     else:
                         self.warnings.append(
-                            f"Конфликт версий для '{mod_name}': требуется {op} {version_req} (для {parent}), "
-                            f"но выбрана версия {existing.release.version}"
+                            i18n.t(
+                                "warn_version_conflict",
+                                name=mod_name,
+                                op=op,
+                                req_ver=version_req,
+                                parent=parent,
+                                selected_ver=existing.release.version,
+                            )
                         )
             return
 
@@ -158,8 +163,10 @@ class DependencyResolver:
         try:
             mod_info = self.client.fetch_mod_info(mod_name)
         except Exception as e:
-            self.missing.append((mod_name, parent or "пользователь"))
-            self.warnings.append(f"Не удалось найти мод '{mod_name}' (запрошен '{parent or 'root'}'): {e}")
+            self.missing.append((mod_name, parent or i18n.t("root_user")))
+            self.warnings.append(
+                i18n.t("warn_mod_not_found", name=mod_name, parent=parent or "root", err=str(e))
+            )
             return
 
         # Pick matching release
@@ -170,10 +177,15 @@ class DependencyResolver:
         )
 
         if not release:
-            self.missing.append((mod_name, parent or "пользователь"))
+            self.missing.append((mod_name, parent or i18n.t("root_user")))
             self.warnings.append(
-                f"Не найдена подходящая версия для '{mod_name}' "
-                f"({op or ''} {version_req or ''}, Factorio: {self.target_factorio_branch or 'любая'})"
+                i18n.t(
+                    "warn_no_matching_release",
+                    name=mod_name,
+                    op=op or "",
+                    req_ver=version_req or "",
+                    f_ver=self.target_factorio_branch or i18n.t("any_version"),
+                )
             )
             return
 
@@ -188,7 +200,7 @@ class DependencyResolver:
             is_installed = True
 
             if not self.force_reinstall:
-                # Check if installed version satisfies requirements
+                # If installed version satisfies requirements, do not download again
                 dep_check = Dependency(name=mod_name, op=op or ">=", version=FactorioVersion(version_req) if version_req else release.version)
                 if installed_ver >= release.version:
                     action = "KEEP"
@@ -218,13 +230,18 @@ class DependencyResolver:
         # Recursively resolve dependencies of this release
         for dep in release.dependencies:
             if dep.is_virtual:
-                # Validate base version if target branch is known
                 if dep.name == "base" and dep.version and self.target_factorio_branch:
                     target_v = FactorioVersion(self.target_factorio_branch)
                     if not dep.satisfies(target_v):
                         self.warnings.append(
-                            f"Мод '{mod_name} v{release.version}' требует Factorio {dep.op} {dep.version}, "
-                            f"но выбрана версия игры {self.target_factorio_branch}"
+                            i18n.t(
+                                "warn_base_mismatch",
+                                name=mod_name,
+                                ver=release.version,
+                                op=dep.op,
+                                req_ver=dep.version,
+                                target_ver=self.target_factorio_branch,
+                            )
                         )
                 continue
 
@@ -251,25 +268,26 @@ class DependencyResolver:
 
     def _check_conflicts(self):
         """Check all resolved mods against each other for '!' incompatible dependencies."""
-        all_mod_names = set(self.resolved.keys()) | set(self.installed_mods.keys())
-
         for mod_name, res_mod in self.resolved.items():
             for dep in res_mod.release.dependencies:
                 if dep.is_conflict:
                     conflict_target = dep.name
                     if conflict_target in self.resolved:
                         self.conflicts.append(
-                            (mod_name, conflict_target, f"Мод '{mod_name}' несовместим с '{conflict_target}'")
+                            (
+                                mod_name,
+                                conflict_target,
+                                i18n.t("warn_conflict", mod_a=mod_name, mod_b=conflict_target),
+                            )
                         )
                         res_mod.action = "CONFLICT"
-                        res_mod.conflict_reasons.append(f"Несовместим с {conflict_target}")
+                        res_mod.conflict_reasons.append(f"Incompatible with {conflict_target}")
                     elif conflict_target in self.installed_mods and self.installed_mods[conflict_target]:
-                        # Check if installed mod is enabled
                         if any(m.enabled for m in self.installed_mods[conflict_target]):
                             self.conflicts.append(
                                 (
                                     mod_name,
                                     conflict_target,
-                                    f"Мод '{mod_name}' несовместим с установленным '{conflict_target}'",
+                                    i18n.t("warn_conflict_installed", mod_a=mod_name, mod_b=conflict_target),
                                 )
                             )

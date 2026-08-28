@@ -8,6 +8,7 @@ import urllib.request
 import urllib.error
 from typing import Any, Dict, List, Optional, Tuple
 
+from .i18n import i18n
 from .version import Dependency, FactorioVersion
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -19,16 +20,6 @@ FACTORIO_PORTAL_API = "https://mods.factorio.com/api/mods/"
 def parse_mod_input(input_str: str) -> Tuple[str, Optional[str], Optional[str]]:
     """
     Parse a user input (URL or name or versioned string) into (mod_name, version, op).
-    
-    Supported formats:
-    - https://mods.factorio.com/mod/space-exploration
-    - https://mods.factorio.com/mods/Author/space-exploration
-    - https://re146.dev/factorio/mods/#https://mods.factorio.com/mod/space-exploration
-    - https://re146.dev/factorio/mods/#space-exploration#0.6.140
-    - space-exploration
-    - space-exploration@0.6.140
-    - space-exploration==0.6.140
-    - space-exploration>=0.6.0
     """
     raw = input_str.strip()
     if not raw:
@@ -39,7 +30,6 @@ def parse_mod_input(input_str: str) -> Tuple[str, Optional[str], Optional[str]]:
         parts = raw.split("#")
         if len(parts) > 1:
             frag = parts[1]
-            # check if double hash for version: #modname#version
             if len(parts) > 2:
                 frag_ver = parts[2]
             else:
@@ -56,7 +46,6 @@ def parse_mod_input(input_str: str) -> Tuple[str, Optional[str], Optional[str]]:
         m = re.search(r"mods\.factorio\.com/mod(?:s/[^/]+)?/([^/?#]+)", raw, re.IGNORECASE)
         if m:
             mod_name = m.group(1)
-            # check if there is version fragment in URL
             m_ver = re.search(r"/downloads#?(\d+(?:\.\d+)*)?", raw)
             ver = m_ver.group(1) if m_ver and m_ver.group(1) else None
             return mod_name, ver, "==" if ver else None
@@ -68,7 +57,6 @@ def parse_mod_input(input_str: str) -> Tuple[str, Optional[str], Optional[str]]:
         op_norm = "==" if op in ("@", "=") else op
         return name, ver, op_norm
 
-    # Just a raw mod name
     return raw, None, None
 
 
@@ -122,12 +110,11 @@ class ModInfo:
             return None
 
         if not target_factorio_branch:
-            # Default to newest release (e.g. Factorio 2.1)
             return self.releases[-1]
 
         target_v = FactorioVersion(target_factorio_branch)
 
-        # 1. Exact branch match (e.g. 2.1 -> 2.1, 2.0 -> 2.0, 1.1 -> 1.1)
+        # 1. Exact branch match (e.g. 2.1 -> 2.1)
         for rel in reversed(self.releases):
             if rel.factorio_version:
                 rel_f_v = FactorioVersion(rel.factorio_version)
@@ -139,7 +126,7 @@ class ModInfo:
                     if dep.version.is_compatible_major_minor(str(target_v)):
                         return rel
 
-        # 2. Compatible version within the same major version family (e.g. 2.1 target can use 2.0 mod if base satisfies)
+        # 2. Compatible version within the same major version family
         for rel in reversed(self.releases):
             if rel.factorio_version:
                 rel_f_v = FactorioVersion(rel.factorio_version)
@@ -149,7 +136,6 @@ class ModInfo:
                         if not base_dep or base_dep.satisfies(target_v):
                             return rel
 
-        # Fallback to latest release if no exact match found
         return self.releases[-1]
 
     def find_release(
@@ -168,7 +154,6 @@ class ModInfo:
         req_v = FactorioVersion(version_req)
         op = op or "=="
 
-        # Find all satisfying releases
         candidates: List[ReleaseInfo] = []
         for rel in self.releases:
             matches_ver = False
@@ -189,10 +174,8 @@ class ModInfo:
         if not candidates:
             return None
 
-        # Filter by Factorio version branch if specified
         if target_factorio_branch:
             target_v = FactorioVersion(target_factorio_branch)
-            # 1. Exact major.minor match
             branch_candidates = [
                 r for r in candidates
                 if FactorioVersion(r.factorio_version).is_compatible_major_minor(target_factorio_branch)
@@ -200,7 +183,6 @@ class ModInfo:
             if branch_candidates:
                 return branch_candidates[-1]
 
-            # 2. Major match (e.g. 2.1 allows 2.0 if base matches)
             major_candidates = [
                 r for r in candidates
                 if len(FactorioVersion(r.factorio_version).parts) >= 1
@@ -250,13 +232,13 @@ class ModPortalClient:
                     data = json.loads(resp.read().decode("utf-8"))
             except urllib.error.HTTPError as he:
                 if he.code == 404:
-                    raise ValueError(f"Мод '{cleaned_name}' не найден на мод-портале (404 Not Found)")
-                raise RuntimeError(f"Ошибка при запросе к API: {he}")
+                    raise ValueError(i18n.t("api_mod_not_found", name=cleaned_name))
+                raise RuntimeError(i18n.t("api_req_error", err=he))
             except Exception as e:
-                raise RuntimeError(f"Не удалось получить информацию о моде '{cleaned_name}': {e or last_error}")
+                raise RuntimeError(i18n.t("api_fetch_failed", name=cleaned_name, err=e or last_error))
 
         if not data or "name" not in data:
-            raise ValueError(f"Мод '{cleaned_name}' не найден или данные повреждены")
+            raise ValueError(i18n.t("api_data_corrupted", name=cleaned_name))
 
         releases: List[ReleaseInfo] = []
         for rel_raw in data.get("releases", []):
@@ -270,7 +252,6 @@ class ModPortalClient:
                 if parsed_dep:
                     deps.append(parsed_dep)
 
-            # Mirror download URL on Cloudflare R2
             download_url = f"{RE146_BASE_STORAGE}{cleaned_name}/{ver_str}.zip"
 
             rel = ReleaseInfo(
@@ -284,7 +265,6 @@ class ModPortalClient:
             )
             releases.append(rel)
 
-        # Sort releases by version ascending
         releases.sort(key=lambda r: r.version)
 
         mod_info = ModInfo(
@@ -302,17 +282,3 @@ class ModPortalClient:
             self._cache[cleaned_name] = mod_info
 
         return mod_info
-
-    def check_download_exists(self, mod_name: str, version: str) -> Tuple[bool, Optional[int]]:
-        """Check if mod archive exists on re146 mirror and get content length."""
-        url = f"{RE146_BASE_STORAGE}{mod_name}/{version}.zip"
-        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT}, method="HEAD")
-        try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                if resp.status == 200:
-                    cl = resp.headers.get("Content-Length")
-                    size = int(cl) if cl and cl.isdigit() else None
-                    return True, size
-                return False, None
-        except Exception:
-            return False, None

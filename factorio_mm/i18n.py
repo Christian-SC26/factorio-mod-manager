@@ -114,6 +114,19 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "profile_not_found": "Profile '{name}' not found",
         "profile_deleted": "Profile '{name}' deleted.",
         "lang_changed": "Language switched to English.",
+        # Resolver & API warnings
+        "warn_version_conflict": "Version conflict for '{name}': requires {op} {req_ver} (for {parent}), but release {selected_ver} is selected",
+        "warn_mod_not_found": "Could not find mod '{name}' (requested by '{parent}'): {err}",
+        "warn_no_matching_release": "No matching version found for '{name}' ({op} {req_ver}, Factorio: {f_ver})",
+        "warn_base_mismatch": "Mod '{name} v{ver}' requires Factorio {op} {req_ver}, but target game version is {target_ver}",
+        "warn_conflict": "Mod '{mod_a}' is incompatible with '{mod_b}'",
+        "warn_conflict_installed": "Mod '{mod_a}' is incompatible with installed mod '{mod_b}'",
+        "root_user": "user",
+        "any_version": "any",
+        "api_mod_not_found": "Mod '{name}' not found on mod portal (404 Not Found)",
+        "api_req_error": "API request error: {err}",
+        "api_fetch_failed": "Failed to fetch mod info for '{name}': {err}",
+        "api_data_corrupted": "Mod '{name}' not found or data corrupted",
     },
     "ru": {
         "banner_title": "FACTORIO MOD MANAGER",
@@ -219,6 +232,19 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "profile_not_found": "Профиль '{name}' не найден",
         "profile_deleted": "Профиль '{name}' удален.",
         "lang_changed": "Язык переключен на Русский.",
+        # Resolver & API warnings
+        "warn_version_conflict": "Конфликт версий для '{name}': требуется {op} {req_ver} (для {parent}), но выбрана версия {selected_ver}",
+        "warn_mod_not_found": "Не удалось найти мод '{name}' (запрошен '{parent}'): {err}",
+        "warn_no_matching_release": "Не найдена подходящая версия для '{name}' ({op} {req_ver}, Factorio: {f_ver})",
+        "warn_base_mismatch": "Мод '{name} v{ver}' требует Factorio {op} {req_ver}, но выбрана версия игры {target_ver}",
+        "warn_conflict": "Мод '{mod_a}' несовместим с '{mod_b}'",
+        "warn_conflict_installed": "Мод '{mod_a}' несовместим с установленным '{mod_b}'",
+        "root_user": "пользователь",
+        "any_version": "любая",
+        "api_mod_not_found": "Мод '{name}' не найден на мод-портале (404 Not Found)",
+        "api_req_error": "Ошибка при запросе к API: {err}",
+        "api_fetch_failed": "Не удалось получить информацию о моде '{name}': {err}",
+        "api_data_corrupted": "Мод '{name}' не найден или данные повреждены",
     }
 }
 
