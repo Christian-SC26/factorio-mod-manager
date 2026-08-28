@@ -1,6 +1,7 @@
 """Factorio mod dependency resolution engine."""
 
 from __future__ import annotations
+import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -80,7 +81,12 @@ class DependencyResolver:
                 parent=None,
                 dep_type=DependencyType.REQUIRED,
                 is_root=True,
+                depth=0,
             )
+
+        # Clear progress line
+        sys.stdout.write("\r" + " " * 60 + "\r")
+        sys.stdout.flush()
 
         # Check for conflicts between all resolved mods
         self._check_conflicts()
@@ -113,6 +119,7 @@ class DependencyResolver:
         parent: Optional[str] = None,
         dep_type: str = DependencyType.REQUIRED,
         is_root: bool = False,
+        depth: int = 0,
     ):
         # Ignore virtual base mods
         if mod_name.lower() in ("base", "core", "quality", "space-age", "elevated-rails", "recycler"):
@@ -159,6 +166,10 @@ class DependencyResolver:
                         )
             return
 
+        # Show live resolution progress in terminal
+        sys.stdout.write(f"\r  -> Checking: {mod_name:<30}")
+        sys.stdout.flush()
+
         # Fetch mod info
         try:
             mod_info = self.client.fetch_mod_info(mod_name)
@@ -201,7 +212,6 @@ class DependencyResolver:
 
             if not self.force_reinstall:
                 # If installed version satisfies requirements, do not download again
-                dep_check = Dependency(name=mod_name, op=op or ">=", version=FactorioVersion(version_req) if version_req else release.version)
                 if installed_ver >= release.version:
                     action = "KEEP"
                 elif installed_ver < release.version:
@@ -229,10 +239,16 @@ class DependencyResolver:
 
         # Recursively resolve dependencies of this release
         for dep in release.dependencies:
+            # Check virtual mod base requirement
             if dep.is_virtual:
                 if dep.name == "base" and dep.version and self.target_factorio_branch:
                     target_v = FactorioVersion(self.target_factorio_branch)
-                    if not dep.satisfies(target_v):
+                    if len(target_v.parts) <= 2:
+                        is_compat = dep.version.is_compatible_major_minor(self.target_factorio_branch)
+                    else:
+                        is_compat = dep.satisfies(target_v)
+
+                    if not is_compat:
                         self.warnings.append(
                             i18n.t(
                                 "warn_base_mismatch",
@@ -245,16 +261,25 @@ class DependencyResolver:
                         )
                 continue
 
+            # Conflicts are checked in _check_conflicts()
             if dep.is_conflict:
+                continue
+
+            # HIDDEN OPTIONAL '(?)' is strictly for load ordering in Factorio and must NOT trigger downloads
+            if dep.dep_type == DependencyType.HIDDEN_OPT:
                 continue
 
             should_resolve = False
             if dep.is_required:
                 should_resolve = True
             elif dep.dep_type == DependencyType.RECOMMENDED and self.include_recommended:
-                should_resolve = True
-            elif dep.dep_type in (DependencyType.OPTIONAL, DependencyType.HIDDEN_OPT) and self.include_optional:
-                should_resolve = True
+                # Recommended dependencies are resolved for root mods or direct children
+                if depth < 2:
+                    should_resolve = True
+            elif dep.dep_type == DependencyType.OPTIONAL and self.include_optional:
+                # Optional '?' dependencies are resolved only for root targets directly requested by user
+                if is_root:
+                    should_resolve = True
 
             if should_resolve:
                 self._resolve_mod_recursive(
@@ -264,6 +289,7 @@ class DependencyResolver:
                     parent=mod_name,
                     dep_type=dep.dep_type,
                     is_root=False,
+                    depth=depth + 1,
                 )
 
     def _check_conflicts(self):
