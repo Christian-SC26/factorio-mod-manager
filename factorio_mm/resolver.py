@@ -140,7 +140,7 @@ class DependencyResolver:
                     existing.required_by.add(parent)
                 elif dep_type == DependencyType.RECOMMENDED:
                     existing.recommended_by.add(parent)
-                elif dep_type in (DependencyType.OPTIONAL, DependencyType.HIDDEN_OPT):
+                elif dep_type == DependencyType.OPTIONAL:
                     existing.optional_by.add(parent)
 
             if version_req and op:
@@ -232,7 +232,7 @@ class DependencyResolver:
                 resolved_mod.required_by.add(parent)
             elif dep_type == DependencyType.RECOMMENDED:
                 resolved_mod.recommended_by.add(parent)
-            elif dep_type in (DependencyType.OPTIONAL, DependencyType.HIDDEN_OPT):
+            elif dep_type == DependencyType.OPTIONAL:
                 resolved_mod.optional_by.add(parent)
 
         self.resolved[mod_name] = resolved_mod
@@ -265,19 +265,13 @@ class DependencyResolver:
             if dep.is_conflict:
                 continue
 
-            # HIDDEN OPTIONAL '(?)' is strictly for load ordering in Factorio and must NOT trigger downloads
-            if dep.dep_type == DependencyType.HIDDEN_OPT:
-                continue
-
             should_resolve = False
             if dep.is_required:
                 should_resolve = True
             elif dep.dep_type == DependencyType.RECOMMENDED and self.include_recommended:
-                # Recommended dependencies are resolved for root mods or direct children
                 if depth < 2:
                     should_resolve = True
             elif dep.dep_type == DependencyType.OPTIONAL and self.include_optional:
-                # Optional '?' dependencies are resolved only for root targets directly requested by user
                 if is_root:
                     should_resolve = True
 

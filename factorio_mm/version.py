@@ -99,15 +99,14 @@ VIRTUAL_BUILTINS = {
     "quality",
     "space-age",
     "elevated-rails",
+    "recycler",
 }
 
 
 class DependencyType:
     REQUIRED = "required"          # No prefix: strictly required
-    LOAD_ORDER = "load_order"      # '~': required, does not enforce load order
     RECOMMENDED = "recommended"    # '+': recommended by author
-    OPTIONAL = "optional"          # '?': optional
-    HIDDEN_OPT = "hidden_optional" # '(?)': hidden optional
+    OPTIONAL = "optional"          # '?': optional addon
     INCOMPATIBLE = "incompatible"  # '!': incompatible conflict
 
 
@@ -136,7 +135,7 @@ class Dependency:
     @property
     def is_required(self) -> bool:
         """Check if this dependency is strictly required to run."""
-        return self.dep_type in (DependencyType.REQUIRED, DependencyType.LOAD_ORDER)
+        return self.dep_type == DependencyType.REQUIRED
 
     @property
     def is_conflict(self) -> bool:
@@ -144,7 +143,10 @@ class Dependency:
 
     @classmethod
     def parse(cls, dep_str: str) -> Optional[Dependency]:
-        """Parse a Factorio dependency string."""
+        """
+        Parse a Factorio dependency string.
+        Ignored / insignificant load-order hints '(?)' and '~' are skipped (return None).
+        """
         if not dep_str or not isinstance(dep_str, str):
             return None
         cleaned = dep_str.strip()
@@ -153,7 +155,6 @@ class Dependency:
 
         m = DEP_REGEX.match(cleaned)
         if not m:
-            # Fallback for unexpected formats
             return Dependency(name=cleaned, raw_str=dep_str)
 
         prefix = (m.group("prefix") or "").strip()
@@ -161,17 +162,17 @@ class Dependency:
         op = m.group("op")
         ver_str = m.group("version")
 
+        # Ignore hidden optional '(?)' and load-order '~' hints completely
+        if prefix in ("(?)", "( ? )", "~"):
+            return None
+
         dep_type = DependencyType.REQUIRED
         if prefix == "!":
             dep_type = DependencyType.INCOMPATIBLE
-        elif prefix == "~":
-            dep_type = DependencyType.LOAD_ORDER
         elif prefix == "+":
             dep_type = DependencyType.RECOMMENDED
         elif prefix == "?":
             dep_type = DependencyType.OPTIONAL
-        elif prefix in ("(?)", "( ? )"):
-            dep_type = DependencyType.HIDDEN_OPT
 
         version = FactorioVersion(ver_str) if ver_str else None
 
