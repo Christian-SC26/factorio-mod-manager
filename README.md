@@ -1,6 +1,7 @@
 # Factorio Mod Manager (FMM)
 
 **Fast, lightweight CLI and interactive mod manager for Factorio (2.1, 2.0, 1.1) with dependency resolution and mirror downloads.**  
+
 *Быстрый и легковесный консольный менеджер модов для Factorio (2.1, 2.0, 1.1) с разрешением зависимостей и загрузкой с зеркала.*
 
 ---
@@ -9,7 +10,9 @@
 
 ### macOS / Linux / Steam Deck
 
-**One-line installation (Recommended) / Установка в одну команду (Рекомендуется):**
+**One-line installation (Recommended)**
+**Установка в одну команду (Рекомендуется):**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Christian-SC26/factorio-mod-manager/main/install.sh | bash
 ```
@@ -17,6 +20,7 @@ curl -fsSL https://raw.githubusercontent.com/Christian-SC26/factorio-mod-manager
 > *Устанавливает в `~/.local/share/factorio-mod-manager` и создает ссылку `~/.local/bin/fmm`.*
 
 **Homebrew (macOS / Linux):**
+
 ```bash
 brew install https://raw.githubusercontent.com/Christian-SC26/factorio-mod-manager/main/Formula/fmm.rb
 ```
@@ -25,14 +29,17 @@ brew install https://raw.githubusercontent.com/Christian-SC26/factorio-mod-manag
 
 ### Windows (PowerShell / CMD)
 
-**PowerShell one-line installer (Recommended) / Установка через PowerShell (Рекомендуется):**
+**PowerShell one-line installer (Recommended)**
+**Установка через PowerShell (Рекомендуется):**
+
 ```powershell
 irm https://raw.githubusercontent.com/Christian-SC26/factorio-mod-manager/main/install.ps1 | iex
 ```
 > Installs to `%LOCALAPPDATA%\factorio-mod-manager` and adds `fmm` to your user PATH.  
 > *Устанавливает в `%LOCALAPPDATA%\factorio-mod-manager` и автоматически добавляет `fmm` в PATH.*
 
-**Manual Windows installation / Ручная установка на Windows:**
+**Manual Windows installation**
+**Ручная установка на Windows:**
 1. Download repository ZIP or clone:
    ```cmd
    git clone https://github.com/Christian-SC26/factorio-mod-manager.git %LOCALAPPDATA%\factorio-mod-manager
