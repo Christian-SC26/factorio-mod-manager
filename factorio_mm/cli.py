@@ -10,7 +10,13 @@ import unicodedata
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from .api import ModPortalClient, fetch_author_mods, parse_mod_input
+from .api import (
+    ModPortalClient,
+    SearchModItem,
+    fetch_author_mods,
+    parse_mod_input,
+    search_portal_mods,
+)
 from .downloader import ModDownloader, format_bytes
 from .i18n import i18n
 from .mod_list import (
@@ -729,6 +735,171 @@ class CLIApp:
         self.cmd_install(selected_targets, include_optional=False)
         pause_prompt()
 
+    def _interactive_search_mods(self, initial_query: Optional[str] = None):
+        """Interactive keyword search with scope selection, rich preview and multi-select downloader."""
+        if initial_query and initial_query.strip():
+            raw_query = initial_query.strip()
+        else:
+            raw_query = input(f"\n{Colors.BOLD}{i18n.t('prompt_search_query')}{Colors.RESET}").strip()
+
+        if not raw_query or raw_query.lower() in ("q", "quit", "cancel", "c", "отмена"):
+            print(i18n.t("cancelled"))
+            return
+
+        # Scope selection
+        print(f"\n{Colors.BOLD}{i18n.t('prompt_search_scope')}{Colors.RESET}", end="")
+        raw_scope = input().strip()
+        if raw_scope.lower() in ("q", "quit", "cancel", "c", "отмена"):
+            print(i18n.t("cancelled"))
+            return
+
+        scope = raw_scope if raw_scope in ("1", "2", "3") else "2"
+        installed = self.mod_list_mgr.scan_installed_mods()
+
+        if scope == "3":
+            # Search in local installed mods (offline)
+            print(f"\n[*] {i18n.t('searching_local', query=raw_query)}")
+            results = []
+            q_lower = raw_query.lower()
+            for name, mod_list in installed.items():
+                if name.lower() in ("base", "quality", "space-age", "elevated-rails", "recycler"):
+                    continue
+                latest = mod_list[-1]
+                info = latest.get_info_json()
+                title = info.get("title", name)
+                desc = info.get("description", "")
+                author = info.get("author", "Unknown")
+                factorio_ver = info.get("factorio_version", "2.1")
+                if q_lower in name.lower() or q_lower in title.lower() or q_lower in desc.lower() or q_lower in author.lower():
+                    results.append(SearchModItem(
+                        name=name,
+                        title=title,
+                        owner=author,
+                        summary=desc,
+                        factorio_versions=factorio_ver,
+                        downloads_count=0,
+                        is_deprecated=False,
+                    ))
+        else:
+            # Search on Factorio Portal (online)
+            only_v2 = (scope == "2")
+            print(f"\n[*] {i18n.t('searching_portal', query=raw_query)}")
+            results = search_portal_mods(raw_query, only_v2=only_v2, max_pages=5)
+
+        if not results:
+            print(f"\n{Colors.YELLOW}{i18n.t('search_no_results', query=raw_query)}{Colors.RESET}\n")
+            pause_prompt()
+            return
+
+        print(f"\n{Colors.BOLD}{i18n.t('search_results_header', query=raw_query, count=len(results))}{Colors.RESET}\n")
+        print(f"{'#':<3} {i18n.t('status_col'):<14} {'Factorio':<12} {i18n.t('name_col'):<32} {i18n.t('author_col'):<16} {i18n.t('title_col')}")
+        print("─" * 105)
+
+        mod_names = []
+        for idx, m in enumerate(results, start=1):
+            mod_names.append(m.name)
+            if m.name in installed:
+                status_str = f"{Colors.GREEN}[{i18n.t('status_installed')}]{Colors.RESET}"
+            elif m.is_deprecated:
+                status_str = f"{Colors.YELLOW}[Deprecated]{Colors.RESET}"
+            else:
+                status_str = f"{Colors.DIM} {i18n.t('status_new')}{Colors.RESET}"
+
+            f_ver_str = f"{Colors.GREEN}{m.factorio_versions}{Colors.RESET}" if ("2.0" in m.factorio_versions or "2.1" in m.factorio_versions) else f"{Colors.DIM}{m.factorio_versions}{Colors.RESET}"
+            author_trunc = m.owner[:15] if m.owner else ""
+            print(f"{idx:<3} {status_str:<23} {f_ver_str:<21} {Colors.BOLD}{m.name:<32}{Colors.RESET} {author_trunc:<16} {m.title}")
+            if m.summary:
+                clean_desc = re.sub(r"\s+", " ", m.summary).strip()
+                if len(clean_desc) > 85:
+                    clean_desc = clean_desc[:82] + "..."
+                print(f"    {Colors.DIM}-> {clean_desc}{Colors.RESET}")
+
+        print("─" * 105)
+
+        raw_select = input(f"\n{Colors.BOLD}{i18n.t('prompt_search_select')}{Colors.RESET}").strip()
+        selected_indices = parse_multi_selection(raw_select, mod_names)
+        if selected_indices is None or not selected_indices:
+            print(i18n.t("cancelled"))
+            return
+
+        selected_targets = [mod_names[i] for i in selected_indices]
+        self.cmd_install(selected_targets, include_optional=False)
+        pause_prompt()
+
+    def cmd_search(self, query_parts: List[str], only_v2: bool = False, local: bool = False):
+        """Search mods on Factorio Mod Portal or locally by keyword/description."""
+        query = " ".join(query_parts).strip()
+        if not query:
+            self._interactive_search_mods()
+            return
+
+        installed = self.mod_list_mgr.scan_installed_mods()
+
+        if local:
+            print(f"\n[*] {i18n.t('searching_local', query=query)}")
+            results = []
+            q_lower = query.lower()
+            for name, mod_list in installed.items():
+                if name.lower() in ("base", "quality", "space-age", "elevated-rails", "recycler"):
+                    continue
+                latest = mod_list[-1]
+                info = latest.get_info_json()
+                title = info.get("title", name)
+                desc = info.get("description", "")
+                author = info.get("author", "Unknown")
+                factorio_ver = info.get("factorio_version", "2.1")
+                if q_lower in name.lower() or q_lower in title.lower() or q_lower in desc.lower() or q_lower in author.lower():
+                    results.append(SearchModItem(
+                        name=name,
+                        title=title,
+                        owner=author,
+                        summary=desc,
+                        factorio_versions=factorio_ver,
+                        downloads_count=0,
+                        is_deprecated=False,
+                    ))
+        else:
+            print(f"\n[*] {i18n.t('searching_portal', query=query)}")
+            results = search_portal_mods(query, only_v2=only_v2, max_pages=5)
+
+        if not results:
+            print(f"\n{Colors.YELLOW}{i18n.t('search_no_results', query=query)}{Colors.RESET}\n")
+            return
+
+        print(f"\n{Colors.BOLD}{i18n.t('search_results_header', query=query, count=len(results))}{Colors.RESET}\n")
+        print(f"{'#':<3} {i18n.t('status_col'):<14} {'Factorio':<12} {i18n.t('name_col'):<32} {i18n.t('author_col'):<16} {i18n.t('title_col')}")
+        print("─" * 105)
+
+        mod_names = []
+        for idx, m in enumerate(results, start=1):
+            mod_names.append(m.name)
+            if m.name in installed:
+                status_str = f"{Colors.GREEN}[{i18n.t('status_installed')}]{Colors.RESET}"
+            elif m.is_deprecated:
+                status_str = f"{Colors.YELLOW}[Deprecated]{Colors.RESET}"
+            else:
+                status_str = f"{Colors.DIM} {i18n.t('status_new')}{Colors.RESET}"
+
+            f_ver_str = f"{Colors.GREEN}{m.factorio_versions}{Colors.RESET}" if ("2.0" in m.factorio_versions or "2.1" in m.factorio_versions) else f"{Colors.DIM}{m.factorio_versions}{Colors.RESET}"
+            author_trunc = m.owner[:15] if m.owner else ""
+            print(f"{idx:<3} {status_str:<23} {f_ver_str:<21} {Colors.BOLD}{m.name:<32}{Colors.RESET} {author_trunc:<16} {m.title}")
+            if m.summary:
+                clean_desc = re.sub(r"\s+", " ", m.summary).strip()
+                if len(clean_desc) > 85:
+                    clean_desc = clean_desc[:82] + "..."
+                print(f"    {Colors.DIM}-> {clean_desc}{Colors.RESET}")
+
+        print("─" * 105)
+
+        raw_select = input(f"\n{Colors.BOLD}{i18n.t('prompt_search_select')}{Colors.RESET}").strip()
+        selected_indices = parse_multi_selection(raw_select, mod_names)
+        if selected_indices is None or not selected_indices:
+            print(i18n.t("cancelled"))
+            return
+
+        selected_targets = [mod_names[i] for i in selected_indices]
+        self.cmd_install(selected_targets, include_optional=False)
+
     def interactive_menu(self):
         """Interactive terminal menu."""
         while True:
@@ -751,6 +922,7 @@ class CLIApp:
             print(f"  {Colors.CYAN}11){Colors.RESET} {i18n.t('menu_import')}")
             print(f"  {Colors.CYAN}12){Colors.RESET} {i18n.t('menu_optional')}")
             print(f"  {Colors.CYAN}13){Colors.RESET} {i18n.t('menu_author')}")
+            print(f"  {Colors.CYAN}14){Colors.RESET} {i18n.t('menu_search')}")
             print(f"  {Colors.YELLOW}L){Colors.RESET} {i18n.t('menu_lang')} -> {lang_label}")
             print(f"  {Colors.CYAN}q){Colors.RESET} {i18n.t('menu_exit')}")
 
@@ -844,6 +1016,8 @@ class CLIApp:
                 self._interactive_optional_mods()
             elif choice == "13":
                 self._interactive_author_mods()
+            elif choice == "14":
+                self._interactive_search_mods()
             else:
                 print(f"{Colors.RED}{i18n.t('invalid_choice')}{Colors.RESET}")
 

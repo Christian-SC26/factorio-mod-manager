@@ -30,9 +30,10 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "menu_import": "Import modpack from file",
         "menu_optional": "Browse & download optional mods for installed mods",
         "menu_author": "Browse & download mods by author / creator",
+        "menu_search": "Search & download mods by keyword / description",
         "menu_lang": "Switch language / Сменить язык",
         "menu_exit": "Exit",
-        "prompt_choice": "Your choice [1-13, L, q]: ",
+        "prompt_choice": "Your choice [1-14, L, q]: ",
         "goodbye": "Goodbye!",
         "invalid_choice": "Invalid choice.",
         "prompt_mod_input": "Enter mod portal URL(s) or name(s) separated by space [q to cancel]: ",
@@ -51,8 +52,15 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "prompt_author_input": "Enter author username or profile URL [q to cancel]: ",
         "prompt_author_select": "Select mod numbers to download (e.g. 1 3 5-8 or 'all') [q to cancel]: ",
         "fetching_author_mods": "Fetching mod list for author '{author}'...",
-        "author_mods_header": "Mods by author '{author}' ({count} found):",
+        "author_mods_header": "Mods by author '{author}' ({count} total: {active} active, {deprecated} deprecated):",
         "author_not_found": "[!] Author '{author}' not found or has no published mods.",
+        "prompt_search_query": "Enter search keyword(s) (e.g. 'mulana', 'train', 'solar') [q to cancel]: ",
+        "prompt_search_scope": "Search scope:\n  1) Search Portal (Online: all versions)\n  2) Search Portal (Online: Factorio 2.x only) [Default]\n  3) Search Installed Mods (Offline: title, name, description)\nSelect mode [1-3, default 2, q to cancel]: ",
+        "searching_portal": "Searching Factorio Mod Portal for '{query}'...",
+        "searching_local": "Searching local installed mods for '{query}'...",
+        "search_results_header": "Search results for '{query}' ({count} found):",
+        "search_no_results": "[!] No mods found matching '{query}'.",
+        "prompt_search_select": "Select mod numbers to download (e.g. 1 3 5-8 or 'all') [q to cancel]: ",
         "scanning_optional": "Scanning installed mods for optional dependencies...",
         "no_optional_found": "[OK] No missing optional mods found. All optional dependencies are already installed or none were specified.",
         "optional_header": "Available optional mods for installed mods:",
@@ -79,6 +87,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "version_col": "Version",
         "file_col": "File",
         "title_col": "Title",
+        "author_col": "Author",
         "status_enabled": "Enabled",
         "status_disabled": "Disabled",
         "status_installed": "Installed",
@@ -163,9 +172,10 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "menu_import": "Импорт модпака из файла",
         "menu_optional": "Опциональные моды для установленных (выбор и загрузка)",
         "menu_author": "Поиск и загрузка модов по автору",
+        "menu_search": "Поиск и загрузка модов по ключевым словам / описанию",
         "menu_lang": "Switch language / Сменить язык",
         "menu_exit": "Выход",
-        "prompt_choice": "Ваш выбор [1-13, L, q]: ",
+        "prompt_choice": "Ваш выбор [1-14, L, q]: ",
         "goodbye": "До свидания!",
         "invalid_choice": "Неверный выбор.",
         "prompt_mod_input": "Введите ссылки или имена модов через пробел [q для отмены]: ",
@@ -184,8 +194,15 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "prompt_author_input": "Введите имя автора или ссылку на профиль [q для отмены]: ",
         "prompt_author_select": "Выберите номера модов для загрузки (например 1 3 5-8 или 'all') [q для отмены]: ",
         "fetching_author_mods": "Загрузка списка модов автора '{author}'...",
-        "author_mods_header": "Моды автора '{author}' (найдено {count}):",
+        "author_mods_header": "Моды автора '{author}' (всего: {count}, активных: {active}, устаревших: {deprecated}):",
         "author_not_found": "[!] Автор '{author}' не найден или у него нет опубликованных модов.",
+        "prompt_search_query": "Введите поисковый запрос (например 'mulana', 'train', 'solar') [q для отмены]: ",
+        "prompt_search_scope": "Режим поиска:\n  1) Поиск на портале (Онлайн: все версии)\n  2) Поиск на портале (Онлайн: только Factorio 2.x) [По умолчанию]\n  3) Поиск среди установленных модов (Офлайн: имя, название, описание)\nВыберите режим [1-3, по умолчанию 2, q для отмены]: ",
+        "searching_portal": "Поиск на портале Factorio по запросу '{query}'...",
+        "searching_local": "Поиск среди установленных модов по запросу '{query}'...",
+        "search_results_header": "Результаты поиска по запросу '{query}' (найдено: {count}):",
+        "search_no_results": "[!] Моды по запросу '{query}' не найдены.",
+        "prompt_search_select": "Выберите номера модов для загрузки (например 1 3 5-8 или 'all') [q для отмены]: ",
         "scanning_optional": "Поиск опциональных зависимостей для установленных модов...",
         "no_optional_found": "[OK] Не найдено недостающих опциональных модов. Все опциональные зависимости уже установлены или отсутствуют.",
         "optional_header": "Доступные опциональные моды для установленных модов:",
@@ -212,6 +229,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "version_col": "Версия",
         "file_col": "Файл",
         "title_col": "Название",
+        "author_col": "Автор",
         "status_enabled": "Включен",
         "status_disabled": "Отключен",
         "status_installed": "Установлен",
@@ -249,76 +267,93 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "create_profile_hint": "Создайте профиль с помощью: fmm profile save <имя>",
         "profiles_header": "Сохраненные профили модов:",
         "profile_active": "АКТИВЕН",
-        "profile_inactive": "не активен",
+        "profile_inactive": "неактивен",
         "profile_col_num": "#",
         "profile_col_status": "Статус",
         "profile_col_name": "Имя профиля",
         "profile_col_mods": "Активных модов",
         "profile_switch_hint": "Для переключения: fmm switch <имя>",
         "profile_activated": "Профиль '{name}' успешно активирован!",
-        "profile_ready": "Все моды профиля '{name}' включены в mod-list.json. Игра готова к запуску!",
-        "profile_missing_mods": "Внимание: следующие моды из профиля отсутствуют на диске:",
+        "profile_ready": "Все моды профиля включены в mod-list.json. Готово к игре!",
+        "profile_missing_mods": "Предупреждение: следующие моды из профиля отсутствуют на диске:",
         "profile_download_missing": "Скачать недостающие моды с зеркала? [Y/n]: ",
         "profile_not_found": "Профиль '{name}' не найден",
         "profile_deleted": "Профиль '{name}' удален.",
-        "lang_changed": "Язык переключен на Русский.",
+        "lang_changed": "Язык переключен на русский.",
         # Resolver & API warnings
         "warn_version_conflict": "Конфликт версий для '{name}': требуется {op} {req_ver} (для {parent}), но выбрана версия {selected_ver}",
         "warn_mod_not_found": "Не удалось найти мод '{name}' (запрошен '{parent}'): {err}",
         "warn_no_matching_release": "Не найдена подходящая версия для '{name}' ({op} {req_ver}, Factorio: {f_ver})",
-        "warn_base_mismatch": "Мод '{name} v{ver}' требует Factorio {op} {req_ver}, но выбрана версия игры {target_ver}",
+        "warn_base_mismatch": "Мод '{name} v{ver}' требует Factorio {op} {req_ver}, но целевая версия игры {target_ver}",
         "warn_conflict": "Мод '{mod_a}' несовместим с '{mod_b}'",
-        "warn_conflict_installed": "Мод '{mod_a}' несовместим с установленным '{mod_b}'",
+        "warn_conflict_installed": "Мод '{mod_a}' несовместим с установленным модом '{mod_b}'",
         "root_user": "пользователь",
         "any_version": "любая",
-        "api_mod_not_found": "Мод '{name}' не найден на мод-портале (404 Not Found)",
-        "api_req_error": "Ошибка при запросе к API: {err}",
-        "api_fetch_failed": "Не удалось получить информацию о моде '{name}': {err}",
+        "api_mod_not_found": "Мод '{name}' не найден на портале модов (404 Not Found)",
+        "api_req_error": "Ошибка API запроса: {err}",
+        "api_fetch_failed": "Не удалось получить данные мода '{name}': {err}",
         "api_data_corrupted": "Мод '{name}' не найден или данные повреждены",
     }
 }
 
 
 class I18n:
-    def __init__(self, lang: Optional[str] = None):
-        self.lang = lang or self.load_saved_lang() or "en"
+    def __init__(self):
+        self.locale = self._load_locale()
 
-    def load_saved_lang(self) -> Optional[str]:
+    def _load_locale(self) -> str:
         if CONFIG_FILE.exists():
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    return data.get("language")
+                    loc = data.get("language")
+                    if loc in ("en", "ru"):
+                        return loc
             except Exception:
                 pass
-        return None
 
-    def save_lang(self, lang: str):
-        self.lang = lang
+        sys_lang = os.environ.get("LANG", "").lower()
+        if "ru" in sys_lang or "russian" in sys_lang:
+            return "ru"
+        return "en"
+
+    def save_locale(self, loc: str) -> None:
+        if loc not in ("en", "ru"):
+            return
+        self.locale = loc
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        data = {}
-        if CONFIG_FILE.exists():
-            try:
+        try:
+            cfg = {}
+            if CONFIG_FILE.exists():
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            except Exception:
-                data = {}
-        data["language"] = lang
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+                    cfg = json.load(f)
+            cfg["language"] = loc
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, indent=2)
+        except Exception:
+            pass
 
-    def set_lang(self, lang: str):
-        if lang in STRINGS:
-            self.save_lang(lang)
+    @property
+    def lang(self) -> str:
+        return self.locale
+
+    @lang.setter
+    def lang(self, val: str) -> None:
+        self.save_locale(val)
+
+    def set_lang(self, loc: str) -> None:
+        self.save_locale(loc)
 
     def toggle_lang(self) -> str:
-        new_lang = "ru" if self.lang == "en" else "en"
-        self.save_lang(new_lang)
-        return new_lang
+        new_loc = "en" if self.locale == "ru" else "ru"
+        self.save_locale(new_loc)
+        return new_loc
 
     def t(self, key: str, **kwargs) -> str:
-        lang_dict = STRINGS.get(self.lang, STRINGS["en"])
-        val = lang_dict.get(key, STRINGS["en"].get(key, key))
+        table = STRINGS.get(self.locale, STRINGS["en"])
+        val = table.get(key)
+        if val is None:
+            val = STRINGS["en"].get(key, key)
         if kwargs:
             try:
                 return val.format(**kwargs)
@@ -327,5 +362,4 @@ class I18n:
         return val
 
 
-# Global i18n instance
 i18n = I18n()

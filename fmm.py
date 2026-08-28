@@ -71,6 +71,12 @@ Examples:
     p_author = subparsers.add_parser("author", aliases=["user", "by"], help="Browse & download mods by author/creator")
     p_author.add_argument("author_name", nargs="?", default=None, help="Author username or profile URL")
 
+    # Search
+    p_search = subparsers.add_parser("search", aliases=["find", "s"], help="Search & download mods by keyword or description")
+    p_search.add_argument("query", nargs="*", default=[], help="Search query keywords")
+    p_search.add_argument("--v2", action="store_true", help="Filter for Factorio 2.x compatible mods only")
+    p_search.add_argument("--local", action="store_true", help="Search among locally installed mods only")
+
     # Switch / Profile
     p_switch = subparsers.add_parser("switch", aliases=["load"], help="Quickly switch to a saved modpack profile")
     p_switch.add_argument("profile_name", help="Profile name or index")
@@ -163,6 +169,8 @@ Examples:
         )
     elif args.command in ("author", "user", "by"):
         app._interactive_author_mods(initial_query=args.author_name)
+    elif args.command in ("search", "find", "s"):
+        app.cmd_search(args.query, only_v2=args.v2, local=args.local)
     elif args.command in ("switch", "load"):
         app.cmd_profile_switch(args.profile_name)
     elif args.command == "profiles":

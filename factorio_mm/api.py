@@ -28,6 +28,17 @@ class AuthorModItem:
     is_deprecated: bool
 
 
+@dataclass
+class SearchModItem:
+    name: str
+    title: str
+    owner: str
+    summary: str
+    factorio_versions: str
+    downloads_count: int
+    is_deprecated: bool
+
+
 def parse_mod_input(input_str: str) -> Tuple[str, Optional[str], Optional[str]]:
     """
     Parse a user input (URL or name or versioned string) into (mod_name, version, op).
@@ -149,6 +160,89 @@ def fetch_author_mods(author_or_url: str) -> Tuple[str, List[AuthorModItem]]:
             break
 
     return author_name, mods
+
+
+def search_portal_mods(query: str, only_v2: bool = False, max_pages: int = 5) -> List[SearchModItem]:
+    """
+    Search Factorio Mod Portal by keyword/query across multiple pages.
+    Returns list of SearchModItem with name, title, owner, summary, versions, downloads.
+    """
+    raw = query.strip()
+    if not raw:
+        return []
+
+    mods: List[SearchModItem] = []
+    seen_names = set()
+
+    for page in range(1, max_pages + 1):
+        url = f"https://mods.factorio.com/search?query={urllib.parse.quote(raw)}" + (f"&page={page}" if page > 1 else "")
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        try:
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                html_text = resp.read().decode("utf-8")
+        except Exception:
+            break
+
+        chunks = html_text.split('class="panel-inset-lighter flex-column p0')
+        found_on_page = 0
+
+        for chunk in chunks[1:]:
+            m_link = re.search(r'href="/mod/([^"/?#]+)', chunk)
+            if not m_link:
+                continue
+
+            name = m_link.group(1).strip()
+            if name in seen_names:
+                continue
+
+            seen_names.add(name)
+            found_on_page += 1
+
+            # Mod Title
+            m_title = re.search(r'<h2[^>]*>.*?<a[^>]*>(.*?)</a>', chunk, re.DOTALL)
+            title = html.unescape(re.sub(r"<[^<]+?>", "", m_title.group(1))).strip() if m_title else name
+
+            # Mod Owner / Author
+            m_owner = re.search(r'href="/user/([^"/?#]+)"', chunk)
+            owner = m_owner.group(1).strip() if m_owner else "Unknown"
+
+            # Mod Summary / Description
+            m_summary = re.search(r'<p\s+class="[^"<>]*result-field[^"<>]*"[^>]*>(.*?)(?:</p>|</div>)', chunk, re.DOTALL)
+            if not m_summary:
+                m_summary = re.search(r'<p[^>]*class="[^"<>]*line-clamp[^"<>]*"[^>]*>(.*?)(?:</p>|</div>)', chunk, re.DOTALL)
+            if not m_summary:
+                m_summary = re.search(r'<div class="mod-card-summary[^"]*"[^>]*>(.*?)</div>', chunk, re.DOTALL)
+            summary = html.unescape(re.sub(r"<[^<]+?>", "", m_summary.group(1))).strip() if m_summary else ""
+
+            # Factorio Versions
+            m_fver = re.search(r'title="Available for these Factorio versions"[^>]*>.*?<i[^>]*></i>\s*([^<\n]+)', chunk, re.DOTALL)
+            f_vers = m_fver.group(1).strip() if m_fver else ""
+
+            # Downloads count
+            m_dl = re.search(r'title="Downloads[^"]*"[^>]*>.*?<span title="(\d+)"', chunk, re.DOTALL)
+            dl_cnt = int(m_dl.group(1)) if m_dl else 0
+
+            # Deprecated status
+            is_depr = ('class="deprecated"' in chunk) or ('deprecated' in chunk.lower() and "<span" in chunk)
+
+            if only_v2 and f_vers:
+                if "2.0" not in f_vers and "2.1" not in f_vers and "2." not in f_vers:
+                    continue
+
+            mods.append(SearchModItem(
+                name=name,
+                title=title,
+                owner=owner,
+                summary=summary,
+                factorio_versions=f_vers,
+                downloads_count=dl_cnt,
+                is_deprecated=is_depr,
+            ))
+
+        if found_on_page == 0:
+            break
+
+    return mods
 
 
 class ReleaseInfo:
