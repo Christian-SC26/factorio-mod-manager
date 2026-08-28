@@ -7,6 +7,7 @@ import re
 import urllib.parse
 import urllib.request
 import urllib.error
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from .i18n import i18n
@@ -16,6 +17,15 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 RE146_BASE_STORAGE = "https://mods-storage.re146.dev/"
 RE146_MODINFO_URL = "https://re146.dev/factorio/mods/modinfo?id="
 FACTORIO_PORTAL_API = "https://mods.factorio.com/api/mods/"
+
+
+@dataclass
+class AuthorModItem:
+    name: str
+    title: str
+    factorio_versions: str
+    downloads_count: int
+    is_deprecated: bool
 
 
 def parse_mod_input(input_str: str) -> Tuple[str, Optional[str], Optional[str]]:
@@ -61,10 +71,11 @@ def parse_mod_input(input_str: str) -> Tuple[str, Optional[str], Optional[str]]:
     return raw, None, None
 
 
-def fetch_author_mods(author_or_url: str) -> Tuple[str, List[Tuple[str, str]]]:
+def fetch_author_mods(author_or_url: str) -> Tuple[str, List[AuthorModItem]]:
     """
-    Fetch all mods created by an author from Factorio Mod Portal.
-    Returns (cleaned_author_username, list_of_tuples[(mod_name, mod_title)]).
+    Fetch all mods created by an author from Factorio Mod Portal across all pages.
+    Handles path-based pagination (/user/<name>/1, /user/<name>/2, ...).
+    Returns (cleaned_author_username, list_of_AuthorModItem).
     """
     raw = author_or_url.strip()
     if not raw:
@@ -78,10 +89,12 @@ def fetch_author_mods(author_or_url: str) -> Tuple[str, List[Tuple[str, str]]]:
     else:
         author_name = raw
 
-    mods_dict: Dict[str, str] = {}
+    mods: List[AuthorModItem] = []
+    seen_names = set()
     page = 1
+
     while True:
-        url = f"https://mods.factorio.com/user/{urllib.parse.quote(author_name)}?page={page}"
+        url = f"https://mods.factorio.com/user/{urllib.parse.quote(author_name)}/{page}" if page > 1 else f"https://mods.factorio.com/user/{urllib.parse.quote(author_name)}"
         req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         try:
             with urllib.request.urlopen(req, timeout=12) as resp:
@@ -89,26 +102,53 @@ def fetch_author_mods(author_or_url: str) -> Tuple[str, List[Tuple[str, str]]]:
         except Exception:
             break
 
-        matches = re.findall(r'<a href="/mod/([^"/?#]+)"[^>]*>(.*?)</a>', html_text, re.DOTALL)
+        # Split cards by main item container
+        chunks = html_text.split('class="panel-inset-lighter flex-column p0')
         found_on_page = 0
-        for mod_name, raw_title in matches:
-            clean_title = html.unescape(re.sub(r"<[^<]+?>", "", raw_title)).strip()
-            if mod_name not in mods_dict:
-                mods_dict[mod_name] = clean_title if clean_title != mod_name else ""
-                found_on_page += 1
-            else:
-                if clean_title and clean_title != mod_name and not mods_dict[mod_name]:
-                    mods_dict[mod_name] = clean_title
+
+        for chunk in chunks[1:]:
+            m_link = re.search(r'href="/mod/([^"/?#]+)"', chunk)
+            if not m_link:
+                continue
+
+            name = m_link.group(1).strip()
+            if name in seen_names:
+                continue
+
+            seen_names.add(name)
+            found_on_page += 1
+
+            # Mod Title
+            m_title = re.search(r'<h2[^>]*>.*?<a[^>]*>(.*?)</a>', chunk, re.DOTALL)
+            title = html.unescape(re.sub(r"<[^<]+?>", "", m_title.group(1))).strip() if m_title else name
+
+            # Factorio Versions
+            m_fver = re.search(r'title="Available for these Factorio versions"[^>]*>.*?<i[^>]*></i>\s*([^<\n]+)', chunk, re.DOTALL)
+            f_vers = m_fver.group(1).strip() if m_fver else ""
+
+            # Downloads count
+            m_dl = re.search(r'title="Downloads[^"]*"[^>]*>.*?<span title="(\d+)"', chunk, re.DOTALL)
+            dl_cnt = int(m_dl.group(1)) if m_dl else 0
+
+            # Deprecated status
+            is_depr = ('class="deprecated"' in chunk) or ('deprecated' in chunk.lower() and "<span" in chunk)
+
+            mods.append(AuthorModItem(
+                name=name,
+                title=title,
+                factorio_versions=f_vers,
+                downloads_count=dl_cnt,
+                is_deprecated=is_depr,
+            ))
 
         if found_on_page == 0:
             break
 
         page += 1
-        if page > 25:
+        if page > 30:  # Safety limit
             break
 
-    result = [(name, title if title else name) for name, title in mods_dict.items()]
-    return author_name, result
+    return author_name, mods
 
 
 class ReleaseInfo:

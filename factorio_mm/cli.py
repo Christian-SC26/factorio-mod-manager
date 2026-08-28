@@ -675,7 +675,7 @@ class CLIApp:
         pause_prompt()
 
     def _interactive_author_mods(self, initial_query: Optional[str] = None):
-        """Search and download mods by author/creator interactively."""
+        """Search and download mods by author/creator interactively across all pages."""
         if initial_query:
             raw_author = initial_query
         else:
@@ -695,21 +695,29 @@ class CLIApp:
 
         installed = self.mod_list_mgr.scan_installed_mods()
 
-        print(f"\n{Colors.BOLD}{i18n.t('author_mods_header', author=author_clean, count=len(author_mods))}{Colors.RESET}\n")
-        print(f"{'#':<3} {i18n.t('status_col'):<12} {i18n.t('name_col'):<32} {i18n.t('title_col')}")
-        print("─" * 80)
+        active_cnt = sum(1 for m in author_mods if not m.is_deprecated)
+        depr_cnt = sum(1 for m in author_mods if m.is_deprecated)
+        count_summary = f"{len(author_mods)} total: {active_cnt} active, {depr_cnt} deprecated" if depr_cnt > 0 else f"{len(author_mods)} found"
+
+        print(f"\n{Colors.BOLD}Mods by author '{author_clean}' ({count_summary}):{Colors.RESET}\n")
+        print(f"{'#':<3} {i18n.t('status_col'):<14} {'Factorio':<12} {i18n.t('name_col'):<32} {i18n.t('title_col')}")
+        print("─" * 95)
 
         mod_names = []
-        for idx, (m_name, m_title) in enumerate(author_mods, start=1):
-            mod_names.append(m_name)
-            if m_name in installed:
+        for idx, m in enumerate(author_mods, start=1):
+            mod_names.append(m.name)
+            if m.name in installed:
                 status_str = f"{Colors.GREEN}[{i18n.t('status_installed')}]{Colors.RESET}"
+            elif m.is_deprecated:
+                status_str = f"{Colors.YELLOW}[Deprecated]{Colors.RESET}"
             else:
                 status_str = f"{Colors.DIM} {i18n.t('status_new')}{Colors.RESET}"
 
-            print(f"{idx:<3} {status_str:<21} {Colors.BOLD}{m_name:<32}{Colors.RESET} {m_title}")
+            f_ver_str = f"{Colors.GREEN}{m.factorio_versions}{Colors.RESET}" if ("2.0" in m.factorio_versions or "2.1" in m.factorio_versions) else f"{Colors.DIM}{m.factorio_versions}{Colors.RESET}"
 
-        print("─" * 80)
+            print(f"{idx:<3} {status_str:<23} {f_ver_str:<21} {Colors.BOLD}{m.name:<32}{Colors.RESET} {m.title}")
+
+        print("─" * 95)
 
         raw_select = input(f"\n{Colors.BOLD}{i18n.t('prompt_author_select')}{Colors.RESET}").strip()
         selected_indices = parse_multi_selection(raw_select, mod_names)
