@@ -3,6 +3,7 @@
 from __future__ import annotations
 import concurrent.futures
 import hashlib
+import re
 import sys
 import time
 import urllib.request
@@ -124,14 +125,16 @@ class ModDownloader:
                     # Rename part file to final file
                     part_file.replace(target_file)
 
-                    # If clean_old is enabled, remove older versions of this mod
+                    # If clean_old is enabled, remove older versions of this EXACT mod
                     if self.clean_old:
                         for item in dest_dir.iterdir():
-                            if item != target_file and item.name.startswith(f"{mod.name}_") and item.suffix == ".zip":
-                                try:
-                                    item.unlink()
-                                except Exception:
-                                    pass
+                            if item != target_file and item.is_file() and item.suffix.lower() == ".zip":
+                                m_zip = re.match(r"^(.+)_(\d+(?:\.\d+)*)\.zip$", item.name, re.IGNORECASE)
+                                if m_zip and m_zip.group(1) == mod.name:
+                                    try:
+                                        item.unlink()
+                                    except Exception:
+                                        pass
 
                     return DownloadResult(
                         mod_name=mod.name,
