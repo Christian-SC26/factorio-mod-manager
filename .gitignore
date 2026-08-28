@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.part
+*.tmp
+.DS_Store
+.fmm_profiles/
+build/
+dist/
+*.egg-info/
+.venv/
+env/

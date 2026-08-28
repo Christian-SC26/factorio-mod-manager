@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "factorio-mod-manager"
+version = "1.0.0"
+description = "Fast mod and modpack manager for Factorio with dependency resolution"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "Factorio Community" }
+]
+keywords = ["factorio", "mods", "mod-manager", "cli"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+]
+
+[project.scripts]
+fmm = "fmm:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["factorio_mm*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json"]
