@@ -1,6 +1,7 @@
 """API client for re146.dev mirror and Factorio Mod Portal."""
 
 from __future__ import annotations
+import html
 import json
 import re
 import urllib.parse
@@ -58,6 +59,56 @@ def parse_mod_input(input_str: str) -> Tuple[str, Optional[str], Optional[str]]:
         return name, ver, op_norm
 
     return raw, None, None
+
+
+def fetch_author_mods(author_or_url: str) -> Tuple[str, List[Tuple[str, str]]]:
+    """
+    Fetch all mods created by an author from Factorio Mod Portal.
+    Returns (cleaned_author_username, list_of_tuples[(mod_name, mod_title)]).
+    """
+    raw = author_or_url.strip()
+    if not raw:
+        return "", []
+
+    # Extract username from URL if given
+    if "mods.factorio.com/user/" in raw:
+        author_name = raw.split("mods.factorio.com/user/")[-1].split("/")[0].split("?")[0].strip()
+    elif "factorio.com/user/" in raw:
+        author_name = raw.split("factorio.com/user/")[-1].split("/")[0].split("?")[0].strip()
+    else:
+        author_name = raw
+
+    mods_dict: Dict[str, str] = {}
+    page = 1
+    while True:
+        url = f"https://mods.factorio.com/user/{urllib.parse.quote(author_name)}?page={page}"
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        try:
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                html_text = resp.read().decode("utf-8")
+        except Exception:
+            break
+
+        matches = re.findall(r'<a href="/mod/([^"/?#]+)"[^>]*>(.*?)</a>', html_text, re.DOTALL)
+        found_on_page = 0
+        for mod_name, raw_title in matches:
+            clean_title = html.unescape(re.sub(r"<[^<]+?>", "", raw_title)).strip()
+            if mod_name not in mods_dict:
+                mods_dict[mod_name] = clean_title if clean_title != mod_name else ""
+                found_on_page += 1
+            else:
+                if clean_title and clean_title != mod_name and not mods_dict[mod_name]:
+                    mods_dict[mod_name] = clean_title
+
+        if found_on_page == 0:
+            break
+
+        page += 1
+        if page > 25:
+            break
+
+    result = [(name, title if title else name) for name, title in mods_dict.items()]
+    return author_name, result
 
 
 class ReleaseInfo:

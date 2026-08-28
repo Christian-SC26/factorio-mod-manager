@@ -10,7 +10,7 @@ import unicodedata
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from .api import ModPortalClient, parse_mod_input
+from .api import ModPortalClient, fetch_author_mods, parse_mod_input
 from .downloader import ModDownloader, format_bytes
 from .i18n import i18n
 from .mod_list import (
@@ -674,6 +674,53 @@ class CLIApp:
         self.cmd_install(selected_names, include_optional=False)
         pause_prompt()
 
+    def _interactive_author_mods(self, initial_query: Optional[str] = None):
+        """Search and download mods by author/creator interactively."""
+        if initial_query:
+            raw_author = initial_query
+        else:
+            raw_author = input(f"\n{Colors.BOLD}{i18n.t('prompt_author_input')}{Colors.RESET}").strip()
+
+        if not raw_author or raw_author.lower() in ("q", "quit", "cancel", "c", "отмена"):
+            print(i18n.t("cancelled"))
+            return
+
+        print(f"\n[*] {i18n.t('fetching_author_mods', author=raw_author)}")
+        author_clean, author_mods = fetch_author_mods(raw_author)
+
+        if not author_mods:
+            print(f"\n{Colors.YELLOW}{i18n.t('author_not_found', author=author_clean or raw_author)}{Colors.RESET}\n")
+            pause_prompt()
+            return
+
+        installed = self.mod_list_mgr.scan_installed_mods()
+
+        print(f"\n{Colors.BOLD}{i18n.t('author_mods_header', author=author_clean, count=len(author_mods))}{Colors.RESET}\n")
+        print(f"{'#':<3} {i18n.t('status_col'):<12} {i18n.t('name_col'):<32} {i18n.t('title_col')}")
+        print("─" * 80)
+
+        mod_names = []
+        for idx, (m_name, m_title) in enumerate(author_mods, start=1):
+            mod_names.append(m_name)
+            if m_name in installed:
+                status_str = f"{Colors.GREEN}[{i18n.t('status_installed')}]{Colors.RESET}"
+            else:
+                status_str = f"{Colors.DIM} {i18n.t('status_new')}{Colors.RESET}"
+
+            print(f"{idx:<3} {status_str:<21} {Colors.BOLD}{m_name:<32}{Colors.RESET} {m_title}")
+
+        print("─" * 80)
+
+        raw_select = input(f"\n{Colors.BOLD}{i18n.t('prompt_author_select')}{Colors.RESET}").strip()
+        selected_indices = parse_multi_selection(raw_select, mod_names)
+        if selected_indices is None or not selected_indices:
+            print(i18n.t("cancelled"))
+            return
+
+        selected_targets = [mod_names[i] for i in selected_indices]
+        self.cmd_install(selected_targets, include_optional=False)
+        pause_prompt()
+
     def interactive_menu(self):
         """Interactive terminal menu."""
         while True:
@@ -695,6 +742,7 @@ class CLIApp:
             print(f"  {Colors.CYAN}10){Colors.RESET} {i18n.t('menu_export')}")
             print(f"  {Colors.CYAN}11){Colors.RESET} {i18n.t('menu_import')}")
             print(f"  {Colors.CYAN}12){Colors.RESET} {i18n.t('menu_optional')}")
+            print(f"  {Colors.CYAN}13){Colors.RESET} {i18n.t('menu_author')}")
             print(f"  {Colors.YELLOW}L){Colors.RESET} {i18n.t('menu_lang')} -> {lang_label}")
             print(f"  {Colors.CYAN}q){Colors.RESET} {i18n.t('menu_exit')}")
 
@@ -786,6 +834,8 @@ class CLIApp:
                     print()
             elif choice == "12":
                 self._interactive_optional_mods()
+            elif choice == "13":
+                self._interactive_author_mods()
             else:
                 print(f"{Colors.RED}{i18n.t('invalid_choice')}{Colors.RESET}")
 

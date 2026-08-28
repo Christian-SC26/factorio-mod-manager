@@ -25,6 +25,7 @@ def main():
 Examples:
   fmm install https://mods.factorio.com/mod/space-exploration
   fmm install Krastorio2 flib
+  fmm author Earendel
   fmm profile save pyanodons
   fmm switch space-age
   fmm profiles
@@ -65,6 +66,10 @@ Examples:
     p_install.add_argument("-f", "--force", action="store_true", help="Force reinstall even if version matches")
     p_install.add_argument("-y", "--yes", action="store_true", help="Automatically confirm download without prompt")
     p_install.add_argument("--no-clean", action="store_true", help="Do not delete older versions of updated mods")
+
+    # Author
+    p_author = subparsers.add_parser("author", aliases=["user", "by"], help="Browse & download mods by author/creator")
+    p_author.add_argument("author_name", nargs="?", default=None, help="Author username or profile URL")
 
     # Switch / Profile
     p_switch = subparsers.add_parser("switch", aliases=["load"], help="Quickly switch to a saved modpack profile")
@@ -156,6 +161,8 @@ Examples:
             yes=args.yes,
             clean_old=not args.no_clean,
         )
+    elif args.command in ("author", "user", "by"):
+        app._interactive_author_mods(initial_query=args.author_name)
     elif args.command in ("switch", "load"):
         app.cmd_profile_switch(args.profile_name)
     elif args.command == "profiles":

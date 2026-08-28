@@ -107,6 +107,10 @@ fmm update
 # Просмотреть и скачать опциональные моды для установленных модов
 fmm optional
 
+# Browse and install mods by author / creator
+# Поиск и интерактивная загрузка модов по автору
+fmm author Earendel
+
 # Switch language to English or Russian / Сменить язык интерфейса
 fmm lang en
 fmm lang ru
@@ -150,7 +154,7 @@ fmm import my_modpack.json
 
 ```
 usage: fmm [-h] [-d MODS_DIR] [-v FACTORIO_VERSION] [-l {en,ru}]
-           {install,switch,profiles,profile,list,check,update,info,optional,enable,disable,remove,export,import,lang,interactive} ...
+           {install,author,switch,profiles,profile,list,check,update,info,optional,enable,disable,remove,export,import,lang,interactive} ...
 
 Options / Опции:
   -d, --dir PATH                Path to Factorio mods directory (auto-detected by default)
