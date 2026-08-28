@@ -10,6 +10,11 @@ import unicodedata
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+try:
+    import readline
+except ImportError:
+    pass
+
 from .api import (
     ModPortalClient,
     SearchModItem,
@@ -130,6 +135,28 @@ def parse_multi_selection(raw_str: str, item_names: List[str]) -> Optional[List[
                     selected_indices.add(idx)
 
     return sorted(list(selected_indices))
+
+
+def read_pasted_input(prompt: str) -> str:
+    """Read input from user, seamlessly handling massive single-line and multi-line pastes."""
+    line = input(prompt)
+    lines = [line]
+    if sys.platform != "win32":
+        try:
+            import select
+            while True:
+                # Check if more lines are waiting in stdin buffer (e.g. multi-line paste)
+                r, _, _ = select.select([sys.stdin], [], [], 0.05)
+                if r:
+                    extra = sys.stdin.readline()
+                    if not extra:
+                        break
+                    lines.append(extra.strip())
+                else:
+                    break
+        except Exception:
+            pass
+    return " ".join(lines).strip()
 
 
 def pause_prompt():
@@ -942,9 +969,9 @@ class CLIApp:
                 print(f"{Colors.GREEN}{i18n.t('lang_changed')}{Colors.RESET}")
             elif choice == "1":
                 try:
-                    raw = input(f"\n{Colors.BOLD}{i18n.t('prompt_mod_input')}{Colors.RESET}").strip()
+                    raw = read_pasted_input(f"\n{Colors.BOLD}{i18n.t('prompt_mod_input')}{Colors.RESET}").strip()
                     if raw and raw.lower() not in ("q", "quit", "cancel", "c", "отмена"):
-                        targets = [t.strip() for t in re.split(r"[,;\s]+", raw) if t.strip()]
+                        targets = [t.strip() for t in re.split(r"[\r\n\t,;\s]+", raw) if t.strip()]
                         if targets:
                             self.cmd_install(targets, include_optional=False)
                             pause_prompt()

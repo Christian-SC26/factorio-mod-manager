@@ -9,6 +9,11 @@ import argparse
 import sys
 from pathlib import Path
 
+try:
+    import readline
+except ImportError:
+    pass
+
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
