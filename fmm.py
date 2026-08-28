@@ -28,6 +28,7 @@ Examples:
   fmm profile save pyanodons
   fmm switch space-age
   fmm profiles
+  fmm optional
   fmm export my-pack.json
   fmm import my-pack.json
   fmm (without arguments to launch interactive menu)
@@ -98,6 +99,9 @@ Examples:
     # Info
     p_info = subparsers.add_parser("info", help="Show detailed mod information")
     p_info.add_argument("target", help="Mod URL or name")
+
+    # Optional mods
+    p_optional = subparsers.add_parser("optional", aliases=["opt"], help="Browse & download optional mods for installed mods")
 
     # Enable
     p_enable = subparsers.add_parser("enable", help="Enable mod(s) in mod-list.json")
@@ -177,6 +181,8 @@ Examples:
         app.cmd_check_updates(apply=True, yes=args.yes)
     elif args.command == "info":
         app.cmd_info(args.target)
+    elif args.command in ("optional", "opt"):
+        app._interactive_optional_mods()
     elif args.command == "enable":
         app.cmd_enable_disable(args.mods, enable=True)
     elif args.command == "disable":

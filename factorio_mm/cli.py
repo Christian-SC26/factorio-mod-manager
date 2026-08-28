@@ -8,7 +8,7 @@ import re
 import sys
 import unicodedata
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .api import ModPortalClient, parse_mod_input
 from .downloader import ModDownloader, format_bytes
@@ -19,7 +19,7 @@ from .mod_list import (
     get_default_factorio_mods_dir,
 )
 from .resolver import DependencyResolver, ResolutionResult
-from .version import DependencyType, FactorioVersion
+from .version import Dependency, DependencyType, FactorioVersion
 
 
 # ANSI Color Codes for terminal formatting
@@ -352,11 +352,9 @@ class CLIApp:
                 for dep in latest.dependencies:
                     if dep.dep_type == DependencyType.REQUIRED:
                         tag = f"{Colors.GREEN}{i18n.t('dep_req')}{Colors.RESET}"
-                    elif dep.dep_type == DependencyType.LOAD_ORDER:
-                        tag = f"{Colors.GREEN}{i18n.t('dep_order')}{Colors.RESET}"
                     elif dep.dep_type == DependencyType.RECOMMENDED:
                         tag = f"{Colors.CYAN}{i18n.t('dep_rec')}{Colors.RESET}"
-                    elif dep.dep_type in (DependencyType.OPTIONAL, DependencyType.HIDDEN_OPT):
+                    elif dep.dep_type == DependencyType.OPTIONAL:
                         tag = f"{Colors.YELLOW}{i18n.t('dep_opt')}{Colors.RESET}"
                     elif dep.dep_type == DependencyType.INCOMPATIBLE:
                         tag = f"{Colors.RED}{i18n.t('dep_conflict')}{Colors.RESET}"
@@ -626,6 +624,56 @@ class CLIApp:
         print(f"\n{Colors.GREEN}{i18n.t('mods_removed_count', count=len(selected_names))}{Colors.RESET}")
         pause_prompt()
 
+    def _interactive_optional_mods(self):
+        """Scan installed mods for missing optional dependencies and prompt user to download them."""
+        installed = self.mod_list_mgr.scan_installed_mods()
+        if not installed:
+            print(f"\n{Colors.YELLOW}{i18n.t('no_mods_found', path=self.mods_dir)}{Colors.RESET}")
+            pause_prompt()
+            return
+
+        print(f"\n[*] {i18n.t('scanning_optional')}")
+        optional_map: Dict[str, List[str]] = {}
+
+        for mod_name, mod_list in installed.items():
+            if mod_name.lower() in ("base", "core", "quality", "space-age", "elevated-rails", "recycler"):
+                continue
+
+            local_mod = mod_list[-1]
+            deps_list = local_mod.get_dependencies()
+
+            for dep in deps_list:
+                if dep.dep_type == DependencyType.OPTIONAL:
+                    if dep.name not in installed and not dep.is_virtual:
+                        if dep.name not in optional_map:
+                            optional_map[dep.name] = []
+                        if mod_name not in optional_map[dep.name]:
+                            optional_map[dep.name].append(mod_name)
+
+        if not optional_map:
+            print(f"\n{Colors.GREEN}{i18n.t('no_optional_found')}{Colors.RESET}\n")
+            pause_prompt()
+            return
+
+        sorted_opt_names = sorted(optional_map.keys())
+        print(f"\n{Colors.BOLD}{i18n.t('optional_header')}{Colors.RESET}\n")
+        print(f"{'#':<3} {i18n.t('name_col'):<35} {i18n.t('suggested_by_col')}")
+        print("─" * 70)
+        for idx, name in enumerate(sorted_opt_names, start=1):
+            parents = ", ".join(optional_map[name])
+            print(f"{idx:<3} {Colors.BOLD}{name:<35}{Colors.RESET} {Colors.DIM}{parents}{Colors.RESET}")
+        print("─" * 70)
+
+        raw_select = input(f"\n{Colors.BOLD}{i18n.t('prompt_optional_select')}{Colors.RESET}").strip()
+        selected_indices = parse_multi_selection(raw_select, sorted_opt_names)
+        if selected_indices is None or not selected_indices:
+            print(i18n.t("cancelled"))
+            return
+
+        selected_names = [sorted_opt_names[i] for i in selected_indices]
+        self.cmd_install(selected_names, include_optional=False)
+        pause_prompt()
+
     def interactive_menu(self):
         """Interactive terminal menu."""
         while True:
@@ -646,6 +694,7 @@ class CLIApp:
             print(f"  {Colors.CYAN}9){Colors.RESET} {i18n.t('menu_remove')}")
             print(f"  {Colors.CYAN}10){Colors.RESET} {i18n.t('menu_export')}")
             print(f"  {Colors.CYAN}11){Colors.RESET} {i18n.t('menu_import')}")
+            print(f"  {Colors.CYAN}12){Colors.RESET} {i18n.t('menu_optional')}")
             print(f"  {Colors.YELLOW}L){Colors.RESET} {i18n.t('menu_lang')} -> {lang_label}")
             print(f"  {Colors.CYAN}q){Colors.RESET} {i18n.t('menu_exit')}")
 
@@ -669,9 +718,7 @@ class CLIApp:
                     if raw and raw.lower() not in ("q", "quit", "cancel", "c", "отмена"):
                         targets = [t.strip() for t in re.split(r"[,;\s]+", raw) if t.strip()]
                         if targets:
-                            opt_ans = input(f"{Colors.BOLD}{i18n.t('prompt_include_optional')}{Colors.RESET}").strip().lower()
-                            include_opt = opt_ans in ("y", "yes", "д", "да", "1", "+")
-                            self.cmd_install(targets, include_optional=include_opt)
+                            self.cmd_install(targets, include_optional=False)
                             pause_prompt()
                         else:
                             print(i18n.t("cancelled"))
@@ -733,12 +780,12 @@ class CLIApp:
                     if not fname or fname.lower() in ("q", "cancel", "c"):
                         print(i18n.t("cancelled"))
                     else:
-                        opt_ans = input(f"{Colors.BOLD}{i18n.t('prompt_include_optional')}{Colors.RESET}").strip().lower()
-                        include_opt = opt_ans in ("y", "yes", "д", "да", "1", "+")
-                        self.cmd_import(fname, include_optional=include_opt)
+                        self.cmd_import(fname, include_optional=False)
                         pause_prompt()
                 except (KeyboardInterrupt, EOFError):
                     print()
+            elif choice == "12":
+                self._interactive_optional_mods()
             else:
                 print(f"{Colors.RED}{i18n.t('invalid_choice')}{Colors.RESET}")
 

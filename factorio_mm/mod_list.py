@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 from .i18n import i18n
-from .version import FactorioVersion
+from .version import Dependency, FactorioVersion
 
 
 @dataclass
@@ -23,6 +23,39 @@ class LocalMod:
     is_directory: bool
     enabled: bool = True
     info_json: Dict = field(default_factory=dict)
+
+    def get_dependencies(self) -> List[Dependency]:
+        """Read and parse dependencies directly from the local archive or directory info.json."""
+        raw_deps = []
+        if self.info_json and "dependencies" in self.info_json:
+            raw_deps = self.info_json["dependencies"]
+        elif self.file_path.is_file() and self.file_path.suffix.lower() == ".zip":
+            try:
+                with zipfile.ZipFile(self.file_path, "r") as z:
+                    for zname in z.namelist():
+                        if zname.endswith("info.json"):
+                            with z.open(zname) as jf:
+                                self.info_json = json.load(jf)
+                                raw_deps = self.info_json.get("dependencies", [])
+                            break
+            except Exception:
+                pass
+        elif self.file_path.is_dir():
+            info_p = self.file_path / "info.json"
+            if info_p.exists():
+                try:
+                    with open(info_p, "r", encoding="utf-8") as jf:
+                        self.info_json = json.load(jf)
+                        raw_deps = self.info_json.get("dependencies", [])
+                except Exception:
+                    pass
+
+        result = []
+        for d in raw_deps:
+            parsed = Dependency.parse(d)
+            if parsed:
+                result.append(parsed)
+        return result
 
     def __repr__(self) -> str:
         status = "enabled" if self.enabled else "disabled"

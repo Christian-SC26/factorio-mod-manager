@@ -103,6 +103,10 @@ fmm check
 # Update all installed mods / Обновить все установленные моды
 fmm update
 
+# Browse & download optional mods for installed mods
+# Просмотреть и скачать опциональные моды для установленных модов
+fmm optional
+
 # Switch language to English or Russian / Сменить язык интерфейса
 fmm lang en
 fmm lang ru
@@ -146,7 +150,7 @@ fmm import my_modpack.json
 
 ```
 usage: fmm [-h] [-d MODS_DIR] [-v FACTORIO_VERSION] [-l {en,ru}]
-           {install,switch,profiles,profile,list,check,update,info,enable,disable,remove,export,import,lang,interactive} ...
+           {install,switch,profiles,profile,list,check,update,info,optional,enable,disable,remove,export,import,lang,interactive} ...
 
 Options / Опции:
   -d, --dir PATH                Path to Factorio mods directory (auto-detected by default)
