@@ -63,14 +63,14 @@ Python pipx / pip (Cross-platform / Кроссплатформенно)
   Мгновенное переключение между сборками (`space-age`, `pyanodons`, `krastorio2`) за 0.01 сек без повторной загрузки архивов.
 - **Deep Dependency Resolution**: Recursively resolves required, recommended (+), load order (~), and optional (?) dependencies, with conflict detection (!).  
   Рекурсивный поиск зависимостей всех типов (обязательные, рекомендованные +, опциональные ?) и выявление несовместимостей (!).
-- **Factorio 2.1 / 2.0 / 1.1 Support**: Defaults to latest 2.1 mod releases or detects local game installation.  
-  Поддержка актуальной Factorio 2.1 по умолчанию, а также веток 2.0 и 1.1.
+- **Factorio 2.1 / 2.0 / 1.1 Support**: Automatically detects exact installed game version (e.g. 2.1.17, 2.0.x, 1.1.x) or defaults to latest 2.1 mod releases.  
+  Автоматическое определение точной версии установленной игры (например 2.1.17, 2.0.x, 1.1.x) или выбор актуальной 2.1 по умолчанию.
 - **Full mod-list.json Management**: Auto-enables installed mods, cleans old versions, and checks for updates.  
   Автоматическая активация в mod-list.json, удаление устаревших версий и проверка обновлений.
 - **Export & Import**: Export modpacks to shareable JSON/text files to install anywhere.  
   Экспорт наборов модов в переносимый файл и установка на другом компьютере.
-- **Interactive TUI**: Convenient terminal menu with multi-selection and language toggle (English / Russian).  
-  Удобное интерактивное меню с возможностью множественного выбора и сменой языка (EN / RU).
+- **Interactive TUI**: Convenient terminal menu structured into 4 visual categories with multi-selection, search, and language toggle (English / Russian).  
+  Удобное интерактивное меню с разделением на 4 категории, множественным выбором, поиском и сменой языка (EN / RU).
 - **Zero External Dependencies**: Pure Python 3.8+ using only standard library.  
   Работает на чистом Python 3.8+ без сторонних pip-библиотек.
 
@@ -80,8 +80,8 @@ Run the interactive menu or use CLI commands:
 Запустите интерактивное меню или используйте консольные команды:
 
 ```bash
-# Launch interactive menu (press 'q' to exit, 'L' to toggle language)
-# Запуск интерактивного меню (выход по 'q', сменить язык по 'L')
+# Launch interactive menu (press 'Q' to exit, 'L' to toggle language)
+# Запуск интерактивного меню (выход по 'Q', сменить язык по 'L')
 fmm
 
 # Download a mod or modpack by portal URL with all dependencies
@@ -91,7 +91,8 @@ fmm install https://mods.factorio.com/mod/space-exploration
 # Download by mod name / Скачать по названию мода
 fmm install Krastorio2
 
-# Download multiple mods at once / Скачать сразу несколько модов через пробел
+# Download multiple mods at once (space-separated, glued URLs, or multiline paste)
+# Скачать сразу несколько модов (через пробел, ссылки встык или многострочная вставка)
 fmm install Krastorio2 flib alien-biomes
 
 # List installed mods / Показать установленные моды
