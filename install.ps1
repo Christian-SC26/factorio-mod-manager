@@ -12,6 +12,8 @@ if (Get-Command "python" -ErrorAction SilentlyContinue) {
     $PythonCmd = "python"
 } elseif (Get-Command "python3" -ErrorAction SilentlyContinue) {
     $PythonCmd = "python3"
+} elseif (Get-Command "py" -ErrorAction SilentlyContinue) {
+    $PythonCmd = "py -3"
 } else {
     Write-Host "[ERROR] Python 3 is required. Please install Python from https://www.python.org/ or Microsoft Store." -ForegroundColor Red
     exit 1
