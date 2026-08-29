@@ -15,8 +15,30 @@ if (Get-Command "python" -ErrorAction SilentlyContinue) {
 } elseif (Get-Command "py" -ErrorAction SilentlyContinue) {
     $PythonCmd = "py -3"
 } else {
-    Write-Host "[ERROR] Python 3 is required. Please install Python from https://www.python.org/ or Microsoft Store." -ForegroundColor Red
-    exit 1
+    # Attempt automatic installation via Windows Package Manager (winget)
+    if (Get-Command "winget" -ErrorAction SilentlyContinue) {
+        Write-Host "==> Python 3 not detected. Installing Python automatically via winget..." -ForegroundColor Yellow
+        try {
+            winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            if (Get-Command "python" -ErrorAction SilentlyContinue) {
+                $PythonCmd = "python"
+            } elseif (Get-Command "py" -ErrorAction SilentlyContinue) {
+                $PythonCmd = "py -3"
+            }
+        } catch {
+            Write-Host "[WARNING] Automatic Python installation via winget failed." -ForegroundColor Yellow
+        }
+    }
+
+    if (-not $PythonCmd) {
+        Write-Host "`n[ERROR] Python 3 is required to run FMM scripts." -ForegroundColor Red
+        Write-Host "Options to install:"
+        Write-Host "  1) Install from Microsoft Store (search 'Python 3.12')" -ForegroundColor Cyan
+        Write-Host "  2) Download installer from https://www.python.org/downloads/" -ForegroundColor Cyan
+        Write-Host "  3) Or download standalone fmm.exe from GitHub Releases" -ForegroundColor Cyan
+        exit 1
+    }
 }
 
 # Create Directories
