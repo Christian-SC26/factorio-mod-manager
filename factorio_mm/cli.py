@@ -10,10 +10,58 @@ import unicodedata
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-try:
-    import readline
-except ImportError:
-    pass
+def init_readline():
+    """Initialize readline settings for smooth terminal navigation across macOS, Linux, and Windows."""
+    try:
+        import readline
+        doc = getattr(readline, "__doc__", "") or ""
+        if "libedit" in doc.lower():
+            # macOS libedit bindings
+            readline.parse_and_bind("bind -e")
+            readline.parse_and_bind("bind ^I rl_complete")
+        else:
+            # GNU readline
+            readline.parse_and_bind("tab: complete")
+            readline.parse_and_bind("set enable-bracketed-paste on")
+    except Exception:
+        pass
+
+
+init_readline()
+
+
+def rl_escape(s: str) -> str:
+    """
+    Wrap ANSI escape sequences with \\001 and \\002 (RL_PROMPT_START_IGNORE / RL_PROMPT_END_IGNORE).
+    This ensures Readline calculates the true visible prompt width and prevents cursor navigation
+    glitches (inability to move right, overwriting characters, and line redraw corruption).
+    """
+    return re.sub(r"(\033\[[0-9;]*[a-zA-Z])", r"\001\1\002", s)
+
+
+def styled_input(prompt: str = "") -> str:
+    """Safely prompt user for input with proper readline escaping and clean newline handling."""
+    if prompt.startswith("\n"):
+        print()
+        prompt = prompt[1:]
+    escaped_prompt = rl_escape(prompt)
+    return input(escaped_prompt)
+
+
+def normalize_pasted_targets(raw_str: str) -> List[str]:
+    """
+    Parse user input into list of mod targets.
+    Automatically separates glued URLs (e.g. url1https://url2 -> url1 https://url2)
+    and handles newlines, commas, semicolons, tabs, and spaces.
+    """
+    if not raw_str:
+        return []
+    # 1. Separate glued URLs (e.g. https://...https://...)
+    cleaned = re.sub(r"(https?://[^\s]+?)(https?://)", r"\1 \2", raw_str)
+    cleaned = re.sub(r"([^\s]+?)(https?://|re146\.dev)", r"\1 \2", cleaned)
+    # 2. Split by any whitespace, newline, tab, comma, semicolon
+    return [t.strip() for t in re.split(r"[\r\n\t,;\s]+", cleaned) if t.strip()]
+
 
 from .api import (
     ModPortalClient,
@@ -102,7 +150,7 @@ def parse_multi_selection(raw_str: str, item_names: List[str]) -> Optional[List[
         return list(range(len(item_names)))
 
     selected_indices = set()
-    parts = re.split(r"[,;\s]+", s)
+    parts = normalize_pasted_targets(s)
 
     for p in parts:
         if not p:
@@ -137,9 +185,9 @@ def parse_multi_selection(raw_str: str, item_names: List[str]) -> Optional[List[
     return sorted(list(selected_indices))
 
 
-def read_pasted_input(prompt: str) -> str:
+def read_pasted_input(prompt: str = "") -> str:
     """Read input from user, seamlessly handling massive single-line and multi-line pastes."""
-    line = input(prompt)
+    line = styled_input(prompt)
     lines = [line]
     if sys.platform != "win32":
         try:
@@ -162,7 +210,7 @@ def read_pasted_input(prompt: str) -> str:
 def pause_prompt():
     """Wait for Enter key before returning to menu."""
     try:
-        input(f"\n{Colors.DIM}{i18n.t('press_enter')}{Colors.RESET}")
+        styled_input(f"\n{Colors.DIM}{i18n.t('press_enter')}{Colors.RESET}")
     except (KeyboardInterrupt, EOFError):
         pass
 
@@ -267,7 +315,7 @@ class CLIApp:
         # Prompt for confirmation
         if not yes:
             try:
-                ans = input(f"\n{Colors.BOLD}{i18n.t('prompt_confirm_download', count=len(res.mods_to_download))}{Colors.RESET}").strip().lower()
+                ans = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_confirm_download', count=len(res.mods_to_download))}{Colors.RESET}").strip().lower()
                 if ans and ans not in ("y", "yes", "д", "да"):
                     print(i18n.t("cancelled"))
                     return
@@ -529,7 +577,7 @@ class CLIApp:
             print(f"\n{Colors.YELLOW}[!] {i18n.t('profile_missing_mods')}{Colors.RESET}")
             for m in missing:
                 print(f"  * {m}")
-            ans = input(f"\n{i18n.t('profile_download_missing')}").strip().lower()
+            ans = styled_input(f"\n{i18n.t('profile_download_missing')}").strip().lower()
             if ans in ("", "y", "yes", "д", "да"):
                 self.cmd_install(missing)
         else:
@@ -559,12 +607,12 @@ class CLIApp:
                 print(f"  {Colors.CYAN}{idx:>2}){Colors.RESET} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version}")
             print()
 
-        raw = input(f"{Colors.BOLD}{i18n.t('prompt_mod_info_target')}{Colors.RESET}").strip()
+        raw = styled_input(f"{Colors.BOLD}{i18n.t('prompt_mod_info_target')}{Colors.RESET}").strip()
         if not raw or raw.lower() in ("q", "quit", "cancel", "c"):
             print(i18n.t("cancelled"))
             return
 
-        targets = [t.strip() for t in re.split(r"[,;\s]+", raw) if t.strip()]
+        targets = normalize_pasted_targets(raw)
         for t in targets:
             if t.isdigit():
                 idx = int(t) - 1
@@ -592,7 +640,7 @@ class CLIApp:
             print(f"  {Colors.CYAN}{idx:>2}){Colors.RESET} {st:<21} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version}")
         print()
 
-        raw_select = input(f"{Colors.BOLD}{i18n.t('prompt_toggle_select')}{Colors.RESET}").strip()
+        raw_select = styled_input(f"{Colors.BOLD}{i18n.t('prompt_toggle_select')}{Colors.RESET}").strip()
         selected_indices = parse_multi_selection(raw_select, mod_names)
         if selected_indices is None or not selected_indices:
             print(i18n.t("cancelled"))
@@ -601,7 +649,7 @@ class CLIApp:
         selected_names = [mod_names[i] for i in selected_indices]
         print(f"\nSelected ({len(selected_names)}): {' '.join(selected_names)}")
 
-        action_choice = input(f"{Colors.BOLD}{i18n.t('prompt_toggle_action')}{Colors.RESET}").strip().lower()
+        action_choice = styled_input(f"{Colors.BOLD}{i18n.t('prompt_toggle_action')}{Colors.RESET}").strip().lower()
         if action_choice in ("q", "cancel", "c"):
             print(i18n.t("cancelled"))
             return
@@ -639,7 +687,7 @@ class CLIApp:
             print(f"  {Colors.CYAN}{idx:>2}){Colors.RESET} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version:<10} ({size_str})")
         print()
 
-        raw_select = input(f"{Colors.BOLD}{i18n.t('prompt_remove_select')}{Colors.RESET}").strip()
+        raw_select = styled_input(f"{Colors.BOLD}{i18n.t('prompt_remove_select')}{Colors.RESET}").strip()
         selected_indices = parse_multi_selection(raw_select, mod_names)
         if selected_indices is None or not selected_indices:
             print(i18n.t("cancelled"))
@@ -648,7 +696,7 @@ class CLIApp:
         selected_names = [mod_names[i] for i in selected_indices]
         print(f"\n{Colors.YELLOW}Selected to remove ({len(selected_names)}):{Colors.RESET} {' '.join(selected_names)}")
         
-        confirm = input(f"{Colors.BOLD}{i18n.t('prompt_confirm_remove', count=len(selected_names))}{Colors.RESET}").strip().lower()
+        confirm = styled_input(f"{Colors.BOLD}{i18n.t('prompt_confirm_remove', count=len(selected_names))}{Colors.RESET}").strip().lower()
         if confirm not in ("y", "yes", "д", "да"):
             print(i18n.t("cancelled"))
             return
@@ -697,7 +745,7 @@ class CLIApp:
             print(f"{idx:<3} {Colors.BOLD}{name:<35}{Colors.RESET} {Colors.DIM}{parents}{Colors.RESET}")
         print("─" * 70)
 
-        raw_select = input(f"\n{Colors.BOLD}{i18n.t('prompt_optional_select')}{Colors.RESET}").strip()
+        raw_select = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_optional_select')}{Colors.RESET}").strip()
         selected_indices = parse_multi_selection(raw_select, sorted_opt_names)
         if selected_indices is None or not selected_indices:
             print(i18n.t("cancelled"))
@@ -712,7 +760,7 @@ class CLIApp:
         if initial_query:
             raw_author = initial_query
         else:
-            raw_author = input(f"\n{Colors.BOLD}{i18n.t('prompt_author_input')}{Colors.RESET}").strip()
+            raw_author = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_author_input')}{Colors.RESET}").strip()
 
         if not raw_author or raw_author.lower() in ("q", "quit", "cancel", "c", "отмена"):
             print(i18n.t("cancelled"))
@@ -752,7 +800,7 @@ class CLIApp:
 
         print("─" * 95)
 
-        raw_select = input(f"\n{Colors.BOLD}{i18n.t('prompt_author_select')}{Colors.RESET}").strip()
+        raw_select = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_author_select')}{Colors.RESET}").strip()
         selected_indices = parse_multi_selection(raw_select, mod_names)
         if selected_indices is None or not selected_indices:
             print(i18n.t("cancelled"))
@@ -767,7 +815,7 @@ class CLIApp:
         if initial_query and initial_query.strip():
             raw_query = initial_query.strip()
         else:
-            raw_query = input(f"\n{Colors.BOLD}{i18n.t('prompt_search_query')}{Colors.RESET}").strip()
+            raw_query = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_search_query')}{Colors.RESET}").strip()
 
         if not raw_query or raw_query.lower() in ("q", "quit", "cancel", "c", "отмена"):
             print(i18n.t("cancelled"))
@@ -775,7 +823,7 @@ class CLIApp:
 
         # Scope selection
         print(f"\n{Colors.BOLD}{i18n.t('prompt_search_scope')}{Colors.RESET}", end="")
-        raw_scope = input().strip()
+        raw_scope = styled_input().strip()
         if raw_scope.lower() in ("q", "quit", "cancel", "c", "отмена"):
             print(i18n.t("cancelled"))
             return
@@ -843,7 +891,7 @@ class CLIApp:
 
         print("─" * 105)
 
-        raw_select = input(f"\n{Colors.BOLD}{i18n.t('prompt_search_select')}{Colors.RESET}").strip()
+        raw_select = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_search_select')}{Colors.RESET}").strip()
         selected_indices = parse_multi_selection(raw_select, mod_names)
         if selected_indices is None or not selected_indices:
             print(i18n.t("cancelled"))
@@ -918,7 +966,7 @@ class CLIApp:
 
         print("─" * 105)
 
-        raw_select = input(f"\n{Colors.BOLD}{i18n.t('prompt_search_select')}{Colors.RESET}").strip()
+        raw_select = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_search_select')}{Colors.RESET}").strip()
         selected_indices = parse_multi_selection(raw_select, mod_names)
         if selected_indices is None or not selected_indices:
             print(i18n.t("cancelled"))
@@ -954,7 +1002,7 @@ class CLIApp:
             print(f"  {Colors.CYAN}q){Colors.RESET} {i18n.t('menu_exit')}")
 
             try:
-                choice = input(f"\n{Colors.BOLD}{i18n.t('prompt_choice')}{Colors.RESET}").strip()
+                choice = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_choice')}{Colors.RESET}").strip()
             except (KeyboardInterrupt, EOFError):
                 print(f"\n{i18n.t('goodbye')}")
                 break
@@ -971,7 +1019,7 @@ class CLIApp:
                 try:
                     raw = read_pasted_input(f"\n{Colors.BOLD}{i18n.t('prompt_mod_input')}{Colors.RESET}").strip()
                     if raw and raw.lower() not in ("q", "quit", "cancel", "c", "отмена"):
-                        targets = [t.strip() for t in re.split(r"[\r\n\t,;\s]+", raw) if t.strip()]
+                        targets = normalize_pasted_targets(raw)
                         if targets:
                             self.cmd_install(targets, include_optional=False)
                             pause_prompt()
@@ -984,7 +1032,7 @@ class CLIApp:
             elif choice == "2":
                 profs = self.cmd_profile_list()
                 if profs:
-                    pname = input(f"\n{Colors.BOLD}{i18n.t('prompt_profile_name', max=len(profs))}{Colors.RESET}").strip()
+                    pname = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_profile_name', max=len(profs))}{Colors.RESET}").strip()
                     if pname and pname.lower() not in ("q", "cancel", "c"):
                         self.cmd_profile_switch(pname)
                         pause_prompt()
@@ -993,7 +1041,7 @@ class CLIApp:
                 else:
                     pause_prompt()
             elif choice == "3":
-                pname = input(f"\n{Colors.BOLD}{i18n.t('prompt_new_profile_name')}{Colors.RESET}").strip()
+                pname = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_new_profile_name')}{Colors.RESET}").strip()
                 if pname and pname.lower() not in ("q", "cancel", "c"):
                     self.cmd_profile_save(pname)
                     pause_prompt()
@@ -1002,7 +1050,7 @@ class CLIApp:
             elif choice == "4":
                 updates = self.cmd_check_updates(apply=False)
                 if updates:
-                    apply_ans = input(f"\n{Colors.BOLD}{i18n.t('prompt_apply_updates', count=len(updates))}{Colors.RESET}").strip().lower()
+                    apply_ans = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_apply_updates', count=len(updates))}{Colors.RESET}").strip().lower()
                     if apply_ans in ("", "y", "yes", "д", "да"):
                         mod_names = [u[0] for u in updates]
                         self.cmd_install(mod_names, yes=True)
@@ -1021,7 +1069,7 @@ class CLIApp:
                 self._interactive_remove_mods()
             elif choice == "10":
                 try:
-                    fname = input(f"\n{Colors.BOLD}{i18n.t('prompt_export_file')}{Colors.RESET}").strip()
+                    fname = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_export_file')}{Colors.RESET}").strip()
                     if fname.lower() in ("q", "cancel", "c"):
                         print(i18n.t("cancelled"))
                     else:
@@ -1031,7 +1079,7 @@ class CLIApp:
                     print()
             elif choice == "11":
                 try:
-                    fname = input(f"\n{Colors.BOLD}{i18n.t('prompt_import_file')}{Colors.RESET}").strip()
+                    fname = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_import_file')}{Colors.RESET}").strip()
                     if not fname or fname.lower() in ("q", "cancel", "c"):
                         print(i18n.t("cancelled"))
                     else:
