@@ -10,3 +10,8 @@ dist/
 *.egg-info/
 .venv/
 env/
+
+# Ignore markdown drafts / notes except README and LICENSE
+*.md
+!README.md
+!LICENSE.md
