@@ -182,3 +182,8 @@ Install Flags / Флаги команды install:
   --no-clean                   Do not remove older versions of updated mods
                                 Не удалять старые версии обновляемых модов
 ```
+
+## License / Лицензия
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.  
+Этот проект распространяется под свободной лицензией MIT — подробности в файле [LICENSE](LICENSE).
