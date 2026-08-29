@@ -98,7 +98,7 @@ def get_default_factorio_mods_dir() -> Path:
 
 
 def detect_installed_factorio_version(mods_dir: Path) -> Optional[str]:
-    """Try to detect installed Factorio version from parent directories or logs."""
+    """Try to detect the exact installed Factorio version from logs, app bundles, or base data."""
     factorio_dir = mods_dir.parent
     log_candidates = [
         factorio_dir / "factorio-current.log",
@@ -110,16 +110,54 @@ def detect_installed_factorio_version(mods_dir: Path) -> Optional[str]:
         if log_path.exists():
             try:
                 with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
-                    for _ in range(30):
+                    for _ in range(50):
                         line = f.readline()
                         if not line:
                             break
-                        m = re.search(r"Factorio\s+initial\s+release\s+(\d+\.\d+\.\d+)", line, re.I)
+                        # Factorio 2.x log format: "0.000 2026-08-29 ...; Factorio 2.1.17 (build 87315..."
+                        m = re.search(r"Factorio\s+(\d+\.\d+\.\d+)", line, re.I)
                         if m:
                             return m.group(1)
-                        m2 = re.search(r"Loading\s+mod\s+core\s+(\d+\.\d+\.\d+)", line, re.I)
+                        m2 = re.search(r"Loading\s+mod\s+(?:base|core)\s+(\d+\.\d+\.\d+)", line, re.I)
                         if m2:
                             return m2.group(1)
+            except Exception:
+                pass
+
+    # Check macOS app bundles
+    app_candidates = [
+        Path("/Applications/factorio.app"),
+        Path.home() / "Applications" / "factorio.app",
+        Path.home() / "Library/Application Support/Steam/steamapps/common/Factorio/factorio.app",
+    ]
+    for app in app_candidates:
+        plist_path = app / "Contents" / "Info.plist"
+        if plist_path.exists():
+            try:
+                import plistlib
+                with open(plist_path, "rb") as f:
+                    pl = plistlib.load(f)
+                    v = pl.get("CFBundleShortVersionString") or pl.get("CFBundleVersion")
+                    if v:
+                        return str(v).strip()
+            except Exception:
+                pass
+
+    # Check base info.json in standard Steam and install locations
+    base_candidates = [
+        Path("/Applications/factorio.app/Contents/data/base/info.json"),
+        Path.home() / ".steam/steam/steamapps/common/Factorio/data/base/info.json",
+        Path.home() / ".local/share/Steam/steamapps/common/Factorio/data/base/info.json",
+        Path("C:/Program Files (x86)/Steam/steamapps/common/Factorio/data/base/info.json"),
+        Path("C:/Program Files/Factorio/data/base/info.json"),
+    ]
+    for bc in base_candidates:
+        if bc.exists():
+            try:
+                with open(bc, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if data.get("version"):
+                        return str(data["version"]).strip()
             except Exception:
                 pass
 

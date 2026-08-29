@@ -984,22 +984,32 @@ class CLIApp:
             lang_label = "Русский" if i18n.lang == "en" else "English"
 
             print(f"{Colors.BOLD}{i18n.t('menu_title')}{Colors.RESET}")
+            # Category 1: Mods & Updates (1, 4, 5, 6, 7, 8, 9)
             print(f"  {Colors.CYAN}1){Colors.RESET} {i18n.t('menu_install')}")
-            print(f"  {Colors.CYAN}2){Colors.RESET} {i18n.t('menu_switch')}")
-            print(f"  {Colors.CYAN}3){Colors.RESET} {i18n.t('menu_save_profile')}")
             print(f"  {Colors.CYAN}4){Colors.RESET} {i18n.t('menu_check')}")
             print(f"  {Colors.CYAN}5){Colors.RESET} {i18n.t('menu_update')}")
             print(f"  {Colors.CYAN}6){Colors.RESET} {i18n.t('menu_list')}")
             print(f"  {Colors.CYAN}7){Colors.RESET} {i18n.t('menu_info')}")
             print(f"  {Colors.CYAN}8){Colors.RESET} {i18n.t('menu_toggle')}")
             print(f"  {Colors.CYAN}9){Colors.RESET} {i18n.t('menu_remove')}")
+            print()
+
+            # Category 2: Profiles & Packs (2, 3, 10, 11)
+            print(f"  {Colors.CYAN}2){Colors.RESET} {i18n.t('menu_switch')}")
+            print(f"  {Colors.CYAN}3){Colors.RESET} {i18n.t('menu_save_profile')}")
             print(f"  {Colors.CYAN}10){Colors.RESET} {i18n.t('menu_export')}")
             print(f"  {Colors.CYAN}11){Colors.RESET} {i18n.t('menu_import')}")
-            print(f"  {Colors.CYAN}12){Colors.RESET} {i18n.t('menu_optional')}")
+            print()
+
+            # Category 3: Discovery & Search (13, 14, 12)
             print(f"  {Colors.CYAN}13){Colors.RESET} {i18n.t('menu_author')}")
             print(f"  {Colors.CYAN}14){Colors.RESET} {i18n.t('menu_search')}")
+            print(f"  {Colors.CYAN}12){Colors.RESET} {i18n.t('menu_optional')}")
+            print()
+
+            # Category 4: Language & Exit (L, Q)
             print(f"  {Colors.YELLOW}L){Colors.RESET} {i18n.t('menu_lang')} -> {lang_label}")
-            print(f"  {Colors.CYAN}q){Colors.RESET} {i18n.t('menu_exit')}")
+            print(f"  {Colors.CYAN}Q){Colors.RESET} {i18n.t('menu_exit')}")
 
             try:
                 choice = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_choice')}{Colors.RESET}").strip()
