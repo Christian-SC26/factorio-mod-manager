@@ -165,6 +165,8 @@ public final class ModListManager: Sendable {
         try FileManager.default.moveItem(at: tmpURL, to: modListJsonURL)
     }
 
+    private static var infoCache: [String: (Date, LocalModInfo)] = [:]
+
     /// Scan mods directory for all installed mod archives and directories
     public func scanInstalledMods() -> [String: [LocalMod]] {
         let fileManager = FileManager.default
@@ -192,28 +194,37 @@ public final class ModListManager: Sendable {
             let values = try? entry.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey])
             let isDir = values?.isDirectory ?? false
             let size = Int64(values?.fileSize ?? 0)
-            let modDate = values?.contentModificationDate
+            let modDate = values?.contentModificationDate ?? Date()
 
             var modName: String? = nil
             var versionStr: String? = nil
+            var modInfo: LocalModInfo? = nil
 
-            // 1. Fast match via filename (Standard for 99.9% of Factorio mods)
-            if !isDir, let regex = zipRegex {
-                let range = NSRange(location: 0, length: filename.utf16.count)
-                if let match = regex.firstMatch(in: filename, options: [], range: range),
-                   let nRange = Range(match.range(at: 1), in: filename),
-                   let vRange = Range(match.range(at: 2), in: filename) {
-                    modName = String(filename[nRange])
-                    versionStr = String(filename[vRange])
+            // Check in-memory metadata cache first
+            if let cached = Self.infoCache[filename], cached.0 == modDate {
+                modInfo = cached.1
+                modName = modInfo?.name
+                versionStr = modInfo?.version
+            } else {
+                // Parse info.json via pure Swift in-memory reader
+                if let parsedInfo = LocalMod.loadInfoJson(from: entry, isDirectory: isDir) {
+                    modInfo = parsedInfo
+                    modName = parsedInfo.name
+                    versionStr = parsedInfo.version
+                    Self.infoCache[filename] = (modDate, parsedInfo)
                 }
             }
 
-            // 2. Directory or fallback
+            // Fast fallback to filename if needed
             if modName == nil || versionStr == nil {
-                let info = LocalMod.loadInfoJson(from: entry, isDirectory: isDir)
-                if let info = info {
-                    modName = info.name
-                    versionStr = info.version
+                if !isDir, let regex = zipRegex {
+                    let range = NSRange(location: 0, length: filename.utf16.count)
+                    if let match = regex.firstMatch(in: filename, options: [], range: range),
+                       let nRange = Range(match.range(at: 1), in: filename),
+                       let vRange = Range(match.range(at: 2), in: filename) {
+                        modName = String(filename[nRange])
+                        versionStr = String(filename[vRange])
+                    }
                 }
             }
 
@@ -241,7 +252,7 @@ public final class ModListManager: Sendable {
                     enabled: enabled,
                     fileSize: size,
                     modificationDate: modDate,
-                    info: nil
+                    info: modInfo
                 )
 
                 if installed[name] == nil {

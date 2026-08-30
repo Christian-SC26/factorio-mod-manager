@@ -5,17 +5,25 @@ public struct InstalledModsView: View {
     @ObservedObject var appState: AppState
     @State private var filterMode: Int = 0 // 0: All, 1: Enabled, 2: Disabled
     @State private var searchText: String = ""
-    @State private var sortOption: Int = 0 // 0: Name, 1: Version, 2: Size, 3: Status
-    @State private var selectedModIDs: Set<String> = []
+    @State private var selectedModID: String? = nil
+    @State private var sortOrder = [KeyPathComparator(\LocalMod.displayTitle, order: .forward)]
     @State private var modToDelete: LocalMod? = nil
     @State private var showDeleteConfirmation: Bool = false
     @State private var showBatchDeleteConfirmation: Bool = false
-    @State private var displayedMods: [LocalMod] = []
+    @FocusState private var isSearchFocused: Bool
 
-    private func updateDisplayedMods() {
+    private var enabledCount: Int {
+        appState.installedMods.filter { $0.enabled }.count
+    }
+
+    private var disabledCount: Int {
+        appState.installedMods.filter { !$0.enabled }.count
+    }
+
+    private var filteredAndSortedMods: [LocalMod] {
         var list = appState.installedMods
 
-        // Filter by state
+        // Filter by status
         if filterMode == 1 {
             list = list.filter { $0.enabled }
         } else if filterMode == 2 {
@@ -27,33 +35,32 @@ public struct InstalledModsView: View {
         if !query.isEmpty {
             list = list.filter {
                 $0.name.lowercased().contains(query)
-                || $0.title.lowercased().contains(query)
+                || $0.displayTitle.lowercased().contains(query)
                 || $0.author.lowercased().contains(query)
                 || $0.summary.lowercased().contains(query)
             }
         }
 
-        // Sort
-        switch sortOption {
-        case 1: // Version
-            list.sort { $0.version > $1.version }
-        case 2: // Size
-            list.sort { $0.fileSize > $1.fileSize }
-        case 3: // Status
-            list.sort { ($0.enabled ? 1 : 0) > ($1.enabled ? 1 : 0) }
-        default: // Name
-            list.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        list.sort(using: sortOrder)
+        return list
+    }
+
+    private func moveSelection(by delta: Int) {
+        let mods = filteredAndSortedMods
+        guard !mods.isEmpty else { return }
+
+        if let currentID = selectedModID, let currentIndex = mods.firstIndex(where: { $0.id == currentID }) {
+            let nextIndex = min(max(0, currentIndex + delta), mods.count - 1)
+            selectedModID = mods[nextIndex].id
+        } else {
+            selectedModID = mods.first?.id
         }
-
-        self.displayedMods = list
     }
 
-    private var enabledCount: Int {
-        appState.installedMods.filter { $0.enabled }.count
-    }
-
-    private var disabledCount: Int {
-        appState.installedMods.filter { !$0.enabled }.count
+    private func toggleSelectedMod() {
+        guard let currentID = selectedModID,
+              let mod = appState.installedMods.first(where: { $0.id == currentID }) else { return }
+        appState.toggleModEnabled(mod)
     }
 
     public var body: some View {
@@ -92,9 +99,12 @@ public struct InstalledModsView: View {
                             Button(loc("enable_all"), action: { appState.enableAllMods() })
                             Button(loc("disable_all"), action: { appState.disableAllMods() })
                             Divider()
-                            if !selectedModIDs.isEmpty {
-                                Button(role: .destructive, action: { showBatchDeleteConfirmation = true }) {
-                                    Text("\(loc("delete_selected")) (\(selectedModIDs.count))")
+                            if let selID = selectedModID, let mod = appState.installedMods.first(where: { $0.id == selID }) {
+                                Button(role: .destructive, action: {
+                                    modToDelete = mod
+                                    showDeleteConfirmation = true
+                                }) {
+                                    Text("\(loc("delete_selected")) ('\(mod.displayTitle)')")
                                 }
                             }
                         } label: {
@@ -103,7 +113,7 @@ public struct InstalledModsView: View {
                     }
                 }
 
-                // Filter, Search and Sort Bar
+                // Filter & Search Bar with keyboard shortcut hint
                 HStack(spacing: 10) {
                     Picker("", selection: $filterMode) {
                         Text("\(loc("filter_all")) (\(appState.installedMods.count))").tag(0)
@@ -118,12 +128,22 @@ public struct InstalledModsView: View {
                             .foregroundColor(.secondary)
                         TextField(loc("search_mods_placeholder"), text: $searchText)
                             .textFieldStyle(.plain)
+                            .focused($isSearchFocused)
+
                         if !searchText.isEmpty {
                             Button(action: { searchText = "" }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.secondary)
                             }
                             .buttonStyle(.plain)
+                        } else {
+                            Text("⌘F")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundColor(.secondary.opacity(0.6))
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(Color.secondary.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
                         }
                     }
                     .padding(.horizontal, 8)
@@ -131,13 +151,14 @@ public struct InstalledModsView: View {
                     .background(Color(NSColor.controlBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
 
-                    Picker(loc("sort_by"), selection: $sortOption) {
-                        Text(loc("sort_name")).tag(0)
-                        Text(loc("sort_version")).tag(1)
-                        Text(loc("sort_size")).tag(2)
-                        Text(loc("sort_status")).tag(3)
+                    // Keyboard shortcuts tip
+                    HStack(spacing: 4) {
+                        Text("j/k: navigate")
+                        Text("•")
+                        Text("space: toggle")
                     }
-                    .frame(width: 140)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary.opacity(0.8))
                 }
             }
             .padding(16)
@@ -145,8 +166,8 @@ public struct InstalledModsView: View {
 
             Divider()
 
-            // Optimized ScrollView + LazyVStack for 120 FPS buttery smooth scrolling
-            if displayedMods.isEmpty {
+            // Finder-Style Native Table with Columns, Sorting, and 120 FPS Virtualization
+            if filteredAndSortedMods.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
                     Image(systemName: "archivebox")
@@ -163,66 +184,157 @@ public struct InstalledModsView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(displayedMods.enumerated()), id: \.element.id) { index, mod in
-                            InstalledModRow(
-                                mod: mod,
-                                isEven: index % 2 == 0,
-                                onToggle: {
-                                    appState.toggleModEnabled(mod)
-                                },
-                                onInfo: {
-                                    appState.openModDetails(for: mod)
-                                },
-                                onReveal: {
-                                    NSWorkspace.shared.activateFileViewerSelecting([mod.fileURL])
-                                },
-                                onDelete: {
-                                    modToDelete = mod
-                                    showDeleteConfirmation = true
-                                }
-                            )
-                            .contextMenu {
-                                Button(mod.enabled ? loc("filter_disabled") : loc("filter_enabled")) {
-                                    appState.toggleModEnabled(mod)
-                                }
-                                Button(loc("sidebar_settings")) {
-                                    appState.openModDetails(for: mod)
-                                }
-                                Button(loc("reveal_in_finder")) {
-                                    NSWorkspace.shared.activateFileViewerSelecting([mod.fileURL])
-                                }
-                                Divider()
-                                Button(role: .destructive) {
-                                    modToDelete = mod
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Text(loc("delete_selected"))
+                Table(filteredAndSortedMods, selection: $selectedModID, sortOrder: $sortOrder) {
+                    // Column 1: On / Off Switch
+                    TableColumn("Active", value: \.enabledSortKey) { mod in
+                        Toggle("", isOn: Binding(
+                            get: { mod.enabled },
+                            set: { _ in appState.toggleModEnabled(mod) }
+                        ))
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
+                    }
+                    .width(min: 44, ideal: 50, max: 58)
+
+                    // Column 2: Title / Name
+                    TableColumn("Mod Name", value: \.displayTitle) { mod in
+                        HStack(spacing: 8) {
+                            Image(systemName: mod.isDirectory ? "folder.fill" : "cube.box.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(mod.enabled ? .accentColor : .secondary)
+
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(mod.displayTitle)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(mod.enabled ? .primary : .secondary)
+
+                                if mod.displayTitle != mod.name {
+                                    Text(mod.name)
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .foregroundColor(.secondary)
                                 }
                             }
+                        }
+                    }
+                    .width(min: 180, ideal: 260)
 
-                            Divider()
-                                .opacity(0.4)
+                    // Column 3: Author
+                    TableColumn("Author", value: \.author) { mod in
+                        Text(mod.author)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .width(min: 90, ideal: 120, max: 180)
+
+                    // Column 4: Date Added
+                    TableColumn("Date Added", value: \.dateSortKey) { mod in
+                        Text(mod.formattedDate)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .width(min: 85, ideal: 110, max: 140)
+
+                    // Column 5: Version
+                    TableColumn("Version", value: \.version.raw) { mod in
+                        VersionBadge(mod.version.raw)
+                    }
+                    .width(min: 75, ideal: 85, max: 110)
+
+                    // Column 6: Size
+                    TableColumn("Size", value: \.fileSize) { mod in
+                        Text(mod.fileSize > 0 ? formatBytes(mod.fileSize) : "—")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    .width(min: 70, ideal: 80, max: 100)
+
+                    // Column 7: Actions (Portal link, Details, Reveal, Delete)
+                    TableColumn("Actions") { mod in
+                        HStack(spacing: 8) {
+                            // Link to mod portal page
+                            Button(action: {
+                                if let url = URL(string: "https://mods.factorio.com/mod/\(mod.name)") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            }) {
+                                Image(systemName: "safari")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.accentColor)
+                            }
+                            .buttonStyle(.plain)
+                            .help(loc("open_on_portal"))
+
+                            // Mod details sheet
+                            Button(action: {
+                                appState.openModDetails(for: mod)
+                            }) {
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help(loc("sidebar_settings"))
+
+                            // Reveal in Finder
+                            Button(action: {
+                                NSWorkspace.shared.activateFileViewerSelecting([mod.fileURL])
+                            }) {
+                                Image(systemName: "folder")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help(loc("reveal_in_finder"))
+
+                            // Delete mod archive
+                            Button(action: {
+                                modToDelete = mod
+                                showDeleteConfirmation = true
+                            }) {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.red.opacity(0.8))
+                            }
+                            .buttonStyle(.plain)
+                            .help(loc("delete_selected"))
+                        }
+                    }
+                    .width(min: 105, ideal: 120, max: 140)
+                }
+                .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .contextMenu {
+                    if let selID = selectedModID, let mod = appState.installedMods.first(where: { $0.id == selID }) {
+                        Button(mod.enabled ? loc("filter_disabled") : loc("filter_enabled")) {
+                            appState.toggleModEnabled(mod)
+                        }
+                        Button(loc("sidebar_settings")) {
+                            appState.openModDetails(for: mod)
+                        }
+                        if let url = URL(string: "https://mods.factorio.com/mod/\(mod.name)") {
+                            Button(loc("open_on_portal")) {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                        Button(loc("reveal_in_finder")) {
+                            NSWorkspace.shared.activateFileViewerSelecting([mod.fileURL])
+                        }
+                        Divider()
+                        Button(role: .destructive) {
+                            modToDelete = mod
+                            showDeleteConfirmation = true
+                        } label: {
+                            Text(loc("delete_selected"))
                         }
                     }
                 }
             }
         }
         .onAppear {
-            updateDisplayedMods()
-        }
-        .onChange(of: appState.installedMods) { _ in
-            updateDisplayedMods()
-        }
-        .onChange(of: filterMode) { _ in
-            updateDisplayedMods()
-        }
-        .onChange(of: searchText) { _ in
-            updateDisplayedMods()
-        }
-        .onChange(of: sortOption) { _ in
-            updateDisplayedMods()
+            if selectedModID == nil {
+                selectedModID = filteredAndSortedMods.first?.id
+            }
+            setupKeyboardMonitor()
         }
         .confirmationDialog(
             loc("confirm_delete_title"),
@@ -234,125 +346,45 @@ public struct InstalledModsView: View {
             }
             Button(loc("cancel"), role: .cancel) {}
         } message: { mod in
-            Text(String(format: loc("confirm_delete_message"), mod.name))
-        }
-        .confirmationDialog(
-            loc("confirm_delete_title"),
-            isPresented: $showBatchDeleteConfirmation
-        ) {
-            Button(loc("delete_selected"), role: .destructive) {
-                let targets = appState.installedMods.filter { selectedModIDs.contains($0.id) }
-                appState.deleteMods(targets)
-                selectedModIDs.removeAll()
-            }
-            Button(loc("cancel"), role: .cancel) {}
-        } message: {
-            Text(String(format: loc("confirm_delete_multiple"), selectedModIDs.count))
+            Text(String(format: loc("confirm_delete_message"), mod.displayTitle))
         }
     }
-}
 
-public struct InstalledModRow: View, Equatable {
-    public let mod: LocalMod
-    public let isEven: Bool
-    public let onToggle: () -> Void
-    public let onInfo: () -> Void
-    public let onReveal: () -> Void
-    public let onDelete: () -> Void
-
-    public static func == (lhs: InstalledModRow, rhs: InstalledModRow) -> Bool {
-        lhs.mod.id == rhs.mod.id && lhs.mod.enabled == rhs.mod.enabled && lhs.isEven == rhs.isEven
-    }
-
-    public var body: some View {
-        HStack(spacing: 12) {
-            // Enable toggle switch
-            Toggle("", isOn: Binding(
-                get: { mod.enabled },
-                set: { _ in onToggle() }
-            ))
-            .toggleStyle(.switch)
-            .labelsHidden()
-            .controlSize(.small)
-
-            // Mod icon (Monochrome)
-            ZStack {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.secondary.opacity(0.1))
-                    .frame(width: 30, height: 30)
-
-                Image(systemName: mod.isDirectory ? "folder" : "cube.box")
-                    .font(.system(size: 15))
-                    .foregroundColor(mod.enabled ? .primary : .secondary)
+    private func setupKeyboardMonitor() {
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Handle Cmd + F to focus search
+            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "f" {
+                DispatchQueue.main.async {
+                    self.isSearchFocused = true
+                }
+                return nil
             }
 
-            // Info
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(mod.title)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(mod.enabled ? .primary : .secondary)
-
-                    if mod.title != mod.name {
-                        Text("(\(mod.name))")
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(.secondary)
+            // If user is currently typing in search field, let normal typing proceed
+            if self.isSearchFocused {
+                if event.keyCode == 53 { // Escape
+                    DispatchQueue.main.async {
+                        self.isSearchFocused = false
                     }
+                    return nil
                 }
-
-                if !mod.summary.isEmpty {
-                    Text(mod.summary)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
+                return event
             }
 
-            Spacer()
-
-            // Badges & Actions (Monochrome)
-            HStack(spacing: 8) {
-                VersionBadge(mod.version.raw)
-
-                if mod.fileSize > 0 {
-                    Text(formatBytes(mod.fileSize))
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                }
-
-                HStack(spacing: 6) {
-                    Button(action: onInfo) {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help(loc("sidebar_settings"))
-
-                    Button(action: onReveal) {
-                        Image(systemName: "arrow.up.forward.square")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help(loc("reveal_in_finder"))
-
-                    Button(action: onDelete) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help(loc("delete_selected"))
-                }
+            // Global navigation keys: J (Down), K (Up), Space (Toggle)
+            switch event.charactersIgnoringModifiers?.lowercased() {
+            case "j":
+                self.moveSelection(by: 1)
+                return nil
+            case "k":
+                self.moveSelection(by: -1)
+                return nil
+            case " ":
+                self.toggleSelectedMod()
+                return nil
+            default:
+                return event
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(isEven ? Color(NSColor.controlBackgroundColor).opacity(0.3) : Color.clear)
     }
 }

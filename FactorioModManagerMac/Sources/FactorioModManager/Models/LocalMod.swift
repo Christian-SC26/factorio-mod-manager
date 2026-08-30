@@ -61,7 +61,7 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
     }
 
     public static func == (lhs: LocalMod, rhs: LocalMod) -> Bool {
-        lhs.id == rhs.id && lhs.enabled == rhs.enabled
+        lhs.id == rhs.id && lhs.enabled == rhs.enabled && lhs.info?.title == rhs.info?.title
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -69,12 +69,21 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
         hasher.combine(enabled)
     }
 
+    public var displayTitle: String {
+        if let t = info?.title, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return t.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        // Fallback: clean up name if no title yet
+        let cleaned = name.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: "-", with: " ")
+        return cleaned.capitalized
+    }
+
     public var title: String {
-        info?.title ?? name
+        displayTitle
     }
 
     public var author: String {
-        info?.author ?? "Unknown"
+        info?.author ?? "—"
     }
 
     public var summary: String {
@@ -84,6 +93,26 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
     public var factorioVersion: String {
         info?.factorio_version ?? "2.1"
     }
+
+    public var formattedDate: String {
+        guard let d = modificationDate else { return "—" }
+        return Self.dateFormatter.string(from: d)
+    }
+
+    public var dateSortKey: Date {
+        modificationDate ?? Date.distantPast
+    }
+
+    public var enabledSortKey: Int {
+        enabled ? 1 : 0
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateStyle = .medium
+        df.timeStyle = .none
+        return df
+    }()
 
     public func getDependencies() -> [Dependency] {
         guard let rawDeps = info?.dependencies else { return [] }
@@ -102,7 +131,7 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
         return nil
     }
 
-    /// Pure Swift in-memory ZIP parser for info.json (zero external subprocesses, instant performance)
+    /// Pure Swift in-memory ZIP parser for info.json (zero external subprocesses, ultra fast)
     public static func readInfoJsonFromZipInPureSwift(url: URL) -> LocalModInfo? {
         guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? fileHandle.close() }

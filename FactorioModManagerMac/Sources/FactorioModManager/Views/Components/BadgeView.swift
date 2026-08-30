@@ -2,15 +2,12 @@ import SwiftUI
 
 public struct StatusBadge: View {
     public let title: String
+    public let color: Color
     public var icon: String? = nil
 
-    public init(_ title: String, icon: String? = nil) {
+    public init(_ title: String, color: Color = .secondary, icon: String? = nil) {
         self.title = title
-        self.icon = icon
-    }
-
-    public init(_ title: String, color: Color, icon: String? = nil) {
-        self.title = title
+        self.color = color
         self.icon = icon
     }
 
@@ -25,8 +22,8 @@ public struct StatusBadge: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2.5)
-        .background(Color.secondary.opacity(0.12))
-        .foregroundColor(.primary)
+        .background(color.opacity(0.12))
+        .foregroundColor(color == .secondary ? .primary : color)
         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 }
@@ -39,17 +36,18 @@ public struct VersionBadge: View {
     }
 
     public var body: some View {
+        let isV2 = version.hasPrefix("2.")
         HStack(spacing: 3) {
             Image(systemName: "tag")
                 .font(.system(size: 9))
-                .foregroundColor(.secondary)
+                .foregroundColor(isV2 ? .orange : .secondary)
             Text("v\(version)")
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(.primary)
+                .foregroundColor(isV2 ? .orange : .primary)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2.5)
-        .background(Color.secondary.opacity(0.12))
+        .background((isV2 ? Color.orange : Color.secondary).opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 }
@@ -64,13 +62,13 @@ public struct DependencyBadge: View {
     public var body: some View {
         switch type {
         case .required:
-            StatusBadge(loc("dep_required"), icon: "checkmark.circle")
+            StatusBadge(loc("dep_required"), color: .green, icon: "checkmark.circle.fill")
         case .recommended:
-            StatusBadge(loc("dep_recommended"), icon: "plus.circle")
+            StatusBadge(loc("dep_recommended"), color: .blue, icon: "plus.circle.fill")
         case .optional:
-            StatusBadge(loc("dep_optional"), icon: "questionmark.circle")
+            StatusBadge(loc("dep_optional"), color: .orange, icon: "questionmark.circle")
         case .incompatible:
-            StatusBadge(loc("dep_conflict"), icon: "exclamationmark.triangle")
+            StatusBadge(loc("dep_conflict"), color: .red, icon: "exclamationmark.triangle.fill")
         }
     }
 }
