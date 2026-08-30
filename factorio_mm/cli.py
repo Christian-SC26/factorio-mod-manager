@@ -487,6 +487,7 @@ class CLIApp:
                 for item in export_data:
                     f.write(f"{item['url']}\n")
         print(f"{Colors.GREEN}{i18n.t('export_success', count=len(export_data), path=target_file)}{Colors.RESET}")
+        return len(export_data)
 
     def cmd_import(self, input_file: str, yes: bool = False, include_optional: bool = False):
         """Import and install mods from a file."""
@@ -501,15 +502,23 @@ class CLIApp:
                 data = json.load(f)
                 if isinstance(data, list):
                     for item in data:
-                        if isinstance(item, dict) and "name" in item:
-                            ver = item.get("version")
-                            targets.append(f"{item['name']}=={ver}" if ver else item["name"])
+                        if isinstance(item, dict):
+                            t = item.get("url") or item.get("name")
+                            if t and item.get("name") not in ("base", "quality", "space-age", "elevated-rails", "recycler"):
+                                targets.append(t)
                         elif isinstance(item, str):
                             targets.append(item)
-                elif isinstance(data, dict) and "mods" in data:
-                    for item in data["mods"]:
-                        if isinstance(item, dict) and item.get("enabled", True) and item.get("name") not in ("base", "quality", "space-age", "elevated-rails", "recycler"):
-                            targets.append(item["name"])
+                elif isinstance(data, dict):
+                    raw_mods = data.get("mods", [])
+                    if isinstance(raw_mods, dict):
+                        raw_mods = [{"name": k, "version": v} for k, v in raw_mods.items()]
+                    for item in raw_mods:
+                        if isinstance(item, dict) and item.get("enabled", True):
+                            name = item.get("name")
+                            if name and name not in ("base", "quality", "space-age", "elevated-rails", "recycler"):
+                                targets.append(item.get("url") or name)
+                        elif isinstance(item, str):
+                            targets.append(item)
         else:
             with open(in_path, "r", encoding="utf-8") as f:
                 for line in f:
@@ -518,7 +527,8 @@ class CLIApp:
                         targets.append(line)
 
         print(i18n.t("import_start", count=len(targets), path=input_file))
-        self.cmd_install(targets, yes=yes, include_optional=include_optional)
+        if targets:
+            self.cmd_install(targets, yes=yes, include_optional=include_optional)
 
     # ----------------- PROFILES / SWITCH -----------------
 
@@ -532,23 +542,34 @@ class CLIApp:
 
     def cmd_profile_list(self) -> List[Tuple[str, int, bool]]:
         """List all profiles."""
-        profiles = self.mod_list_mgr.list_profiles()
-        if not profiles:
+        profiles_data = self.mod_list_mgr.list_profiles()
+        if not profiles_data:
             print(f"{Colors.YELLOW}{i18n.t('no_profiles')}{Colors.RESET}")
             print(f"{i18n.t('create_profile_hint')}\n")
             return []
 
+        current_states = self.mod_list_mgr.read_mod_list_json()
+        current_active = {name for name, en in current_states.items() if en and name != "base"}
+
+        results: List[Tuple[str, int, bool]] = []
+        for p in profiles_data:
+            p_name = p.get("name", "")
+            active_set = self.mod_list_mgr.extract_profile_active_mods(p)
+            p_count = len(active_set)
+            is_active = (active_set == current_active)
+            results.append((p_name, p_count, is_active))
+
         print(f"\n{Colors.BOLD}{i18n.t('profiles_header')}{Colors.RESET}\n")
         print(f"{i18n.t('profile_col_num'):<3} {i18n.t('profile_col_status'):<12} {i18n.t('profile_col_name'):<25} {i18n.t('profile_col_mods')}")
         print("─" * 60)
-        for idx, (name, count, is_active) in enumerate(profiles, start=1):
+        for idx, (name, count, is_active) in enumerate(results, start=1):
             if is_active:
                 status = f"{Colors.GREEN}[{i18n.t('profile_active')}]{Colors.RESET}"
             else:
                 status = f"{Colors.DIM} {i18n.t('profile_inactive')}{Colors.RESET}"
             print(f"{idx:<3} {status:<21} {Colors.BOLD}{name:<25}{Colors.RESET} {count}")
         print("─" * 60)
-        return profiles
+        return results
 
     def cmd_profile_switch(self, name_or_index: str):
         """Switch active mods to a profile by name or number."""
@@ -561,13 +582,13 @@ class CLIApp:
         elif clean_input.startswith("load "):
             clean_input = clean_input.replace("load ", "").strip()
 
-        profiles = self.mod_list_mgr.list_profiles()
+        profiles_data = self.mod_list_mgr.list_profiles()
         if clean_input.isdigit():
             idx = int(clean_input) - 1
-            if 0 <= idx < len(profiles):
-                clean_input = profiles[idx][0]
+            if 0 <= idx < len(profiles_data):
+                clean_input = profiles_data[idx].get("name", "")
 
-        ok, msg, missing = self.mod_list_mgr.apply_profile(clean_input)
+        ok, activated, missing = self.mod_list_mgr.load_profile(clean_input)
         if not ok:
             print(f"{Colors.RED}[!] {i18n.t('profile_not_found', name=clean_input)}{Colors.RESET}")
             return
@@ -604,7 +625,7 @@ class CLIApp:
             print(f"\n{Colors.BOLD}Installed mods:{Colors.RESET}")
             for idx, name in enumerate(mod_names, start=1):
                 mod = installed[name][-1]
-                print(f"  {Colors.CYAN}{idx:>2}){Colors.RESET} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version}")
+                print(f"  {Colors.CYAN}{idx:>2}.{Colors.RESET} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version}")
             print()
 
         raw = styled_input(f"{Colors.BOLD}{i18n.t('prompt_mod_info_target')}{Colors.RESET}").strip()
@@ -637,7 +658,7 @@ class CLIApp:
                 st = f"{Colors.GREEN}[{i18n.t('status_enabled')}]{Colors.RESET}"
             else:
                 st = f"{Colors.DIM}[{i18n.t('status_disabled')}]{Colors.RESET}"
-            print(f"  {Colors.CYAN}{idx:>2}){Colors.RESET} {st:<21} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version}")
+            print(f"  {Colors.CYAN}{idx:>2}.{Colors.RESET} {st:<21} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version}")
         print()
 
         raw_select = styled_input(f"{Colors.BOLD}{i18n.t('prompt_toggle_select')}{Colors.RESET}").strip()
@@ -684,7 +705,7 @@ class CLIApp:
                 size_str = format_bytes(mod.file_path.stat().st_size) if mod.file_path.exists() else "?"
             except Exception:
                 size_str = "?"
-            print(f"  {Colors.CYAN}{idx:>2}){Colors.RESET} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version:<10} ({size_str})")
+            print(f"  {Colors.CYAN}{idx:>2}.{Colors.RESET} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version:<10} ({size_str})")
         print()
 
         raw_select = styled_input(f"{Colors.BOLD}{i18n.t('prompt_remove_select')}{Colors.RESET}").strip()

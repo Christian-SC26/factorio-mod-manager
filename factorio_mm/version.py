@@ -33,6 +33,9 @@ class FactorioVersion:
     def __str__(self) -> str:
         return self.raw
 
+    def __format__(self, format_spec: str) -> str:
+        return format(self.raw, format_spec)
+
     def __repr__(self) -> str:
         return f"FactorioVersion('{self.raw}')"
 

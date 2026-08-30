@@ -384,6 +384,29 @@ class ModListManager:
                 pass
         return profiles
 
+    def extract_profile_active_mods(self, data: Dict) -> Set[str]:
+        """Extract set of active mod names from profile data (handles list, dict, and mod-list structures)."""
+        raw_mods = data.get("mods", {})
+        active = set()
+        if isinstance(raw_mods, dict):
+            for name, val in raw_mods.items():
+                if val is not False and name != "base":
+                    active.add(name)
+        elif isinstance(raw_mods, list):
+            for item in raw_mods:
+                if isinstance(item, str) and item != "base":
+                    active.add(item)
+                elif isinstance(item, dict):
+                    m_name = item.get("name")
+                    m_enabled = item.get("enabled", True)
+                    if m_name and m_enabled and m_name != "base":
+                        active.add(m_name)
+        if not active and "all_states" in data and isinstance(data["all_states"], dict):
+            for name, enabled in data["all_states"].items():
+                if enabled and name != "base":
+                    active.add(name)
+        return active
+
     def load_profile(self, profile_name: str) -> Tuple[bool, List[str], List[str]]:
         """
         Load a profile: enables all mods from profile, disables others.
@@ -394,10 +417,13 @@ class ModListManager:
         if not profile_file.exists():
             return False, [], []
 
-        with open(profile_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(profile_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            return False, [], []
 
-        profile_mods: Dict[str, str] = data.get("mods", {})
+        active_mods = self.extract_profile_active_mods(data)
         installed = self.scan_installed_mods()
 
         new_states = {"base": True}
@@ -407,8 +433,9 @@ class ModListManager:
         missing_mods = []
         activated_mods = []
 
-        for mod_name in profile_mods:
-            if mod_name in installed:
+        virtual_mods = {"base", "core", "quality", "space-age", "elevated-rails", "recycler"}
+        for mod_name in sorted(active_mods):
+            if mod_name in installed or mod_name.lower() in virtual_mods:
                 new_states[mod_name] = True
                 activated_mods.append(mod_name)
             else:
@@ -417,6 +444,22 @@ class ModListManager:
 
         self.write_mod_list_json(new_states)
         return True, activated_mods, missing_mods
+
+    def apply_profile(self, profile_name: str) -> Tuple[bool, List[str], List[str]]:
+        """Alias for load_profile."""
+        return self.load_profile(profile_name)
+
+    def delete_profile(self, profile_name: str) -> bool:
+        """Delete a saved profile JSON file."""
+        clean_name = re.sub(r"[^\w\.-]", "_", profile_name.strip())
+        profile_file = self.get_profiles_dir() / f"{clean_name}.json"
+        if profile_file.exists():
+            try:
+                profile_file.unlink()
+                return True
+            except Exception:
+                return False
+        return False
 
     def export_modpack(self, out_path: Path) -> int:
         """Export list of active mods to a JSON file."""
@@ -445,7 +488,15 @@ class ModListManager:
         with open(in_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        raw_mods = data.get("mods", [])
+        if isinstance(data, list):
+            raw_mods = data
+        elif isinstance(data, dict):
+            raw_mods = data.get("mods", [])
+            if isinstance(raw_mods, dict):
+                raw_mods = [{"name": k, "version": v} for k, v in raw_mods.items()]
+        else:
+            raw_mods = []
+
         result = []
         for item in raw_mods:
             if isinstance(item, str):
@@ -453,7 +504,7 @@ class ModListManager:
             elif isinstance(item, dict):
                 m_name = item.get("name")
                 m_ver = item.get("version")
-                if m_name:
-                    ver_spec = m_ver if m_ver and m_ver != "latest" else None
+                if m_name and m_name != "base":
+                    ver_spec = str(m_ver) if m_ver and str(m_ver) != "latest" else None
                     result.append((m_name, ver_spec))
         return result
