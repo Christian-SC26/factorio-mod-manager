@@ -19,7 +19,7 @@ public struct AuthorCellView: View {
                     .lineLimit(1)
             }
             .buttonStyle(.plain)
-            .help("Open \(authorDisplay)'s portal page")
+            .help("Open \(authorDisplay)'s portal page (⌘A)")
         } else {
             Text(authorDisplay)
                 .font(.system(size: 12))
@@ -95,7 +95,10 @@ public struct InstalledModsView: View {
 
     private func findTableView(in view: NSView?) -> NSTableView? {
         guard let view = view else { return nil }
-        if let tv = view as? NSTableView { return tv }
+        if let tv = view as? NSTableView {
+            tv.selectionHighlightStyle = .regular
+            return tv
+        }
         for sub in view.subviews {
             if let found = findTableView(in: sub) {
                 return found
@@ -118,6 +121,43 @@ public struct InstalledModsView: View {
                       let mod = appState.installedMods.first(where: { $0.id == currentID }) {
                 appState.toggleModEnabled(mod)
             }
+        }
+    }
+
+    private func getSelectedMod() -> LocalMod? {
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow,
+           let tableView = findTableView(in: window.contentView),
+           tableView.selectedRow >= 0, tableView.selectedRow < filteredAndSortedMods.count {
+            return filteredAndSortedMods[tableView.selectedRow]
+        }
+        if let id = selectedModID {
+            return appState.installedMods.first(where: { $0.id == id })
+        }
+        return nil
+    }
+
+    private func sortByColumn(_ index: Int) {
+        switch index {
+        case 1:
+            let isForward = sortOrder.first?.keyPath == \LocalMod.enabledSortKey && sortOrder.first?.order == .forward
+            sortOrder = [KeyPathComparator(\LocalMod.enabledSortKey, order: isForward ? .reverse : .forward)]
+        case 2:
+            let isForward = sortOrder.first?.keyPath == \LocalMod.displayTitle && sortOrder.first?.order == .forward
+            sortOrder = [KeyPathComparator(\LocalMod.displayTitle, order: isForward ? .reverse : .forward)]
+        case 3:
+            let isForward = sortOrder.first?.keyPath == \LocalMod.author && sortOrder.first?.order == .forward
+            sortOrder = [KeyPathComparator(\LocalMod.author, order: isForward ? .reverse : .forward)]
+        case 4:
+            let isForward = sortOrder.first?.keyPath == \LocalMod.dateSortKey && sortOrder.first?.order == .forward
+            sortOrder = [KeyPathComparator(\LocalMod.dateSortKey, order: isForward ? .reverse : .forward)]
+        case 5:
+            let isForward = sortOrder.first?.keyPath == \LocalMod.version.raw && sortOrder.first?.order == .forward
+            sortOrder = [KeyPathComparator(\LocalMod.version.raw, order: isForward ? .reverse : .forward)]
+        case 6:
+            let isForward = sortOrder.first?.keyPath == \LocalMod.fileSize && sortOrder.first?.order == .forward
+            sortOrder = [KeyPathComparator(\LocalMod.fileSize, order: isForward ? .reverse : .forward)]
+        default:
+            break
         }
     }
 
@@ -157,7 +197,7 @@ public struct InstalledModsView: View {
                             Button(loc("enable_all"), action: { appState.enableAllMods() })
                             Button(loc("disable_all"), action: { appState.disableAllMods() })
                             Divider()
-                            if let selID = selectedModID, let mod = appState.installedMods.first(where: { $0.id == selID }) {
+                            if let mod = getSelectedMod() {
                                 Button(role: .destructive, action: {
                                     modToDelete = mod
                                     showDeleteConfirmation = true
@@ -211,9 +251,11 @@ public struct InstalledModsView: View {
 
                     // Keyboard shortcuts tip
                     HStack(spacing: 4) {
-                        Text("j/k: navigate")
+                        Text("j/k: nav")
                         Text("•")
                         Text("space: toggle")
+                        Text("•")
+                        Text("⌘1-6: sort")
                     }
                     .font(.system(size: 11))
                     .foregroundColor(.secondary.opacity(0.8))
@@ -224,7 +266,7 @@ public struct InstalledModsView: View {
 
             Divider()
 
-            // Finder-Style Native Table with Subtle Grey Selection Highlight (No Box Icons)
+            // Finder-Style Native Table with Columns, Sorting, and Plain Numbers Version
             if filteredAndSortedMods.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
@@ -243,7 +285,7 @@ public struct InstalledModsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Table(filteredAndSortedMods, selection: $selectedModID, sortOrder: $sortOrder) {
-                    // Column 1: On / Off Switch
+                    // Column 1: On / Off Switch (System color preserved)
                     TableColumn("Active", value: \.enabledSortKey) { mod in
                         Toggle("", isOn: Binding(
                             get: { mod.enabled },
@@ -252,6 +294,7 @@ public struct InstalledModsView: View {
                         .toggleStyle(.switch)
                         .controlSize(.mini)
                         .labelsHidden()
+                        .tint(.accentColor)
                     }
                     .width(min: 44, ideal: 50, max: 58)
 
@@ -278,11 +321,13 @@ public struct InstalledModsView: View {
                     }
                     .width(min: 85, ideal: 110, max: 140)
 
-                    // Column 5: Version
+                    // Column 5: Version (Pure numbers, no badge, no 'v')
                     TableColumn("Version", value: \.version.raw) { mod in
-                        VersionBadge(mod.version.raw)
+                        Text(mod.version.raw)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(.secondary)
                     }
-                    .width(min: 75, ideal: 85, max: 110)
+                    .width(min: 70, ideal: 80, max: 100)
 
                     // Column 6: Size
                     TableColumn("Size", value: \.fileSize) { mod in
@@ -295,7 +340,7 @@ public struct InstalledModsView: View {
                     // Column 7: Actions (Portal link, Details, Reveal, Delete)
                     TableColumn("Actions") { mod in
                         HStack(spacing: 8) {
-                            // Link to mod portal page
+                            // Link to mod portal page (⌘L)
                             Button(action: {
                                 if let url = URL(string: "https://mods.factorio.com/mod/\(mod.name)") {
                                     NSWorkspace.shared.open(url)
@@ -306,9 +351,9 @@ public struct InstalledModsView: View {
                                     .foregroundColor(.accentColor)
                             }
                             .buttonStyle(.plain)
-                            .help(loc("open_on_portal"))
+                            .help("Open on Factorio Portal (⌘L)")
 
-                            // Mod details sheet
+                            // Mod details sheet (⌘I)
                             Button(action: {
                                 appState.openModDetails(for: mod)
                             }) {
@@ -317,9 +362,9 @@ public struct InstalledModsView: View {
                                     .foregroundColor(.secondary)
                             }
                             .buttonStyle(.plain)
-                            .help(loc("sidebar_settings"))
+                            .help("Mod Details (⌘I)")
 
-                            // Reveal in Finder
+                            // Reveal in Finder (⌘O)
                             Button(action: {
                                 NSWorkspace.shared.activateFileViewerSelecting([mod.fileURL])
                             }) {
@@ -328,7 +373,7 @@ public struct InstalledModsView: View {
                                     .foregroundColor(.secondary)
                             }
                             .buttonStyle(.plain)
-                            .help(loc("reveal_in_finder"))
+                            .help("Reveal in Finder (⌘O)")
 
                             // Delete mod archive
                             Button(action: {
@@ -346,21 +391,26 @@ public struct InstalledModsView: View {
                     .width(min: 105, ideal: 120, max: 140)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
-                .tint(Color.secondary.opacity(0.35))
                 .contextMenu {
-                    if let selID = selectedModID, let mod = appState.installedMods.first(where: { $0.id == selID }) {
+                    if let mod = getSelectedMod() {
                         Button(mod.enabled ? loc("filter_disabled") : loc("filter_enabled")) {
                             appState.toggleModEnabled(mod)
                         }
-                        Button(loc("sidebar_settings")) {
+                        Button("Mod Details (⌘I)") {
                             appState.openModDetails(for: mod)
                         }
                         if let url = URL(string: "https://mods.factorio.com/mod/\(mod.name)") {
-                            Button(loc("open_on_portal")) {
+                            Button("Open on Portal (⌘L)") {
                                 NSWorkspace.shared.open(url)
                             }
                         }
-                        Button(loc("reveal_in_finder")) {
+                        let portalOwner = appState.modPortalOwners[mod.name]
+                        if let authorUrl = mod.portalAuthorURL(portalOwner: portalOwner) {
+                            Button("Open Author Profile (⌘A)") {
+                                NSWorkspace.shared.open(authorUrl)
+                            }
+                        }
+                        Button("Reveal in Finder (⌘O)") {
                             NSWorkspace.shared.activateFileViewerSelecting([mod.fileURL])
                         }
                         Divider()
@@ -396,12 +446,25 @@ public struct InstalledModsView: View {
 
     private func setupKeyboardMonitor() {
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let isCmd = event.modifierFlags.contains(.command)
+            let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
+
             // Handle Cmd + F to focus search
-            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "f" {
+            if isCmd && chars == "f" {
                 DispatchQueue.main.async {
                     self.isSearchFocused = true
                 }
                 return nil
+            }
+
+            // Handle Cmd + 1..6 for Column Sorting
+            if isCmd {
+                if let num = Int(chars), num >= 1 && num <= 6 {
+                    DispatchQueue.main.async {
+                        self.sortByColumn(num)
+                    }
+                    return nil
+                }
             }
 
             // If user is currently typing in search field, let normal typing proceed
@@ -415,20 +478,58 @@ public struct InstalledModsView: View {
                 return event
             }
 
-            // Global navigation keys: J (Down), K (Up), Space (Toggle)
-            switch event.charactersIgnoringModifiers?.lowercased() {
-            case "j":
-                self.moveSelection(by: 1)
-                return nil
-            case "k":
-                self.moveSelection(by: -1)
-                return nil
-            case " ":
-                self.toggleSelectedMod()
-                return nil
-            default:
-                return event
+            // Actions for the currently selected mod with Command key
+            if isCmd {
+                let currentMod = self.getSelectedMod()
+                switch chars {
+                case "l": // Open mod page on portal (⌘L)
+                    if let mod = currentMod, let url = URL(string: "https://mods.factorio.com/mod/\(mod.name)") {
+                        NSWorkspace.shared.open(url)
+                        return nil
+                    }
+                case "o": // Reveal in Finder (⌘O)
+                    if let mod = currentMod {
+                        NSWorkspace.shared.activateFileViewerSelecting([mod.fileURL])
+                        return nil
+                    }
+                case "a": // Open author page on portal (⌘A)
+                    if let mod = currentMod {
+                        let portalOwner = self.appState.modPortalOwners[mod.name]
+                        if let url = mod.portalAuthorURL(portalOwner: portalOwner) {
+                            NSWorkspace.shared.open(url)
+                            return nil
+                        }
+                    }
+                case "i": // Open mod info details sheet (⌘I)
+                    if let mod = currentMod {
+                        DispatchQueue.main.async {
+                            self.appState.openModDetails(for: mod)
+                        }
+                        return nil
+                    }
+                default:
+                    break
+                }
             }
+
+            // Global navigation keys without Command: J (Down), K (Up), Space (Toggle)
+            if !isCmd {
+                switch chars {
+                case "j":
+                    self.moveSelection(by: 1)
+                    return nil
+                case "k":
+                    self.moveSelection(by: -1)
+                    return nil
+                case " ":
+                    self.toggleSelectedMod()
+                    return nil
+                default:
+                    break
+                }
+            }
+
+            return event
         }
     }
 }

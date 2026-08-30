@@ -220,6 +220,7 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
 
             // Mod Details
             "mod_details_title": "Mod Details",
+            "description_label": "Description",
             "author_label": "Author:",
             "category_label": "Category:",
             "factorio_ver_label": "Factorio Version:",
@@ -245,6 +246,7 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "sidebar_optional": "Опциональные моды",
             "sidebar_export_import": "Экспорт и импорт",
             "sidebar_settings": "Настройки",
+            "description_label": "Описание",
             
             // Installed Mods View
             "installed_title": "Установленные моды",

@@ -31,17 +31,8 @@ public struct ModDetailSheet: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack(alignment: .top) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.secondary.opacity(0.12))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: "cube.box")
-                        .font(.system(size: 20))
-                        .foregroundColor(.primary)
-                }
-
+            // Header (Clean, no box icon)
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(titleText)
                         .font(.title2.bold())
@@ -101,7 +92,7 @@ public struct ModDetailSheet: View {
                         }
                     }
 
-                    // Summary
+                    // Summary / Description
                     if !summaryText.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(loc("description_label"))
