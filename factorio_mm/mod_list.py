@@ -393,7 +393,15 @@ class ModListManager:
             try:
                 with open(pf, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    profiles.append(data)
+                    if isinstance(data, dict):
+                        if not data.get("name"):
+                            data["name"] = pf.stem
+                        profiles.append(data)
+                    elif isinstance(data, list):
+                        profiles.append({
+                            "name": pf.stem,
+                            "mods": data,
+                        })
             except Exception:
                 pass
         return profiles
