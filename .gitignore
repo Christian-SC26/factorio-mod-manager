@@ -1,9 +1,9 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.part
 *.tmp
-.DS_Store
 .fmm_profiles/
 build/
 dist/
@@ -11,7 +11,28 @@ dist/
 .venv/
 env/
 
+# macOS
+.DS_Store
+**/.DS_Store
+*.swp
+*~
+
+# Swift / Xcode / SPM Build Artifacts
+.build/
+**/.build/
+.swiftpm/
+**/.swiftpm/
+*.app/
+**/*.app/
+DerivedData/
+**/*.xcodeproj
+**/*.xcworkspace
+xcuserdata/
+**/*.xcuserdata/
+
 # Ignore markdown drafts / notes except README and LICENSE
 *.md
 !README.md
+!**/README.md
 !LICENSE.md
+!**/LICENSE.md
