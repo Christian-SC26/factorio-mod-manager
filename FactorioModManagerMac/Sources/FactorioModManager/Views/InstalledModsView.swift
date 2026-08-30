@@ -33,9 +33,11 @@ public struct InstalledModsView: View {
     @ObservedObject var appState: AppState
     @State private var filterMode: Int = 0 // 0: All, 1: Enabled, 2: Disabled
     @State private var searchText: String = ""
+    @State private var cursorIndex: Int = 0
+    @State private var selectedIndices: Set<Int> = [0]
     @State private var selectedModIDs: Set<String> = []
-    @State private var selectionAnchorIndex: Int = 0
     @State private var sortOrder = [KeyPathComparator(\LocalMod.displayTitle, order: .forward)]
+    @State private var wasShiftPressed: Bool = false
     @State private var eventMonitor: Any? = nil
     @FocusState private var isSearchFocused: Bool
 
@@ -82,41 +84,64 @@ public struct InstalledModsView: View {
 
     private func getSelectedMods() -> [LocalMod] {
         let mods = filteredAndSortedMods
-        let list = mods.filter { selectedModIDs.contains($0.id) }
-        if !list.isEmpty { return list }
-        if let window = NSApp.keyWindow ?? NSApp.mainWindow,
-           let tableView = findTableView(in: window.contentView),
-           tableView.selectedRow >= 0, tableView.selectedRow < mods.count {
-            return [mods[tableView.selectedRow]]
+        guard !mods.isEmpty else { return [] }
+
+        let valid = selectedIndices.filter { $0 >= 0 && $0 < mods.count }
+        if !valid.isEmpty {
+            return valid.sorted().map { mods[$0] }
+        }
+        if cursorIndex >= 0 && cursorIndex < mods.count {
+            return [mods[cursorIndex]]
         }
         return []
     }
 
-    private func moveSelection(by delta: Int, extendRange: Bool) {
+    private func syncSelectionToTable() {
         let mods = filteredAndSortedMods
         guard !mods.isEmpty else { return }
 
-        DispatchQueue.main.async {
-            if let window = NSApp.keyWindow ?? NSApp.mainWindow,
-               let tableView = findTableView(in: window.contentView) {
-                let current = tableView.selectedRow >= 0 ? tableView.selectedRow : selectionAnchorIndex
-                let target = min(max(0, current + delta), mods.count - 1)
+        let valid = selectedIndices.filter { $0 >= 0 && $0 < mods.count }
+        let targetIndices = valid.isEmpty ? [cursorIndex] : valid
+        let indexSet = IndexSet(targetIndices)
+        selectedModIDs = Set(targetIndices.map { mods[$0].id })
 
-                if extendRange {
-                    let start = min(selectionAnchorIndex, target)
-                    let end = max(selectionAnchorIndex, target)
-                    let indexSet = IndexSet(integersIn: start...end)
-                    tableView.selectRowIndexes(indexSet, byExtendingSelection: false)
-                    tableView.scrollRowToVisible(target)
-                    selectedModIDs = Set(mods[start...end].map(\.id))
-                } else {
-                    selectionAnchorIndex = target
-                    tableView.selectRowIndexes(IndexSet(integer: target), byExtendingSelection: false)
-                    tableView.scrollRowToVisible(target)
-                    selectedModIDs = [mods[target].id]
-                }
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow,
+           let tableView = findTableView(in: window.contentView) {
+            tableView.selectRowIndexes(indexSet, byExtendingSelection: false)
+            if cursorIndex >= 0 && cursorIndex < mods.count {
+                tableView.scrollRowToVisible(cursorIndex)
             }
         }
+    }
+
+    private func moveCursor(by delta: Int, extendSelection: Bool) {
+        let mods = filteredAndSortedMods
+        guard !mods.isEmpty else { return }
+
+        let nextCursor = min(max(0, cursorIndex + delta), mods.count - 1)
+        cursorIndex = nextCursor
+
+        if extendSelection {
+            selectedIndices.insert(nextCursor)
+        }
+
+        syncSelectionToTable()
+    }
+
+    private func toggleCurrentCursorSelection() {
+        let mods = filteredAndSortedMods
+        guard !mods.isEmpty else { return }
+
+        if selectedIndices.contains(cursorIndex) {
+            // If already selected and more than 1 item is selected, unselect it; otherwise keep selected
+            if selectedIndices.count > 1 {
+                selectedIndices.remove(cursorIndex)
+            }
+        } else {
+            selectedIndices.insert(cursorIndex)
+        }
+
+        syncSelectionToTable()
     }
 
     private func findTableView(in view: NSView?) -> NSTableView? {
@@ -268,13 +293,13 @@ public struct InstalledModsView: View {
 
                     // Keyboard shortcuts tip
                     HStack(spacing: 4) {
-                        Text("j/k: nav")
+                        Text("j/k: move")
                         Text("•")
-                        Text("⇧j/k: range")
+                        Text("⇧: select")
                         Text("•")
-                        Text("space: toggle")
+                        Text("⇧j/k: multi")
                         Text("•")
-                        Text("del: delete")
+                        Text("space: toggle (\(selectedIndices.count))")
                     }
                     .font(.system(size: 11))
                     .foregroundColor(.secondary.opacity(0.8))
@@ -448,12 +473,13 @@ public struct InstalledModsView: View {
             }
         }
         .onAppear {
-            if selectedModIDs.isEmpty, let firstID = filteredAndSortedMods.first?.id {
-                selectedModIDs = [firstID]
+            if selectedIndices.isEmpty {
+                selectedIndices = [0]
             }
             if eventMonitor == nil {
                 setupKeyboardMonitor()
             }
+            syncSelectionToTable()
         }
         .onDisappear {
             if let monitor = eventMonitor {
@@ -468,7 +494,9 @@ public struct InstalledModsView: View {
         ) {
             Button(loc("delete_selected"), role: .destructive) {
                 appState.deleteMods(modsPendingDeletion)
-                selectedModIDs.removeAll()
+                selectedIndices = [0]
+                cursorIndex = 0
+                syncSelectionToTable()
             }
             Button(loc("cancel"), role: .cancel) {}
         } message: {
@@ -565,14 +593,18 @@ public struct InstalledModsView: View {
                     Button("Delete Anyway", role: .destructive) {
                         showDependencyDeleteConfirmation = false
                         appState.deleteMods(modsPendingDeletion)
-                        selectedModIDs.removeAll()
+                        selectedIndices = [0]
+                        cursorIndex = 0
+                        syncSelectionToTable()
                     }
 
                     Button("Delete & Disable Dependent Mods") {
                         showDependencyDeleteConfirmation = false
                         let dependentList = Array(Set(brokenDependenciesForPendingDeletion.map(\.dependentMod)))
                         appState.deleteModsAndDisableDependents(mods: modsPendingDeletion, dependentMods: dependentList)
-                        selectedModIDs.removeAll()
+                        selectedIndices = [0]
+                        cursorIndex = 0
+                        syncSelectionToTable()
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -584,7 +616,22 @@ public struct InstalledModsView: View {
     }
 
     private func setupKeyboardMonitor() {
-        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
+            // Handle Shift key press/release (flagsChanged)
+            if event.type == .flagsChanged {
+                let shiftPressed = event.modifierFlags.contains(.shift)
+                if shiftPressed && !self.wasShiftPressed {
+                    // Shift was tapped: add/toggle current cursor row in selection
+                    DispatchQueue.main.async {
+                        self.toggleCurrentCursorSelection()
+                    }
+                }
+                self.wasShiftPressed = shiftPressed
+                return event
+            }
+
+            guard event.type == .keyDown else { return event }
+
             let isCmd = event.modifierFlags.contains(.command)
             let isShift = event.modifierFlags.contains(.shift)
             let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
@@ -616,6 +663,15 @@ public struct InstalledModsView: View {
                     return nil
                 }
                 return event
+            }
+
+            // Escape when not in search: reset multi-selection to current cursor
+            if event.keyCode == 53 {
+                DispatchQueue.main.async {
+                    self.selectedIndices = [self.cursorIndex]
+                    self.syncSelectionToTable()
+                }
+                return nil
             }
 
             // Delete / Backspace key (keyCode 51 = Delete/Backspace, keyCode 117 = Forward Delete)
@@ -669,13 +725,19 @@ public struct InstalledModsView: View {
             if !isCmd {
                 switch chars {
                 case "j":
-                    self.moveSelection(by: 1, extendRange: isShift)
+                    DispatchQueue.main.async {
+                        self.moveCursor(by: 1, extendSelection: isShift)
+                    }
                     return nil
                 case "k":
-                    self.moveSelection(by: -1, extendRange: isShift)
+                    DispatchQueue.main.async {
+                        self.moveCursor(by: -1, extendSelection: isShift)
+                    }
                     return nil
                 case " ":
-                    self.toggleSelectedMods()
+                    DispatchQueue.main.async {
+                        self.toggleSelectedMods()
+                    }
                     return nil
                 default:
                     break
