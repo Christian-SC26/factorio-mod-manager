@@ -627,15 +627,24 @@ class CLIApp:
         else:
             print(f"{i18n.t('profile_ready')}\n")
 
-    def cmd_profile_delete(self, name: str):
+    def cmd_profile_delete(self, name_or_index: str) -> bool:
         """Delete a profile."""
-        clean_name = name.strip()
+        clean_name = name_or_index.strip()
         if clean_name.startswith("fmm "):
             clean_name = clean_name.replace("fmm profile delete ", "").replace("fmm profile rm ", "").replace("fmm ", "").strip()
+
+        profiles_data = self.mod_list_mgr.list_profiles()
+        if clean_name.isdigit():
+            idx = int(clean_name) - 1
+            if 0 <= idx < len(profiles_data):
+                clean_name = profiles_data[idx].get("name", "")
+
         if self.mod_list_mgr.delete_profile(clean_name):
             print(f"{Colors.GREEN}{i18n.t('profile_deleted', name=clean_name)}{Colors.RESET}")
+            return True
         else:
             print(f"{Colors.RED}[!] {i18n.t('profile_not_found', name=clean_name)}{Colors.RESET}")
+            return False
 
     # ----------------- TUI INTERACTIVE HELPERS -----------------
 
@@ -1122,12 +1131,43 @@ class CLIApp:
             elif choice == "8":
                 profs = self.cmd_profile_list()
                 if profs:
-                    pname = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_profile_name', max=len(profs))}{Colors.RESET}").strip()
-                    if pname and pname.lower() not in ("q", "cancel", "c"):
-                        self.cmd_profile_switch(pname)
-                        pause_prompt()
-                    else:
+                    raw_p = styled_input(f"\n{Colors.BOLD}{i18n.t('prompt_profile_name', max=len(profs))}{Colors.RESET}").strip()
+                    if not raw_p or raw_p.lower() in ("q", "cancel", "c", "отмена"):
                         print(i18n.t("cancelled"))
+                    else:
+                        lower_p = raw_p.lower()
+                        is_delete = False
+                        target_name = raw_p
+
+                        for prefix in ("delete ", "del ", "rm ", "d ", "-"):
+                            if lower_p.startswith(prefix):
+                                is_delete = True
+                                target_name = raw_p[len(prefix):].strip()
+                                break
+
+                        if not is_delete and lower_p in ("d", "del", "delete", "rm", "удалить"):
+                            target_name = styled_input(f"{Colors.BOLD}{i18n.t('prompt_delete_profile_target')}{Colors.RESET}").strip()
+                            if target_name and target_name.lower() not in ("q", "cancel", "c", "отмена"):
+                                is_delete = True
+                            else:
+                                print(i18n.t("cancelled"))
+                                target_name = ""
+
+                        if is_delete and target_name:
+                            # Resolve target name if number
+                            if target_name.isdigit():
+                                idx = int(target_name) - 1
+                                if 0 <= idx < len(profs):
+                                    target_name = profs[idx][0]
+                            confirm = styled_input(f"{Colors.BOLD}{i18n.t('prompt_confirm_delete_profile', name=target_name)}{Colors.RESET}").strip().lower()
+                            if confirm in ("y", "yes", "д", "да"):
+                                self.cmd_profile_delete(target_name)
+                            else:
+                                print(i18n.t("cancelled"))
+                            pause_prompt()
+                        elif not is_delete:
+                            self.cmd_profile_switch(raw_p)
+                            pause_prompt()
                 else:
                     pause_prompt()
             elif choice == "9":
