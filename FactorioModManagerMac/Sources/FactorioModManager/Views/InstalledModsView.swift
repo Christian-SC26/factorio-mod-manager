@@ -224,7 +224,7 @@ public struct InstalledModsView: View {
 
             Divider()
 
-            // Finder-Style Native Table with Columns, Sorting, and 120 FPS Virtualization
+            // Finder-Style Native Table with Subtle Grey Selection Highlight (No Box Icons)
             if filteredAndSortedMods.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
@@ -255,18 +255,12 @@ public struct InstalledModsView: View {
                     }
                     .width(min: 44, ideal: 50, max: 58)
 
-                    // Column 2: Clean Human Title (No technical name below)
+                    // Column 2: Clean Human Title (Clean typography, no box icon)
                     TableColumn("Mod Name", value: \.displayTitle) { mod in
-                        HStack(spacing: 8) {
-                            Image(systemName: mod.isDirectory ? "folder.fill" : "cube.box.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(mod.enabled ? .accentColor : .secondary)
-
-                            Text(mod.displayTitle)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(mod.enabled ? .primary : .secondary)
-                                .lineLimit(1)
-                        }
+                        Text(mod.displayTitle)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(mod.enabled ? .primary : .secondary)
+                            .lineLimit(1)
                     }
                     .width(min: 180, ideal: 260)
 
@@ -352,6 +346,7 @@ public struct InstalledModsView: View {
                     .width(min: 105, ideal: 120, max: 140)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tint(Color.secondary.opacity(0.35))
                 .contextMenu {
                     if let selID = selectedModID, let mod = appState.installedMods.first(where: { $0.id == selID }) {
                         Button(mod.enabled ? loc("filter_disabled") : loc("filter_enabled")) {

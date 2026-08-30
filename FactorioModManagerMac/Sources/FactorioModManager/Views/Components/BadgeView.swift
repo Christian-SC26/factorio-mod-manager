@@ -36,18 +36,17 @@ public struct VersionBadge: View {
     }
 
     public var body: some View {
-        let isV2 = version.hasPrefix("2.")
         HStack(spacing: 3) {
             Image(systemName: "tag")
                 .font(.system(size: 9))
-                .foregroundColor(isV2 ? .orange : .secondary)
+                .foregroundColor(.secondary)
             Text("v\(version)")
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(isV2 ? .orange : .primary)
+                .foregroundColor(.primary)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2.5)
-        .background((isV2 ? Color.orange : Color.secondary).opacity(0.12))
+        .background(Color.secondary.opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 }
@@ -66,7 +65,7 @@ public struct DependencyBadge: View {
         case .recommended:
             StatusBadge(loc("dep_recommended"), color: .blue, icon: "plus.circle.fill")
         case .optional:
-            StatusBadge(loc("dep_optional"), color: .orange, icon: "questionmark.circle")
+            StatusBadge(loc("dep_optional"), color: .secondary, icon: "questionmark.circle")
         case .incompatible:
             StatusBadge(loc("dep_conflict"), color: .red, icon: "exclamationmark.triangle.fill")
         }
