@@ -43,6 +43,17 @@ public struct OptionalModItem: Identifiable, Hashable, Sendable {
     }
 }
 
+public struct BrokenDependencyInfo: Identifiable, Sendable {
+    public var id: String { "\(dependentMod.id)_\(brokenDependencyName)" }
+    public let dependentMod: LocalMod
+    public let brokenDependencyName: String
+
+    public init(dependentMod: LocalMod, brokenDependencyName: String) {
+        self.dependentMod = dependentMod
+        self.brokenDependencyName = brokenDependencyName
+    }
+}
+
 public struct AppNotification: Identifiable {
     public let id = UUID()
     public let title: String
@@ -195,6 +206,23 @@ public final class AppState: ObservableObject {
         }
     }
 
+    public func toggleMods(_ mods: [LocalMod]) {
+        guard !mods.isEmpty else { return }
+        let anyEnabled = mods.contains { $0.enabled }
+        let targetState = !anyEnabled
+        let names = mods.map { $0.name }
+        if targetState {
+            modListMgr.enableMods(names)
+        } else {
+            modListMgr.disableMods(names)
+        }
+        for name in names {
+            if let idx = installedMods.firstIndex(where: { $0.name == name }) {
+                installedMods[idx].enabled = targetState
+            }
+        }
+    }
+
     public func enableAllMods() {
         let names = installedMods.map { $0.name }
         modListMgr.enableMods(names)
@@ -205,6 +233,21 @@ public final class AppState: ObservableObject {
         let names = installedMods.map { $0.name }
         modListMgr.disableMods(names)
         loadInstalledMods()
+    }
+
+    public func checkBrokenDependencies(forDeletedModNames targetNames: Set<String>) -> [BrokenDependencyInfo] {
+        var broken: [BrokenDependencyInfo] = []
+        let remaining = installedMods.filter { !targetNames.contains($0.name) && $0.enabled }
+
+        for mod in remaining {
+            let deps = mod.getDependencies()
+            for dep in deps {
+                if dep.depType == .required && targetNames.contains(dep.name) {
+                    broken.append(BrokenDependencyInfo(dependentMod: mod, brokenDependencyName: dep.name))
+                }
+            }
+        }
+        return broken
     }
 
     public func deleteMod(_ mod: LocalMod) {
@@ -219,6 +262,21 @@ public final class AppState: ObservableObject {
         }
         loadInstalledMods()
         showNotification(title: loc("installed_title"), message: "\(mods.count) mods removed.")
+    }
+
+    public func deleteModsAndDisableDependents(mods: [LocalMod], dependentMods: [LocalMod]) {
+        let depNames = dependentMods.map { $0.name }
+        if !depNames.isEmpty {
+            modListMgr.disableMods(depNames)
+        }
+        for m in mods {
+            _ = modListMgr.removeMod(m.name, deleteFiles: true)
+        }
+        loadInstalledMods()
+        showNotification(
+            title: loc("installed_title"),
+            message: "Removed \(mods.count) mod(s) and disabled \(depNames.count) dependent mod(s)."
+        )
     }
 
     // MARK: - Updates

@@ -176,17 +176,29 @@ public struct SearchPortalView: View {
                         Spacer()
 
                         VStack(spacing: 6) {
-                            Button(action: {
-                                Task { await appState.resolveAndInstall(targets: [item.name]) }
-                            }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: isInstalled ? "arrow.clockwise" : "arrow.down.circle")
-                                    Text(isInstalled ? "Reinstall" : loc("install_button"))
-                                        .fontWeight(.semibold)
+                            if isInstalled {
+                                Button(action: {}) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "checkmark")
+                                        Text("Installed")
+                                    }
                                 }
+                                .buttonStyle(.bordered)
+                                .controlSize(.regular)
+                                .disabled(true)
+                            } else {
+                                Button(action: {
+                                    Task { await appState.resolveAndInstall(targets: [item.name]) }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrow.down.circle")
+                                        Text(loc("install_button"))
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.regular)
                             }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.regular)
 
                             Button(action: {
                                 appState.openModDetails(for: item.name)

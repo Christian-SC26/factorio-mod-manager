@@ -201,17 +201,30 @@ public struct ModDetailSheet: View {
 
                 Spacer()
 
-                Button(action: {
-                    dismiss()
-                    Task { await appState.resolveAndInstall(targets: [nameText]) }
-                }) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.down.circle")
-                        Text(loc("install_button"))
-                            .fontWeight(.semibold)
+                let isInstalled = appState.installedModsMap[nameText] != nil || localMod != nil
+                if isInstalled {
+                    Button(action: {}) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "checkmark")
+                            Text("Installed")
+                                .fontWeight(.semibold)
+                        }
                     }
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                } else {
+                    Button(action: {
+                        dismiss()
+                        Task { await appState.resolveAndInstall(targets: [nameText]) }
+                    }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "arrow.down.circle")
+                            Text(loc("install_button"))
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
             }
             .padding(16)
             .background(Color(NSColor.windowBackgroundColor))
