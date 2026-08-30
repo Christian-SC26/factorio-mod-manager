@@ -70,20 +70,57 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
     }
 
     public var displayTitle: String {
-        if let t = info?.title, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return t.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let t = info?.title?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
+            let upper = t.uppercased()
+            // Ignore localization placeholders like [MOD DISPLAY NAME] or __mod-name__
+            if !upper.contains("MOD DISPLAY NAME") && !t.hasPrefix("__") && !upper.contains("LOCALE") && t != "[mod-name]" {
+                return t
+            }
         }
-        // Fallback: clean up name if no title yet
-        let cleaned = name.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: "-", with: " ")
-        return cleaned.capitalized
+        return Self.cleanHumanTitle(from: name)
     }
 
     public var title: String {
         displayTitle
     }
 
+    public static func cleanHumanTitle(from rawName: String) -> String {
+        var result = rawName
+        result = result.replacingOccurrences(of: "_", with: " ")
+        result = result.replacingOccurrences(of: "-", with: " ")
+        
+        let words = result.components(separatedBy: " ").filter { !$0.isEmpty }
+        let capitalized = words.map { word -> String in
+            let lower = word.lowercased()
+            if ["se", "cr", "rpg", "t4", "gui", "hud", "ui", "hd", "2d", "3d"].contains(lower) {
+                return lower.uppercased()
+            }
+            if word.count <= 2 { return word.uppercased() }
+            return word.prefix(1).uppercased() + word.dropFirst()
+        }
+        return capitalized.joined(separator: " ")
+    }
+
     public var author: String {
-        info?.author ?? "—"
+        let a = info?.author?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return a.isEmpty ? "—" : a
+    }
+
+    public var primaryAuthor: String {
+        let a = author
+        guard !a.isEmpty, a != "—" else { return "" }
+        var clean = a.components(separatedBy: ",")[0]
+        if let parenRange = clean.range(of: "(") {
+            clean = String(clean[..<parenRange.lowerBound])
+        }
+        return clean.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    public var authorPortalURL: URL? {
+        let username = primaryAuthor
+        guard !username.isEmpty, username != "—" else { return nil }
+        let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? username
+        return URL(string: "https://mods.factorio.com/user/\(encoded)")
     }
 
     public var summary: String {

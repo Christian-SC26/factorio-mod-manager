@@ -9,7 +9,6 @@ public struct InstalledModsView: View {
     @State private var sortOrder = [KeyPathComparator(\LocalMod.displayTitle, order: .forward)]
     @State private var modToDelete: LocalMod? = nil
     @State private var showDeleteConfirmation: Bool = false
-    @State private var showBatchDeleteConfirmation: Bool = false
     @FocusState private var isSearchFocused: Bool
 
     private var enabledCount: Int {
@@ -51,10 +50,33 @@ public struct InstalledModsView: View {
 
         if let currentID = selectedModID, let currentIndex = mods.firstIndex(where: { $0.id == currentID }) {
             let nextIndex = min(max(0, currentIndex + delta), mods.count - 1)
-            selectedModID = mods[nextIndex].id
+            let newID = mods[nextIndex].id
+            selectedModID = newID
+            scrollToRow(index: nextIndex)
         } else {
             selectedModID = mods.first?.id
+            scrollToRow(index: 0)
         }
+    }
+
+    private func scrollToRow(index: Int) {
+        DispatchQueue.main.async {
+            if let window = NSApp.keyWindow ?? NSApp.mainWindow,
+               let tableView = findTableView(in: window.contentView) {
+                tableView.scrollRowToVisible(index)
+            }
+        }
+    }
+
+    private func findTableView(in view: NSView?) -> NSTableView? {
+        guard let view = view else { return nil }
+        if let tv = view as? NSTableView { return tv }
+        for sub in view.subviews {
+            if let found = findTableView(in: sub) {
+                return found
+            }
+        }
+        return nil
     }
 
     private func toggleSelectedMod() {
@@ -113,7 +135,7 @@ public struct InstalledModsView: View {
                     }
                 }
 
-                // Filter & Search Bar with keyboard shortcut hint
+                // Filter & Search Bar with keyboard shortcut hints
                 HStack(spacing: 10) {
                     Picker("", selection: $filterMode) {
                         Text("\(loc("filter_all")) (\(appState.installedMods.count))").tag(0)
@@ -166,7 +188,7 @@ public struct InstalledModsView: View {
 
             Divider()
 
-            // Finder-Style Native Table with Columns, Sorting, and 120 FPS Virtualization
+            // Finder-Style Native Table with Columns, Sorting, and Auto-Scroll
             if filteredAndSortedMods.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
@@ -197,35 +219,42 @@ public struct InstalledModsView: View {
                     }
                     .width(min: 44, ideal: 50, max: 58)
 
-                    // Column 2: Title / Name
+                    // Column 2: Clean Human Title (No technical name below)
                     TableColumn("Mod Name", value: \.displayTitle) { mod in
                         HStack(spacing: 8) {
                             Image(systemName: mod.isDirectory ? "folder.fill" : "cube.box.fill")
                                 .font(.system(size: 14))
                                 .foregroundColor(mod.enabled ? .accentColor : .secondary)
 
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(mod.displayTitle)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(mod.enabled ? .primary : .secondary)
-
-                                if mod.displayTitle != mod.name {
-                                    Text(mod.name)
-                                        .font(.system(size: 10, design: .monospaced))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
+                            Text(mod.displayTitle)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(mod.enabled ? .primary : .secondary)
+                                .lineLimit(1)
                         }
                     }
                     .width(min: 180, ideal: 260)
 
-                    // Column 3: Author
+                    // Column 3: Author (Clickable Link to portal user profile)
                     TableColumn("Author", value: \.author) { mod in
-                        Text(mod.author)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                        if let url = mod.authorPortalURL {
+                            Button(action: {
+                                NSWorkspace.shared.open(url)
+                            }) {
+                                Text(mod.author)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.accentColor)
+                                    .lineLimit(1)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Open \(mod.author)'s portal page")
+                        } else {
+                            Text(mod.author)
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
                     }
-                    .width(min: 90, ideal: 120, max: 180)
+                    .width(min: 90, ideal: 130, max: 190)
 
                     // Column 4: Date Added
                     TableColumn("Date Added", value: \.dateSortKey) { mod in
@@ -335,6 +364,11 @@ public struct InstalledModsView: View {
                 selectedModID = filteredAndSortedMods.first?.id
             }
             setupKeyboardMonitor()
+        }
+        .onChange(of: selectedModID) { newID in
+            if let id = newID, let idx = filteredAndSortedMods.firstIndex(where: { $0.id == id }) {
+                scrollToRow(index: idx)
+            }
         }
         .confirmationDialog(
             loc("confirm_delete_title"),
