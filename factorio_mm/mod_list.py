@@ -312,11 +312,19 @@ class ModListManager:
         self.write_mod_list_json(states)
         return new_state
 
-    def remove_mod(self, mod_name: str) -> int:
+    def set_mod_state(self, mod_name: str, enabled: bool) -> None:
+        """Set enabled status for a single mod in mod-list.json."""
+        states = self.read_mod_list_json()
+        if mod_name == "base" and not enabled:
+            return
+        states[mod_name] = enabled
+        self.write_mod_list_json(states)
+
+    def remove_mod(self, mod_name: str, delete_files: bool = True) -> int:
         """Remove all files and folders associated with mod_name."""
         installed = self.scan_installed_mods()
         removed_count = 0
-        if mod_name in installed:
+        if delete_files and mod_name in installed:
             for local_mod in installed[mod_name]:
                 try:
                     if local_mod.is_directory:
