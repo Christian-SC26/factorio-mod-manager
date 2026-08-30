@@ -1,6 +1,34 @@
 import SwiftUI
 import AppKit
 
+public struct AuthorCellView: View {
+    public let mod: LocalMod
+    public let portalOwner: String?
+
+    public var body: some View {
+        let authorDisplay = portalOwner ?? mod.cleanAuthorName
+        let portalURL = mod.portalAuthorURL(portalOwner: portalOwner)
+
+        if let url = portalURL {
+            Button(action: {
+                NSWorkspace.shared.open(url)
+            }) {
+                Text(authorDisplay)
+                    .font(.system(size: 12))
+                    .foregroundColor(.accentColor)
+                    .lineLimit(1)
+            }
+            .buttonStyle(.plain)
+            .help("Open \(authorDisplay)'s portal page")
+        } else {
+            Text(authorDisplay)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+        }
+    }
+}
+
 public struct InstalledModsView: View {
     @ObservedObject var appState: AppState
     @State private var filterMode: Int = 0 // 0: All, 1: Enabled, 2: Disabled
@@ -32,11 +60,13 @@ public struct InstalledModsView: View {
         // Filter by search query
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if !query.isEmpty {
+            let owners = appState.modPortalOwners
             list = list.filter {
                 $0.name.lowercased().contains(query)
                 || $0.displayTitle.lowercased().contains(query)
                 || $0.author.lowercased().contains(query)
                 || $0.summary.lowercased().contains(query)
+                || (owners[$0.name]?.lowercased().contains(query) ?? false)
             }
         }
 
@@ -48,22 +78,17 @@ public struct InstalledModsView: View {
         let mods = filteredAndSortedMods
         guard !mods.isEmpty else { return }
 
-        if let currentID = selectedModID, let currentIndex = mods.firstIndex(where: { $0.id == currentID }) {
-            let nextIndex = min(max(0, currentIndex + delta), mods.count - 1)
-            let newID = mods[nextIndex].id
-            selectedModID = newID
-            scrollToRow(index: nextIndex)
-        } else {
-            selectedModID = mods.first?.id
-            scrollToRow(index: 0)
-        }
-    }
-
-    private func scrollToRow(index: Int) {
         DispatchQueue.main.async {
             if let window = NSApp.keyWindow ?? NSApp.mainWindow,
                let tableView = findTableView(in: window.contentView) {
-                tableView.scrollRowToVisible(index)
+                let current = tableView.selectedRow >= 0 ? tableView.selectedRow : 0
+                let target = min(max(0, current + delta), mods.count - 1)
+                
+                tableView.selectRowIndexes(IndexSet(integer: target), byExtendingSelection: false)
+                tableView.scrollRowToVisible(target)
+                
+                let targetID = mods[target].id
+                self.selectedModID = targetID
             }
         }
     }
@@ -80,9 +105,20 @@ public struct InstalledModsView: View {
     }
 
     private func toggleSelectedMod() {
-        guard let currentID = selectedModID,
-              let mod = appState.installedMods.first(where: { $0.id == currentID }) else { return }
-        appState.toggleModEnabled(mod)
+        DispatchQueue.main.async {
+            let mods = filteredAndSortedMods
+            guard !mods.isEmpty else { return }
+
+            if let window = NSApp.keyWindow ?? NSApp.mainWindow,
+               let tableView = findTableView(in: window.contentView),
+               tableView.selectedRow >= 0, tableView.selectedRow < mods.count {
+                let mod = mods[tableView.selectedRow]
+                appState.toggleModEnabled(mod)
+            } else if let currentID = selectedModID,
+                      let mod = appState.installedMods.first(where: { $0.id == currentID }) {
+                appState.toggleModEnabled(mod)
+            }
+        }
     }
 
     public var body: some View {
@@ -188,7 +224,7 @@ public struct InstalledModsView: View {
 
             Divider()
 
-            // Finder-Style Native Table with Columns, Sorting, and Auto-Scroll
+            // Finder-Style Native Table with Columns, Sorting, and 120 FPS Virtualization
             if filteredAndSortedMods.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
@@ -236,23 +272,7 @@ public struct InstalledModsView: View {
 
                     // Column 3: Author (Clickable Link to portal user profile)
                     TableColumn("Author", value: \.author) { mod in
-                        if let url = mod.authorPortalURL {
-                            Button(action: {
-                                NSWorkspace.shared.open(url)
-                            }) {
-                                Text(mod.author)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.accentColor)
-                                    .lineLimit(1)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Open \(mod.author)'s portal page")
-                        } else {
-                            Text(mod.author)
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        }
+                        AuthorCellView(mod: mod, portalOwner: appState.modPortalOwners[mod.name])
                     }
                     .width(min: 90, ideal: 130, max: 190)
 
@@ -364,11 +384,6 @@ public struct InstalledModsView: View {
                 selectedModID = filteredAndSortedMods.first?.id
             }
             setupKeyboardMonitor()
-        }
-        .onChange(of: selectedModID) { newID in
-            if let id = newID, let idx = filteredAndSortedMods.firstIndex(where: { $0.id == id }) {
-                scrollToRow(index: idx)
-            }
         }
         .confirmationDialog(
             loc("confirm_delete_title"),

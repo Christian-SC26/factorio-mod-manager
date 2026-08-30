@@ -87,6 +87,7 @@ public final class AppState: ObservableObject {
     @Published public var installedMods: [LocalMod] = []
     @Published public var installedModsMap: [String: [LocalMod]] = [:]
     @Published public var isLoadingMods: Bool = false
+    @Published public var modPortalOwners: [String: String] = [:]
 
     // MARK: - Profiles State
     @Published public var profiles: [Profile] = []
@@ -163,6 +164,23 @@ public final class AppState: ObservableObject {
         list.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         self.installedMods = list
         self.isLoadingMods = false
+
+        fetchMissingPortalOwners()
+    }
+
+    public func fetchMissingPortalOwners() {
+        let targets = installedMods.map { $0.name }.filter { modPortalOwners[$0] == nil && $0 != "base" }
+        guard !targets.isEmpty else { return }
+
+        Task.detached(priority: .background) {
+            for name in targets {
+                if let info = try? await ModPortalClient.shared.fetchModInfo(name), !info.owner.isEmpty {
+                    await MainActor.run {
+                        self.modPortalOwners[name] = info.owner
+                    }
+                }
+            }
+        }
     }
 
     public func loadProfiles() {

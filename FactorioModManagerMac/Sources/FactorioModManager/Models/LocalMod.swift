@@ -106,18 +106,31 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
         return a.isEmpty ? "—" : a
     }
 
-    public var primaryAuthor: String {
-        let a = author
-        guard !a.isEmpty, a != "—" else { return "" }
-        var clean = a.components(separatedBy: ",")[0]
-        if let parenRange = clean.range(of: "(") {
-            clean = String(clean[..<parenRange.lowerBound])
+    public var cleanAuthorName: String {
+        var a = author
+        if a.isEmpty || a == "—" { return "—" }
+        // Strip copyright years like ", 2025", ", 2024", " 2025"
+        if let regex = try? NSRegularExpression(pattern: #",?\s*\b20\d{2}\b.*$"#) {
+            let range = NSRange(location: 0, length: a.utf16.count)
+            a = regex.stringByReplacingMatches(in: a, options: [], range: range, withTemplate: "")
         }
-        return clean.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip parentheses like " (AKA ...)"
+        if let parenRange = a.range(of: "(") {
+            a = String(a[..<parenRange.lowerBound])
+        }
+        let trimmed = a.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? author : trimmed
     }
 
-    public var authorPortalURL: URL? {
-        let username = primaryAuthor
+    public var primaryAuthor: String {
+        let a = cleanAuthorName
+        guard !a.isEmpty, a != "—" else { return "" }
+        let first = a.components(separatedBy: ",")[0]
+        return first.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    public func portalAuthorURL(portalOwner: String?) -> URL? {
+        let username = (portalOwner != nil && !portalOwner!.isEmpty) ? portalOwner! : primaryAuthor
         guard !username.isEmpty, username != "—" else { return nil }
         let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? username
         return URL(string: "https://mods.factorio.com/user/\(encoded)")
