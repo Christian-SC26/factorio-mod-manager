@@ -701,20 +701,36 @@ class CLIApp:
         print(f"\n{Colors.BOLD}Installed mods:{Colors.RESET}")
         for idx, name in enumerate(mod_names, start=1):
             mod = installed[name][-1]
+            if mod.enabled:
+                st = f"{Colors.GREEN}[{i18n.t('status_enabled')}]{Colors.RESET}"
+            else:
+                st = f"{Colors.DIM}[{i18n.t('status_disabled')}]{Colors.RESET}"
             try:
                 size_str = format_bytes(mod.file_path.stat().st_size) if mod.file_path.exists() else "?"
             except Exception:
                 size_str = "?"
-            print(f"  {Colors.CYAN}{idx:>2}.{Colors.RESET} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version:<10} ({size_str})")
+            print(f"  {Colors.CYAN}{idx:>2}.{Colors.RESET} {st:<21} {Colors.BOLD}{name:<32}{Colors.RESET} v{mod.version:<10} ({size_str})")
         print()
 
         raw_select = styled_input(f"{Colors.BOLD}{i18n.t('prompt_remove_select')}{Colors.RESET}").strip()
-        selected_indices = parse_multi_selection(raw_select, mod_names)
-        if selected_indices is None or not selected_indices:
+        if not raw_select or raw_select.lower() in ("q", "quit", "cancel", "c", "отмена"):
             print(i18n.t("cancelled"))
             return
 
-        selected_names = [mod_names[i] for i in selected_indices]
+        # Support selecting all disabled mods via keywords: disabled, d, off, откл, отключенные
+        if raw_select.lower() in ("disabled", "d", "off", "откл", "отключенные", "отключённые", "отключено"):
+            selected_names = [name for name in mod_names if not installed[name][-1].enabled]
+            if not selected_names:
+                print(f"\n{Colors.YELLOW}{i18n.t('no_disabled_mods')}{Colors.RESET}")
+                pause_prompt()
+                return
+        else:
+            selected_indices = parse_multi_selection(raw_select, mod_names)
+            if selected_indices is None or not selected_indices:
+                print(i18n.t("cancelled"))
+                return
+            selected_names = [mod_names[i] for i in selected_indices]
+
         print(f"\n{Colors.YELLOW}Selected to remove ({len(selected_names)}):{Colors.RESET} {' '.join(selected_names)}")
         
         confirm = styled_input(f"{Colors.BOLD}{i18n.t('prompt_confirm_remove', count=len(selected_names))}{Colors.RESET}").strip().lower()
