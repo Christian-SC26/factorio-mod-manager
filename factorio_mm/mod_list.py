@@ -228,7 +228,7 @@ class ModListManager:
             return installed
 
         for entry in self.mods_dir.iterdir():
-            if entry.name.startswith(".") or entry.name == "mod-list.json" or entry.name.endswith(".tmp"):
+            if entry.name.startswith(".") or entry.name == "mod-list.json" or entry.name.endswith(".tmp") or entry.name.lower() in ("modpacks", "exported_modpacks", "profiles"):
                 continue
 
             mod_name = None
@@ -345,6 +345,12 @@ class ModListManager:
 
     def get_profiles_dir(self) -> Path:
         p = self.mods_dir / ".fmm_profiles"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    def get_exports_dir(self) -> Path:
+        """Directory where exported modpacks are stored by default."""
+        p = self.mods_dir / "modpacks"
         p.mkdir(parents=True, exist_ok=True)
         return p
 

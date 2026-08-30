@@ -478,9 +478,11 @@ class CLIApp:
                 })
 
         raw_target = (output_file or "modpack.json").strip().strip("'\"")
-        out_path = Path(raw_target).expanduser()
-        if not out_path.is_absolute():
-            out_path = (Path.cwd() / out_path).resolve()
+        if "/" not in raw_target and "\\" not in raw_target and not raw_target.startswith("~"):
+            export_dir = self.mod_list_mgr.get_exports_dir()
+            out_path = export_dir / raw_target
+        else:
+            out_path = Path(raw_target).expanduser().resolve()
 
         if out_path.suffix.lower() == ".json":
             with open(out_path, "w", encoding="utf-8") as f:
@@ -502,6 +504,7 @@ class CLIApp:
         # Check candidate locations if file not found directly
         if not in_path.exists():
             candidates = [
+                self.mod_list_mgr.get_exports_dir() / clean_input,
                 Path.cwd() / clean_input,
                 Path.home() / "Desktop" / clean_input,
                 Path.home() / "Downloads" / clean_input,
