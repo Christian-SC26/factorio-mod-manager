@@ -40,6 +40,19 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
     public let modificationDate: Date?
     public var info: LocalModInfo?
 
+    // Precomputed properties for instant table rendering & zero-cost sorting
+    public let displayTitle: String
+    public let author: String
+    public let cleanAuthorName: String
+    public let primaryAuthor: String
+    public let summary: String
+    public let factorioVersion: String
+    public let formattedDate: String
+    public let dateSortKey: Date
+
+    public var title: String { displayTitle }
+    public var enabledSortKey: Int { enabled ? 1 : 0 }
+
     public init(
         name: String,
         version: FactorioVersion,
@@ -58,10 +71,57 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
         self.fileSize = fileSize
         self.modificationDate = modificationDate
         self.info = info
+
+        // 1. Precompute title
+        if let rawTitle = info?.title?.trimmingCharacters(in: .whitespacesAndNewlines), !rawTitle.isEmpty {
+            let upper = rawTitle.uppercased()
+            if !upper.contains("MOD DISPLAY NAME") && !rawTitle.hasPrefix("__") && !upper.contains("LOCALE") && rawTitle != "[mod-name]" {
+                self.displayTitle = rawTitle
+            } else {
+                self.displayTitle = Self.cleanHumanTitle(from: name)
+            }
+        } else {
+            self.displayTitle = Self.cleanHumanTitle(from: name)
+        }
+
+        // 2. Precompute author
+        let rawAuthor = info?.author?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let resolvedAuthor = rawAuthor.isEmpty ? "—" : rawAuthor
+        self.author = resolvedAuthor
+
+        if resolvedAuthor == "—" {
+            self.cleanAuthorName = "—"
+            self.primaryAuthor = ""
+        } else {
+            var cleaned = resolvedAuthor
+            if let regex = Self.yearRegex {
+                let range = NSRange(location: 0, length: cleaned.utf16.count)
+                cleaned = regex.stringByReplacingMatches(in: cleaned, options: [], range: range, withTemplate: "")
+            }
+            if let paren = cleaned.range(of: "(") {
+                cleaned = String(cleaned[..<paren.lowerBound])
+            }
+            let trimmed = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+            let finalClean = trimmed.isEmpty ? resolvedAuthor : trimmed
+            self.cleanAuthorName = finalClean
+
+            let first = finalClean.components(separatedBy: ",")[0]
+            self.primaryAuthor = first.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        // 3. Precompute metadata
+        self.summary = info?.description?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        self.factorioVersion = info?.factorio_version?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "2.1"
+        self.dateSortKey = modificationDate ?? Date.distantPast
+        if let d = modificationDate {
+            self.formattedDate = Self.dateFormatter.string(from: d)
+        } else {
+            self.formattedDate = "—"
+        }
     }
 
     public static func == (lhs: LocalMod, rhs: LocalMod) -> Bool {
-        lhs.id == rhs.id && lhs.enabled == rhs.enabled && lhs.info?.title == rhs.info?.title
+        lhs.id == rhs.id && lhs.enabled == rhs.enabled && lhs.displayTitle == rhs.displayTitle
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -69,26 +129,10 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
         hasher.combine(enabled)
     }
 
-    public var displayTitle: String {
-        if let t = info?.title?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
-            let upper = t.uppercased()
-            // Ignore localization placeholders like [MOD DISPLAY NAME] or __mod-name__
-            if !upper.contains("MOD DISPLAY NAME") && !t.hasPrefix("__") && !upper.contains("LOCALE") && t != "[mod-name]" {
-                return t
-            }
-        }
-        return Self.cleanHumanTitle(from: name)
-    }
-
-    public var title: String {
-        displayTitle
-    }
-
     public static func cleanHumanTitle(from rawName: String) -> String {
-        var result = rawName
-        result = result.replacingOccurrences(of: "_", with: " ")
+        var result = rawName.replacingOccurrences(of: "_", with: " ")
         result = result.replacingOccurrences(of: "-", with: " ")
-        
+
         let words = result.components(separatedBy: " ").filter { !$0.isEmpty }
         let capitalized = words.map { word -> String in
             let lower = word.lowercased()
@@ -101,34 +145,6 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
         return capitalized.joined(separator: " ")
     }
 
-    public var author: String {
-        let a = info?.author?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return a.isEmpty ? "—" : a
-    }
-
-    public var cleanAuthorName: String {
-        var a = author
-        if a.isEmpty || a == "—" { return "—" }
-        // Strip copyright years like ", 2025", ", 2024", " 2025"
-        if let regex = try? NSRegularExpression(pattern: #",?\s*\b20\d{2}\b.*$"#) {
-            let range = NSRange(location: 0, length: a.utf16.count)
-            a = regex.stringByReplacingMatches(in: a, options: [], range: range, withTemplate: "")
-        }
-        // Strip parentheses like " (AKA ...)"
-        if let parenRange = a.range(of: "(") {
-            a = String(a[..<parenRange.lowerBound])
-        }
-        let trimmed = a.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? author : trimmed
-    }
-
-    public var primaryAuthor: String {
-        let a = cleanAuthorName
-        guard !a.isEmpty, a != "—" else { return "" }
-        let first = a.components(separatedBy: ",")[0]
-        return first.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     public func portalAuthorURL(portalOwner: String?) -> URL? {
         let username = (portalOwner != nil && !portalOwner!.isEmpty) ? portalOwner! : primaryAuthor
         guard !username.isEmpty, username != "—" else { return nil }
@@ -136,26 +152,9 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
         return URL(string: "https://mods.factorio.com/user/\(encoded)")
     }
 
-    public var summary: String {
-        info?.description ?? ""
-    }
-
-    public var factorioVersion: String {
-        info?.factorio_version ?? "2.1"
-    }
-
-    public var formattedDate: String {
-        guard let d = modificationDate else { return "—" }
-        return Self.dateFormatter.string(from: d)
-    }
-
-    public var dateSortKey: Date {
-        modificationDate ?? Date.distantPast
-    }
-
-    public var enabledSortKey: Int {
-        enabled ? 1 : 0
-    }
+    private static let yearRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: #",?\s*\b20\d{2}\b.*$"#)
+    }()
 
     private static let dateFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -258,7 +257,6 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
             if fnStart + filenameLen <= cdBytes.count {
                 let fnData = Data(cdBytes[fnStart..<(fnStart + filenameLen)])
                 if let filename = String(data: fnData, encoding: .utf8), filename.hasSuffix("info.json") {
-                    // Extract info.json
                     if let rawJsonData = extractLocalFile(
                         fileHandle: fileHandle,
                         localHeaderOffset: UInt64(localHeaderOffset),

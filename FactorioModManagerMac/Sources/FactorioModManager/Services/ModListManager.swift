@@ -165,7 +165,10 @@ public final class ModListManager: Sendable {
         try FileManager.default.moveItem(at: tmpURL, to: modListJsonURL)
     }
 
+    private static let cacheLock = NSLock()
     private static var infoCache: [String: (Date, LocalModInfo)] = [:]
+    private static let zipRegex = try? NSRegularExpression(pattern: #"^(.+)_(\d+(?:\.\d+)*)\.zip$"#, options: .caseInsensitive)
+    private static let dirModRegex = try? NSRegularExpression(pattern: #"^(.+)_(\d+(?:\.\d+)*)$"#)
 
     /// Scan mods directory for all installed mod archives and directories
     public func scanInstalledMods() -> [String: [LocalMod]] {
@@ -182,7 +185,6 @@ public final class ModListManager: Sendable {
         }
 
         var installed: [String: [LocalMod]] = [:]
-        let zipRegex = try? NSRegularExpression(pattern: #"^(.+)_(\d+(?:\.\d+)*)\.zip$"#, options: .caseInsensitive)
 
         for entry in contents {
             let filename = entry.lastPathComponent
@@ -200,8 +202,12 @@ public final class ModListManager: Sendable {
             var versionStr: String? = nil
             var modInfo: LocalModInfo? = nil
 
-            // Check in-memory metadata cache first
-            if let cached = Self.infoCache[filename], cached.0 == modDate {
+            // Check in-memory metadata cache first (thread-safe)
+            Self.cacheLock.lock()
+            let cached = Self.infoCache[filename]
+            Self.cacheLock.unlock()
+
+            if let cached = cached, cached.0 == modDate {
                 modInfo = cached.1
                 modName = modInfo?.name
                 versionStr = modInfo?.version
@@ -211,13 +217,15 @@ public final class ModListManager: Sendable {
                     modInfo = parsedInfo
                     modName = parsedInfo.name
                     versionStr = parsedInfo.version
+                    Self.cacheLock.lock()
                     Self.infoCache[filename] = (modDate, parsedInfo)
+                    Self.cacheLock.unlock()
                 }
             }
 
             // Fast fallback to filename if needed
             if modName == nil || versionStr == nil {
-                if !isDir, let regex = zipRegex {
+                if !isDir, let regex = Self.zipRegex {
                     let range = NSRange(location: 0, length: filename.utf16.count)
                     if let match = regex.firstMatch(in: filename, options: [], range: range),
                        let nRange = Range(match.range(at: 1), in: filename),
@@ -230,8 +238,7 @@ public final class ModListManager: Sendable {
 
             if modName == nil || versionStr == nil {
                 let baseName = isDir ? filename : entry.deletingPathExtension().lastPathComponent
-                let pattern = #"^(.+)_(\d+(?:\.\d+)*)$"#
-                if let regex = try? NSRegularExpression(pattern: pattern) {
+                if let regex = Self.dirModRegex {
                     let range = NSRange(location: 0, length: baseName.utf16.count)
                     if let match = regex.firstMatch(in: baseName, options: [], range: range),
                        let nRange = Range(match.range(at: 1), in: baseName),

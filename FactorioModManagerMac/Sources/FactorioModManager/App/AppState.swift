@@ -184,10 +184,34 @@ public final class AppState: ObservableObject {
         guard !targets.isEmpty else { return }
 
         Task.detached(priority: .background) {
-            for name in targets {
-                if let info = try? await ModPortalClient.shared.fetchModInfo(name), !info.owner.isEmpty {
-                    await MainActor.run {
-                        self.modPortalOwners[name] = info.owner
+            await withTaskGroup(of: (String, String?).self) { group in
+                var iterator = targets.makeIterator()
+                let maxConcurrent = 6
+
+                for _ in 0..<maxConcurrent {
+                    if let name = iterator.next() {
+                        group.addTask {
+                            if let info = try? await ModPortalClient.shared.fetchModInfo(name), !info.owner.isEmpty {
+                                return (name, info.owner)
+                            }
+                            return (name, nil)
+                        }
+                    }
+                }
+
+                while let (name, owner) = await group.next() {
+                    if let nextName = iterator.next() {
+                        group.addTask {
+                            if let info = try? await ModPortalClient.shared.fetchModInfo(nextName), !info.owner.isEmpty {
+                                return (nextName, info.owner)
+                            }
+                            return (nextName, nil)
+                        }
+                    }
+                    if let owner = owner {
+                        await MainActor.run {
+                            self.modPortalOwners[name] = owner
+                        }
                     }
                 }
             }

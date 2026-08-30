@@ -36,6 +36,7 @@ public struct InstalledModsView: View {
     @State private var selectedModIDs: Set<String> = []
     @State private var selectionAnchorIndex: Int = 0
     @State private var sortOrder = [KeyPathComparator(\LocalMod.displayTitle, order: .forward)]
+    @State private var eventMonitor: Any? = nil
     @FocusState private var isSearchFocused: Bool
 
     // Deletion confirmation state
@@ -450,7 +451,15 @@ public struct InstalledModsView: View {
             if selectedModIDs.isEmpty, let firstID = filteredAndSortedMods.first?.id {
                 selectedModIDs = [firstID]
             }
-            setupKeyboardMonitor()
+            if eventMonitor == nil {
+                setupKeyboardMonitor()
+            }
+        }
+        .onDisappear {
+            if let monitor = eventMonitor {
+                NSEvent.removeMonitor(monitor)
+                eventMonitor = nil
+            }
         }
         // Simple Deletion Confirmation (No broken dependencies)
         .confirmationDialog(
@@ -575,7 +584,7 @@ public struct InstalledModsView: View {
     }
 
     private func setupKeyboardMonitor() {
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let isCmd = event.modifierFlags.contains(.command)
             let isShift = event.modifierFlags.contains(.shift)
             let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
