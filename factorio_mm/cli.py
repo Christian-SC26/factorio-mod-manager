@@ -8,60 +8,7 @@ import re
 import sys
 import unicodedata
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-def init_readline():
-    """Initialize readline settings for smooth terminal navigation across macOS, Linux, and Windows."""
-    try:
-        import readline
-        doc = getattr(readline, "__doc__", "") or ""
-        if "libedit" in doc.lower():
-            # macOS libedit bindings
-            readline.parse_and_bind("bind -e")
-            readline.parse_and_bind("bind ^I rl_complete")
-        else:
-            # GNU readline
-            readline.parse_and_bind("tab: complete")
-            readline.parse_and_bind("set enable-bracketed-paste on")
-    except Exception:
-        pass
-
-
-init_readline()
-
-
-def rl_escape(s: str) -> str:
-    """
-    Wrap ANSI escape sequences with \\001 and \\002 (RL_PROMPT_START_IGNORE / RL_PROMPT_END_IGNORE).
-    This ensures Readline calculates the true visible prompt width and prevents cursor navigation
-    glitches (inability to move right, overwriting characters, and line redraw corruption).
-    """
-    return re.sub(r"(\033\[[0-9;]*[a-zA-Z])", r"\001\1\002", s)
-
-
-def styled_input(prompt: str = "") -> str:
-    """Safely prompt user for input with proper readline escaping and clean newline handling."""
-    if prompt.startswith("\n"):
-        print()
-        prompt = prompt[1:]
-    escaped_prompt = rl_escape(prompt)
-    return input(escaped_prompt)
-
-
-def normalize_pasted_targets(raw_str: str) -> List[str]:
-    """
-    Parse user input into list of mod targets.
-    Automatically separates glued URLs (e.g. url1https://url2 -> url1 https://url2)
-    and handles newlines, commas, semicolons, tabs, and spaces.
-    """
-    if not raw_str:
-        return []
-    # 1. Separate glued URLs (e.g. https://...https://...)
-    cleaned = re.sub(r"(https?://[^\s]+?)(https?://)", r"\1 \2", raw_str)
-    cleaned = re.sub(r"([^\s]+?)(https?://|re146\.dev)", r"\1 \2", cleaned)
-    # 2. Split by any whitespace, newline, tab, comma, semicolon
-    return [t.strip() for t in re.split(r"[\r\n\t,;\s]+", cleaned) if t.strip()]
-
+from typing import Dict, List, Optional, Set, Tuple
 
 from .api import (
     ModPortalClient,
@@ -78,10 +25,49 @@ from .mod_list import (
     get_default_factorio_mods_dir,
 )
 from .resolver import DependencyResolver, ResolutionResult
-from .version import Dependency, DependencyType, FactorioVersion
+from .version import Dependency, DependencyType, FactorioVersion, VIRTUAL_BUILTINS
 
 
-# ANSI Color Codes for terminal formatting
+def init_readline():
+    """Initialize readline settings for smooth terminal navigation across macOS, Linux, and Windows."""
+    try:
+        import readline
+        doc = getattr(readline, "__doc__", "") or ""
+        if "libedit" in doc.lower():
+            readline.parse_and_bind("bind -e")
+            readline.parse_and_bind("bind ^I rl_complete")
+        else:
+            readline.parse_and_bind("tab: complete")
+            readline.parse_and_bind("set enable-bracketed-paste on")
+    except Exception:
+        pass
+
+
+init_readline()
+
+
+def rl_escape(s: str) -> str:
+    """Wrap ANSI escape sequences with readline ignore markers for accurate cursor width calculation."""
+    return re.sub(r"(\033\[[0-9;]*[a-zA-Z])", r"\001\1\002", s)
+
+
+def styled_input(prompt: str = "") -> str:
+    """Safely prompt user for input with proper readline escaping and clean newline handling."""
+    if prompt.startswith("\n"):
+        print()
+        prompt = prompt[1:]
+    return input(rl_escape(prompt))
+
+
+def normalize_pasted_targets(raw_str: str) -> List[str]:
+    """Parse user input into list of mod targets, splitting URLs, commas, newlines, and spaces."""
+    if not raw_str:
+        return []
+    cleaned = re.sub(r"(https?://[^\s]+?)(https?://)", r"\1 \2", raw_str)
+    cleaned = re.sub(r"([^\s]+?)(https?://|re146\.dev)", r"\1 \2", cleaned)
+    return [t.strip() for t in re.split(r"[\r\n\t,;\s]+", cleaned) if t.strip()]
+
+
 class Colors:
     HEADER = "\033[95m"
     BLUE = "\033[94m"
@@ -379,7 +365,7 @@ class CLIApp:
         updates_available: List[tuple] = []
 
         for name, mod_list in installed.items():
-            if name.lower() in ("base", "quality", "space-age", "elevated-rails", "recycler"):
+            if name.lower() in VIRTUAL_BUILTINS:
                 continue
             latest_local = mod_list[-1]
             try:
@@ -467,7 +453,7 @@ class CLIApp:
         installed = self.mod_list_mgr.scan_installed_mods()
         export_data = []
         for name, mod_list in installed.items():
-            if name.lower() in ("base", "quality", "space-age", "elevated-rails", "recycler"):
+            if name.lower() in VIRTUAL_BUILTINS:
                 continue
             latest = mod_list[-1]
             if latest.enabled:
@@ -527,7 +513,7 @@ class CLIApp:
                     for item in data:
                         if isinstance(item, dict):
                             t = item.get("url") or item.get("name")
-                            if t and item.get("name") not in ("base", "quality", "space-age", "elevated-rails", "recycler"):
+                            if t and item.get("name", "").lower() not in VIRTUAL_BUILTINS:
                                 targets.append(t)
                         elif isinstance(item, str):
                             targets.append(item)
@@ -537,8 +523,8 @@ class CLIApp:
                         raw_mods = [{"name": k, "version": v} for k, v in raw_mods.items()]
                     for item in raw_mods:
                         if isinstance(item, dict) and item.get("enabled", True):
-                            name = item.get("name")
-                            if name and name not in ("base", "quality", "space-age", "elevated-rails", "recycler"):
+                            name = item.get("name", "")
+                            if name and name.lower() not in VIRTUAL_BUILTINS:
                                 targets.append(item.get("url") or name)
                         elif isinstance(item, str):
                             targets.append(item)

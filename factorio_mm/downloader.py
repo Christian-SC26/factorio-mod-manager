@@ -1,7 +1,6 @@
 """Concurrent downloader with progress bar and integrity verification."""
 
 from __future__ import annotations
-import concurrent.futures
 import hashlib
 import re
 import sys

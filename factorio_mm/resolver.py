@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from .api import ModInfo, ModPortalClient, ReleaseInfo, parse_mod_input
 from .i18n import i18n
 from .mod_list import LocalMod, ModListManager
-from .version import Dependency, DependencyType, FactorioVersion
+from .version import Dependency, DependencyType, FactorioVersion, VIRTUAL_BUILTINS
 
 
 @dataclass
@@ -122,7 +122,7 @@ class DependencyResolver:
         depth: int = 0,
     ):
         # Ignore virtual base mods
-        if mod_name.lower() in ("base", "core", "quality", "space-age", "elevated-rails", "recycler"):
+        if mod_name.lower() in VIRTUAL_BUILTINS:
             return
 
         # Track graph

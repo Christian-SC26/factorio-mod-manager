@@ -5,14 +5,13 @@ import json
 import os
 import platform
 import re
-import sys
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 from .i18n import i18n
-from .version import Dependency, FactorioVersion
+from .version import Dependency, FactorioVersion, VIRTUAL_BUILTINS
 
 
 @dataclass
@@ -455,9 +454,8 @@ class ModListManager:
         missing_mods = []
         activated_mods = []
 
-        virtual_mods = {"base", "core", "quality", "space-age", "elevated-rails", "recycler"}
         for mod_name in sorted(active_mods):
-            if mod_name in installed or mod_name.lower() in virtual_mods:
+            if mod_name in installed or mod_name.lower() in VIRTUAL_BUILTINS:
                 new_states[mod_name] = True
                 activated_mods.append(mod_name)
             else:
