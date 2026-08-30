@@ -477,27 +477,47 @@ class CLIApp:
                     "url": f"https://mods.factorio.com/mod/{name}"
                 })
 
-        target_file = output_file or "modpack.json"
-        out_path = Path(target_file)
-        if out_path.suffix == ".json":
+        raw_target = (output_file or "modpack.json").strip().strip("'\"")
+        out_path = Path(raw_target).expanduser()
+        if not out_path.is_absolute():
+            out_path = (Path.cwd() / out_path).resolve()
+
+        if out_path.suffix.lower() == ".json":
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(export_data, f, indent=2, ensure_ascii=False)
+                f.write("\n")
         else:
             with open(out_path, "w", encoding="utf-8") as f:
                 for item in export_data:
                     f.write(f"{item['url']}\n")
-        print(f"{Colors.GREEN}{i18n.t('export_success', count=len(export_data), path=target_file)}{Colors.RESET}")
+
+        print(f"{Colors.GREEN}{i18n.t('export_success', count=len(export_data), path=str(out_path))}{Colors.RESET}")
         return len(export_data)
 
     def cmd_import(self, input_file: str, yes: bool = False, include_optional: bool = False):
         """Import and install mods from a file."""
-        in_path = Path(input_file)
+        clean_input = input_file.strip().strip("'\"")
+        in_path = Path(clean_input).expanduser()
+
+        # Check candidate locations if file not found directly
         if not in_path.exists():
-            print(f"{Colors.RED}[!] {i18n.t('file_not_found', path=input_file)}{Colors.RESET}")
+            candidates = [
+                Path.cwd() / clean_input,
+                Path.home() / "Desktop" / clean_input,
+                Path.home() / "Downloads" / clean_input,
+                self.mods_dir / clean_input,
+            ]
+            for cand in candidates:
+                if cand.exists():
+                    in_path = cand
+                    break
+
+        if not in_path.exists():
+            print(f"{Colors.RED}[!] {i18n.t('file_not_found', path=clean_input)}{Colors.RESET}")
             return
 
         targets = []
-        if in_path.suffix == ".json":
+        if in_path.suffix.lower() == ".json":
             with open(in_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, list):
@@ -526,7 +546,7 @@ class CLIApp:
                     if line and not line.startswith("#"):
                         targets.append(line)
 
-        print(i18n.t("import_start", count=len(targets), path=input_file))
+        print(i18n.t("import_start", count=len(targets), path=str(in_path.resolve())))
         if targets:
             self.cmd_install(targets, yes=yes, include_optional=include_optional)
 
