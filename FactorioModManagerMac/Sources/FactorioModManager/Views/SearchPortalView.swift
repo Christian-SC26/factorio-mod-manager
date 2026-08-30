@@ -96,9 +96,9 @@ public struct SearchPortalView: View {
             } else if appState.searchResults.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
-                    Image(systemName: "globe.desk.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.accentColor.opacity(0.7))
+                    Image(systemName: "globe")
+                        .font(.system(size: 44))
+                        .foregroundColor(.secondary)
                     Text(loc("search_portal_title"))
                         .font(.title3.bold())
                     Text("Search thousands of Factorio mods online and install with one click.")
@@ -112,33 +112,33 @@ public struct SearchPortalView: View {
                     let isInstalled = appState.installedModsMap[item.name] != nil
 
                     HStack(alignment: .top, spacing: 14) {
-                        Image(systemName: "cube.box.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(isInstalled ? .green : .accentColor)
-                            .frame(width: 32, height: 32)
+                        Image(systemName: "cube.box")
+                            .font(.system(size: 22))
+                            .foregroundColor(.secondary)
+                            .frame(width: 28, height: 28)
 
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 8) {
                                 Text(item.title)
-                                    .font(.system(size: 14, weight: .bold))
+                                    .font(.system(size: 13, weight: .bold))
 
                                 Text("(\(item.name))")
                                     .font(.system(size: 11, design: .monospaced))
                                     .foregroundColor(.secondary)
 
                                 if isInstalled {
-                                    StatusBadge(loc("installed_status"), color: .green, icon: "checkmark.circle.fill")
+                                    StatusBadge(loc("installed_status"), icon: "checkmark.circle")
                                 }
 
                                 if item.isDeprecated {
-                                    StatusBadge(loc("deprecated_badge"), color: .orange, icon: "exclamationmark.triangle.fill")
+                                    StatusBadge(loc("deprecated_badge"), icon: "exclamationmark.triangle")
                                 }
                             }
 
                             HStack(spacing: 12) {
                                 if !item.owner.isEmpty {
                                     HStack(spacing: 4) {
-                                        Image(systemName: "person.fill")
+                                        Image(systemName: "person")
                                         Text(item.owner)
                                     }
                                     .font(.caption)
@@ -147,7 +147,7 @@ public struct SearchPortalView: View {
 
                                 if !item.factorioVersions.isEmpty {
                                     HStack(spacing: 4) {
-                                        Image(systemName: "gamecontroller.fill")
+                                        Image(systemName: "tag")
                                         Text(item.factorioVersions)
                                     }
                                     .font(.caption)
@@ -180,7 +180,7 @@ public struct SearchPortalView: View {
                                 Task { await appState.resolveAndInstall(targets: [item.name]) }
                             }) {
                                 HStack(spacing: 4) {
-                                    Image(systemName: isInstalled ? "arrow.clockwise" : "plus.circle.fill")
+                                    Image(systemName: isInstalled ? "arrow.clockwise" : "arrow.down.circle")
                                     Text(isInstalled ? "Reinstall" : loc("install_button"))
                                         .fontWeight(.semibold)
                                 }
@@ -198,7 +198,7 @@ public struct SearchPortalView: View {
                             .foregroundColor(.secondary)
                         }
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
                 }
                 .listStyle(.inset(alternatesRowBackgrounds: true))
             }

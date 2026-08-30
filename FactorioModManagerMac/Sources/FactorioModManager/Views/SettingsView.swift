@@ -46,7 +46,7 @@ public struct SettingsView: View {
 
                         HStack(spacing: 10) {
                             Button(action: chooseCustomModsDir) {
-                                Label(loc("select_folder"), systemImage: "folder.badge.gearshape")
+                                Label(loc("select_folder"), systemImage: "folder")
                             }
 
                             Button(action: {
@@ -167,7 +167,7 @@ public struct SettingsView: View {
                         HStack {
                             Text("Factorio Mod Manager (FMM)")
                                 .font(.system(size: 14, weight: .bold))
-                            StatusBadge("macOS Native", color: .accentColor)
+                            StatusBadge("macOS Native")
                         }
                         Text(loc("version_label"))
                             .font(.caption)

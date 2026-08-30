@@ -80,9 +80,9 @@ public struct ExportImportView: View {
                 // Export Card
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(spacing: 10) {
-                        Image(systemName: "square.and.arrow.up.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.accentColor)
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 22))
+                            .foregroundColor(.secondary)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(loc("export_section_title"))
@@ -104,7 +104,7 @@ public struct ExportImportView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "doc.badge.arrow.up")
                                 Text(loc("export_json_button"))
-                                    .fontWeight(.semibold)
+                                    .fontWeight(.medium)
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
@@ -123,14 +123,14 @@ public struct ExportImportView: View {
                 }
                 .padding(18)
                 .background(Color(NSColor.controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                 // Import Card
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(spacing: 10) {
-                        Image(systemName: "square.and.arrow.down.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.purple)
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 22))
+                            .foregroundColor(.secondary)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(loc("import_section_title"))
@@ -147,17 +147,16 @@ public struct ExportImportView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "folder.badge.plus")
                             Text(loc("import_file_button"))
-                                .fontWeight(.semibold)
+                                .fontWeight(.medium)
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.purple)
                 }
                 .padding(18)
                 .background(Color(NSColor.controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                 Spacer()
             }

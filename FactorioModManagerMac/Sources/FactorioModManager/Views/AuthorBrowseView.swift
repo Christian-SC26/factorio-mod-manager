@@ -27,7 +27,7 @@ public struct AuthorBrowseView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     HStack(spacing: 8) {
-                        Image(systemName: "person.fill")
+                        Image(systemName: "person")
                             .foregroundColor(.secondary)
                         TextField(loc("author_input_placeholder"), text: $authorInput)
                             .textFieldStyle(.plain)
@@ -51,7 +51,7 @@ public struct AuthorBrowseView: View {
                                 ProgressView()
                                     .controlSize(.small)
                             } else {
-                                Image(systemName: "arrow.right.circle.fill")
+                                Image(systemName: "arrow.right")
                             }
                             Text(loc("fetch_author_button"))
                                 .fontWeight(.semibold)
@@ -108,9 +108,9 @@ public struct AuthorBrowseView: View {
             } else if appState.authorResults.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
-                    Image(systemName: "person.2.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.indigo.opacity(0.7))
+                    Image(systemName: "person.2")
+                        .font(.system(size: 44))
+                        .foregroundColor(.secondary)
                     Text(loc("author_title"))
                         .font(.title3.bold())
                     Text("Enter a mod author's username or portal URL to explore and install their mods.")
@@ -137,7 +137,7 @@ public struct AuthorBrowseView: View {
                                 }
                             }) {
                                 HStack(spacing: 4) {
-                                    Image(systemName: "arrow.down.circle.fill")
+                                    Image(systemName: "arrow.down.circle")
                                     Text(String(format: loc("install_selected"), selectedModNames.count))
                                 }
                             }
@@ -171,8 +171,8 @@ public struct AuthorBrowseView: View {
                                 }
                             }) {
                                 Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(isSelected ? .accentColor : .secondary)
+                                    .font(.system(size: 15))
+                                    .foregroundColor(isSelected ? .primary : .secondary)
                             }
                             .buttonStyle(.plain)
 
@@ -204,21 +204,21 @@ public struct AuthorBrowseView: View {
                             Spacer()
 
                             if isInstalled {
-                                StatusBadge(loc("installed_status"), color: .green, icon: "checkmark.circle.fill")
+                                StatusBadge(loc("installed_status"), icon: "checkmark.circle")
                             }
 
                             if item.isDeprecated {
-                                StatusBadge(loc("deprecated_badge"), color: .orange)
+                                StatusBadge(loc("deprecated_badge"), icon: "exclamationmark.triangle")
                             }
 
                             Button(action: {
                                 Task { await appState.resolveAndInstall(targets: [item.name]) }
                             }) {
-                                Image(systemName: "plus.circle.fill")
+                                Image(systemName: "arrow.down.circle")
                                     .font(.system(size: 16))
                             }
                             .buttonStyle(.plain)
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(.secondary)
                             .help(loc("install_button"))
                         }
                         .padding(.vertical, 4)

@@ -34,12 +34,12 @@ public struct ModDetailSheet: View {
             // Header
             HStack(alignment: .top) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.15))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: "cube.box.fill")
-                        .font(.system(size: 22))
-                        .foregroundColor(.accentColor)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.secondary.opacity(0.12))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: "cube.box")
+                        .font(.system(size: 20))
+                        .foregroundColor(.primary)
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -71,7 +71,7 @@ public struct ModDetailSheet: View {
                     HStack(spacing: 12) {
                         if !authorText.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "person.fill")
+                                Image(systemName: "person")
                                 Text(authorText)
                             }
                             .font(.caption)
@@ -80,7 +80,7 @@ public struct ModDetailSheet: View {
 
                         if let info = modInfo, !info.category.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "tag.fill")
+                                Image(systemName: "tag")
                                 Text(info.category)
                             }
                             .font(.caption)
@@ -97,7 +97,7 @@ public struct ModDetailSheet: View {
                         }
 
                         if let local = localMod {
-                            StatusBadge(local.enabled ? loc("enabled_status") : loc("disabled_status"), color: local.enabled ? .green : .secondary)
+                            StatusBadge(local.enabled ? loc("enabled_status") : loc("disabled_status"), icon: local.enabled ? "checkmark.circle" : "xmark.circle")
                         }
                     }
 
@@ -215,7 +215,7 @@ public struct ModDetailSheet: View {
                     Task { await appState.resolveAndInstall(targets: [nameText]) }
                 }) {
                     HStack(spacing: 5) {
-                        Image(systemName: "arrow.down.circle.fill")
+                        Image(systemName: "arrow.down.circle")
                         Text(loc("install_button"))
                             .fontWeight(.semibold)
                     }

@@ -2,12 +2,15 @@ import SwiftUI
 
 public struct StatusBadge: View {
     public let title: String
-    public let color: Color
     public var icon: String? = nil
+
+    public init(_ title: String, icon: String? = nil) {
+        self.title = title
+        self.icon = icon
+    }
 
     public init(_ title: String, color: Color, icon: String? = nil) {
         self.title = title
-        self.color = color
         self.icon = icon
     }
 
@@ -15,43 +18,38 @@ public struct StatusBadge: View {
         HStack(spacing: 4) {
             if let icon = icon {
                 Image(systemName: icon)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 10, weight: .semibold))
             }
             Text(title)
                 .font(.system(size: 11, weight: .medium, design: .rounded))
         }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(color.opacity(0.15))
-        .foregroundColor(color)
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(color.opacity(0.25), lineWidth: 0.8)
-        )
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2.5)
+        .background(Color.secondary.opacity(0.12))
+        .foregroundColor(.primary)
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 }
 
 public struct VersionBadge: View {
     public let version: String
-    public var isV2: Bool = false
 
     public init(_ version: String) {
         self.version = version
-        self.isV2 = version.contains("2.0") || version.contains("2.1") || version.hasPrefix("2.")
     }
 
     public var body: some View {
         HStack(spacing: 3) {
-            Image(systemName: "tag.fill")
+            Image(systemName: "tag")
                 .font(.system(size: 9))
+                .foregroundColor(.secondary)
             Text("v\(version)")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundColor(.primary)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2.5)
-        .background(isV2 ? Color.orange.opacity(0.15) : Color.secondary.opacity(0.12))
-        .foregroundColor(isV2 ? Color.orange : Color.secondary)
+        .background(Color.secondary.opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 }
@@ -66,13 +64,13 @@ public struct DependencyBadge: View {
     public var body: some View {
         switch type {
         case .required:
-            StatusBadge(loc("dep_required"), color: .green, icon: "checkmark.circle.fill")
+            StatusBadge(loc("dep_required"), icon: "checkmark.circle")
         case .recommended:
-            StatusBadge(loc("dep_recommended"), color: .cyan, icon: "plus.circle.fill")
+            StatusBadge(loc("dep_recommended"), icon: "plus.circle")
         case .optional:
-            StatusBadge(loc("dep_optional"), color: .yellow, icon: "questionmark.circle.fill")
+            StatusBadge(loc("dep_optional"), icon: "questionmark.circle")
         case .incompatible:
-            StatusBadge(loc("dep_conflict"), color: .red, icon: "exclamationmark.triangle.fill")
+            StatusBadge(loc("dep_conflict"), icon: "exclamationmark.triangle")
         }
     }
 }

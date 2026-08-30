@@ -37,7 +37,7 @@ public struct OptionalModsView: View {
                             Task { await appState.resolveAndInstall(targets: targets) }
                         }) {
                             HStack(spacing: 5) {
-                                Image(systemName: "arrow.down.circle.fill")
+                                Image(systemName: "arrow.down.circle")
                                 Text("Install All (\(appState.optionalMods.count))")
                             }
                         }
@@ -54,9 +54,9 @@ public struct OptionalModsView: View {
             if appState.optionalMods.isEmpty && hasScanned {
                 VStack(spacing: 12) {
                     Spacer()
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.green)
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 44))
+                        .foregroundColor(.secondary)
                     Text(loc("no_optional_found"))
                         .font(.headline)
                         .multilineTextAlignment(.center)
@@ -67,9 +67,9 @@ public struct OptionalModsView: View {
             } else if appState.optionalMods.isEmpty {
                 VStack(spacing: 16) {
                     Spacer()
-                    Image(systemName: "puzzlepiece.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.yellow)
+                    Image(systemName: "puzzlepiece")
+                        .font(.system(size: 44))
+                        .foregroundColor(.secondary)
                     Text(loc("optional_title"))
                         .font(.title3.bold())
                     Text("Click the button below to scan your installed mods for suggested and optional companion mods.")
@@ -95,13 +95,13 @@ public struct OptionalModsView: View {
             } else {
                 List(appState.optionalMods) { item in
                     HStack(spacing: 12) {
-                        Image(systemName: "puzzlepiece.extension.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.yellow)
+                        Image(systemName: "puzzlepiece")
+                            .font(.system(size: 20))
+                            .foregroundColor(.secondary)
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.name)
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.system(size: 13, weight: .semibold))
 
                             HStack(spacing: 4) {
                                 Text(loc("suggested_by"))
@@ -119,7 +119,7 @@ public struct OptionalModsView: View {
                             Task { await appState.resolveAndInstall(targets: [item.name]) }
                         }) {
                             HStack(spacing: 4) {
-                                Image(systemName: "arrow.down.circle.fill")
+                                Image(systemName: "arrow.down.circle")
                                 Text(loc("install_button"))
                                     .fontWeight(.semibold)
                             }

@@ -36,11 +36,11 @@ public struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // Notification Toast Overlay
+                // Notification Toast Overlay (Monochrome)
                 if let notif = appState.currentNotification {
                     HStack(spacing: 10) {
-                        Image(systemName: notif.isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-                            .foregroundColor(notif.isError ? .red : .green)
+                        Image(systemName: notif.isError ? "exclamationmark.circle" : "checkmark.circle")
+                            .foregroundColor(.primary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(notif.title)
                                 .font(.system(size: 13, weight: .bold))
@@ -51,7 +51,7 @@ public struct ContentView: View {
                         Spacer()
                         Button(action: { appState.currentNotification = nil }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
@@ -59,8 +59,12 @@ public struct ContentView: View {
                     .padding(12)
                     .frame(maxWidth: 360)
                     .background(.ultraThickMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
                     .padding(20)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .onAppear {
@@ -77,27 +81,17 @@ public struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
-                // Factorio version badge
-                HStack(spacing: 4) {
-                    Image(systemName: "gamecontroller.fill")
-                        .font(.system(size: 10))
-                    Text("Factorio \(appState.effectiveFactorioVersion)")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Color.secondary.opacity(0.12))
-                .clipShape(Capsule())
+                // Factorio version text (clean, no gamepad icon, no capsule background)
+                Text("Factorio \(appState.effectiveFactorioVersion)")
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundColor(.secondary)
 
-                // Language toggle button
+                // Language toggle button (clean, no extra capsule background)
                 Button(action: {
                     locMgr.toggleLanguage()
                 }) {
                     Text(locMgr.language == .en ? "RU" : "EN")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .frame(width: 26, height: 18)
-                        .background(Color.secondary.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                        .font(.system(size: 12, weight: .medium))
                 }
                 .help("Switch Language / Сменить язык")
 

@@ -14,23 +14,27 @@ public struct SidebarView: View {
                             Spacer()
                             if !appState.installedMods.isEmpty {
                                 Text("\(appState.installedMods.count)")
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
                                     .foregroundColor(.secondary)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 1)
-                                    .background(Color.secondary.opacity(0.15))
+                                    .background(Color.secondary.opacity(0.12))
                                     .clipShape(Capsule())
                             }
                         }
                     } icon: {
-                        Image(systemName: "archivebox.fill")
-                            .foregroundColor(.accentColor)
+                        Image(systemName: "archivebox")
+                            .foregroundColor(.secondary)
                     }
                 }
 
                 NavigationLink(value: SidebarTab.install) {
-                    Label(loc("sidebar_install"), systemImage: "arrow.down.circle.fill")
-                        .foregroundColor(.primary)
+                    Label {
+                        Text(loc("sidebar_install"))
+                    } icon: {
+                        Image(systemName: "arrow.down.circle")
+                            .foregroundColor(.secondary)
+                    }
                 }
 
                 NavigationLink(value: SidebarTab.updates) {
@@ -40,17 +44,17 @@ public struct SidebarView: View {
                             Spacer()
                             if !appState.updatesAvailable.isEmpty {
                                 Text("\(appState.updatesAvailable.count)")
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                                    .foregroundColor(.white)
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.primary)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 1)
-                                    .background(Color.orange)
+                                    .background(Color.secondary.opacity(0.2))
                                     .clipShape(Capsule())
                             }
                         }
                     } icon: {
-                        Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
-                            .foregroundColor(.orange)
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundColor(.secondary)
                     }
                 }
             }
@@ -63,47 +67,67 @@ public struct SidebarView: View {
                             Spacer()
                             if !appState.profiles.isEmpty {
                                 Text("\(appState.profiles.count)")
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
                                     .foregroundColor(.secondary)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 1)
-                                    .background(Color.secondary.opacity(0.15))
+                                    .background(Color.secondary.opacity(0.12))
                                     .clipShape(Capsule())
                             }
                         }
                     } icon: {
-                        Image(systemName: "folder.badge.gearshape")
-                            .foregroundColor(.purple)
+                        Image(systemName: "folder")
+                            .foregroundColor(.secondary)
                     }
                 }
 
                 NavigationLink(value: SidebarTab.exportImport) {
-                    Label(loc("sidebar_export_import"), systemImage: "arrow.up.and.down.and.arrow.left.and.right")
-                        .foregroundColor(.primary)
+                    Label {
+                        Text(loc("sidebar_export_import"))
+                    } icon: {
+                        Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
 
             Section(header: Text("DISCOVERY")) {
                 NavigationLink(value: SidebarTab.search) {
-                    Label(loc("sidebar_search"), systemImage: "magnifyingglass")
-                        .foregroundColor(.blue)
+                    Label {
+                        Text(loc("sidebar_search"))
+                    } icon: {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                    }
                 }
 
                 NavigationLink(value: SidebarTab.authors) {
-                    Label(loc("sidebar_authors"), systemImage: "person.2.fill")
-                        .foregroundColor(.indigo)
+                    Label {
+                        Text(loc("sidebar_authors"))
+                    } icon: {
+                        Image(systemName: "person.2")
+                            .foregroundColor(.secondary)
+                    }
                 }
 
                 NavigationLink(value: SidebarTab.optional) {
-                    Label(loc("sidebar_optional"), systemImage: "puzzlepiece.fill")
-                        .foregroundColor(.yellow)
+                    Label {
+                        Text(loc("sidebar_optional"))
+                    } icon: {
+                        Image(systemName: "puzzlepiece")
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
 
             Section(header: Text("PREFERENCES")) {
                 NavigationLink(value: SidebarTab.settings) {
-                    Label(loc("sidebar_settings"), systemImage: "gearshape.fill")
-                        .foregroundColor(.gray)
+                    Label {
+                        Text(loc("sidebar_settings"))
+                    } icon: {
+                        Image(systemName: "gearshape")
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
         }

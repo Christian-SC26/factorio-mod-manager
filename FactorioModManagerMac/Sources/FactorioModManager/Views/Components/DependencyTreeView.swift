@@ -22,7 +22,7 @@ public struct DependencyTreeNodeView: View {
                 if !children.isEmpty {
                     Button(action: { isExpanded.toggle() }) {
                         Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 9, weight: .bold))
                             .foregroundColor(.secondary)
                             .frame(width: 14, height: 14)
                     }
@@ -30,13 +30,13 @@ public struct DependencyTreeNodeView: View {
                 } else {
                     Circle()
                         .fill(Color.secondary.opacity(0.3))
-                        .frame(width: 5, height: 5)
-                        .padding(.horizontal, 4.5)
+                        .frame(width: 4, height: 4)
+                        .padding(.horizontal, 5)
                 }
 
-                Image(systemName: depth == 0 ? "cube.box.fill" : "puzzlepiece.extension.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(depth == 0 ? .accentColor : .secondary)
+                Image(systemName: depth == 0 ? "cube.box" : "puzzlepiece")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
 
                 Text(name)
                     .font(.system(size: 12, weight: depth == 0 ? .semibold : .regular))
@@ -47,7 +47,7 @@ public struct DependencyTreeNodeView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .padding(.leading, CGFloat(depth * 18))
+            .padding(.leading, CGFloat(depth * 16))
 
             if isExpanded && !children.isEmpty {
                 ForEach(children, id: \.self) { child in
@@ -75,6 +75,6 @@ public struct DependencyTreeView: View {
         }
         .padding(10)
         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }

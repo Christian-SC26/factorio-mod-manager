@@ -20,18 +20,18 @@ public struct DownloadProgressBar: View {
 
                 if let err = progress.error {
                     HStack(spacing: 4) {
-                        Image(systemName: "xmark.circle.fill")
+                        Image(systemName: "xmark.circle")
                         Text(err)
                     }
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.red)
+                    .foregroundColor(.primary)
                 } else if progress.isCompleted {
                     HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
+                        Image(systemName: "checkmark.circle")
                         Text("Installed")
                     }
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.green)
+                    .foregroundColor(.primary)
                 } else {
                     let speed = formatBytes(Int64(progress.speedBytesPerSec))
                     let cur = formatBytes(progress.bytesDownloaded)
@@ -44,24 +44,20 @@ public struct DownloadProgressBar: View {
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .fill(Color.secondary.opacity(0.15))
-                        .frame(height: 6)
+                        .frame(height: 5)
 
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(
-                            progress.error != nil
-                                ? Color.red
-                                : (progress.isCompleted ? Color.green : Color.accentColor)
-                        )
-                        .frame(width: max(4, geo.size.width * CGFloat(progress.fractionCompleted)), height: 6)
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(Color.primary.opacity(progress.isCompleted ? 0.9 : 0.7))
+                        .frame(width: max(4, geo.size.width * CGFloat(progress.fractionCompleted)), height: 5)
                         .animation(.linear(duration: 0.1), value: progress.fractionCompleted)
                 }
             }
-            .frame(height: 6)
+            .frame(height: 5)
         }
         .padding(10)
         .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }

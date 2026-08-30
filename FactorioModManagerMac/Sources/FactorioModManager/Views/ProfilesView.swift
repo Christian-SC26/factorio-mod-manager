@@ -41,7 +41,7 @@ public struct ProfilesView: View {
                             newProfileName = ""
                         }) {
                             Label(loc("save_button"), systemImage: "plus")
-                                .fontWeight(.semibold)
+                                .fontWeight(.medium)
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(newProfileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -49,7 +49,7 @@ public struct ProfilesView: View {
                 }
                 .padding(16)
                 .background(Color(NSColor.controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                 // Profiles List
                 VStack(alignment: .leading, spacing: 12) {
@@ -58,7 +58,7 @@ public struct ProfilesView: View {
 
                     if appState.profiles.isEmpty {
                         VStack(spacing: 10) {
-                            Image(systemName: "folder.badge.gearshape")
+                            Image(systemName: "folder")
                                 .font(.system(size: 36))
                                 .foregroundColor(.secondary.opacity(0.6))
                             Text(loc("no_profiles_saved"))
@@ -77,17 +77,17 @@ public struct ProfilesView: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 HStack {
                                     HStack(spacing: 8) {
-                                        Image(systemName: "folder.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(active ? .green : .purple)
+                                        Image(systemName: "folder")
+                                            .font(.system(size: 18))
+                                            .foregroundColor(.secondary)
 
                                         VStack(alignment: .leading, spacing: 2) {
                                             HStack(spacing: 6) {
                                                 Text(profile.name)
-                                                    .font(.system(size: 15, weight: .bold))
+                                                    .font(.system(size: 14, weight: .bold))
 
                                                 if active {
-                                                    StatusBadge(loc("active_badge"), color: .green, icon: "checkmark.circle.fill")
+                                                    StatusBadge(loc("active_badge"), icon: "checkmark.circle")
                                                 }
                                             }
 
@@ -105,7 +105,7 @@ public struct ProfilesView: View {
                                                 Task { await appState.activateProfile(profile) }
                                             }) {
                                                 Text(loc("activate_profile"))
-                                                    .fontWeight(.semibold)
+                                                    .fontWeight(.medium)
                                             }
                                             .buttonStyle(.borderedProminent)
                                         }
@@ -115,7 +115,7 @@ public struct ProfilesView: View {
                                             showDeleteConfirmation = true
                                         }) {
                                             Image(systemName: "trash")
-                                                .foregroundColor(.red.opacity(0.8))
+                                                .foregroundColor(.secondary)
                                         }
                                         .buttonStyle(.plain)
                                         .help(loc("delete_profile"))
@@ -124,16 +124,17 @@ public struct ProfilesView: View {
 
                                 if !activeMods.isEmpty {
                                     Divider()
-                                    // Flow of active mod chips
+                                    // Flow of active mod chips (Monochrome)
                                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 110, maximum: 180), spacing: 6)], alignment: .leading, spacing: 6) {
                                         ForEach(Array(activeMods.sorted()), id: \.self) { modName in
                                             let isInstalled = appState.installedModsMap[modName] != nil
                                             HStack(spacing: 4) {
                                                 Circle()
-                                                    .fill(isInstalled ? Color.green : Color.red)
-                                                    .frame(width: 6, height: 6)
+                                                    .fill(isInstalled ? Color.primary.opacity(0.8) : Color.secondary.opacity(0.4))
+                                                    .frame(width: 5, height: 5)
                                                 Text(modName)
                                                     .font(.system(size: 11))
+                                                    .foregroundColor(isInstalled ? .primary : .secondary)
                                                     .lineLimit(1)
                                             }
                                             .padding(.horizontal, 6)
@@ -145,11 +146,11 @@ public struct ProfilesView: View {
                                 }
                             }
                             .padding(14)
-                            .background(active ? Color.green.opacity(0.08) : Color(NSColor.controlBackgroundColor))
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(active ? Color.green.opacity(0.3) : Color.secondary.opacity(0.15), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(active ? Color.primary.opacity(0.3) : Color.secondary.opacity(0.15), lineWidth: 1)
                             )
                         }
                     }

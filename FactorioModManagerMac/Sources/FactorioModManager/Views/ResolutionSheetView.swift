@@ -37,25 +37,25 @@ public struct ResolutionSheetView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let res = appState.currentResolutionResult {
-                        // Conflicts Section
+                        // Conflicts Section (Monochrome alert with warning symbol)
                         if !res.conflicts.isEmpty {
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .foregroundColor(.red)
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .foregroundColor(.primary)
                                     Text(loc("conflicts_section"))
                                         .font(.headline)
-                                        .foregroundColor(.red)
+                                        .foregroundColor(.primary)
                                 }
                                 ForEach(res.conflicts) { conf in
                                     Text("• \(conf.reason)")
                                         .font(.subheadline)
-                                        .foregroundColor(.red)
+                                        .foregroundColor(.secondary)
                                 }
                             }
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.red.opacity(0.1))
+                            .background(Color.secondary.opacity(0.12))
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
 
@@ -63,20 +63,21 @@ public struct ResolutionSheetView: View {
                         if !res.missingMods.isEmpty {
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
-                                    Image(systemName: "questionmark.circle.fill")
-                                        .foregroundColor(.yellow)
+                                    Image(systemName: "questionmark.circle")
+                                        .foregroundColor(.primary)
                                     Text(loc("missing_section"))
                                         .font(.headline)
-                                        .foregroundColor(.yellow)
+                                        .foregroundColor(.primary)
                                 }
                                 ForEach(res.missingMods) { m in
                                     Text("• \(m.name) (requested by: \(m.requiredBy))")
                                         .font(.subheadline)
+                                        .foregroundColor(.secondary)
                                 }
                             }
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.yellow.opacity(0.1))
+                            .background(Color.secondary.opacity(0.12))
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
 
@@ -85,7 +86,6 @@ public struct ResolutionSheetView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(loc("warnings_section"))
                                     .font(.headline)
-                                    .foregroundColor(.orange)
                                 ForEach(res.warnings, id: \.self) { w in
                                     Text("• \(w)")
                                         .font(.caption)
@@ -94,7 +94,7 @@ public struct ResolutionSheetView: View {
                             }
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.orange.opacity(0.1))
+                            .background(Color.secondary.opacity(0.08))
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
 
@@ -115,12 +115,11 @@ public struct ResolutionSheetView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(String(format: loc("mods_to_download_section"), res.modsToDownload.count))
                                     .font(.headline)
-                                    .foregroundColor(.green)
 
                                 ForEach(res.modsToDownload) { mod in
                                     HStack {
-                                        Image(systemName: "plus.circle.fill")
-                                            .foregroundColor(.green)
+                                        Image(systemName: "arrow.down.circle")
+                                            .foregroundColor(.secondary)
                                         Text(mod.name)
                                             .font(.system(size: 13, weight: .semibold))
 
@@ -135,8 +134,7 @@ public struct ResolutionSheetView: View {
                                         Spacer()
 
                                         StatusBadge(
-                                            mod.action == .update ? "Update" : "New",
-                                            color: mod.action == .update ? .orange : .green
+                                            mod.action == .update ? "Update" : "New"
                                         )
                                     }
                                     .padding(8)
@@ -155,7 +153,7 @@ public struct ResolutionSheetView: View {
 
                                 ForEach(res.modsUpToDate) { mod in
                                     HStack {
-                                        Image(systemName: "checkmark.circle.fill")
+                                        Image(systemName: "checkmark.circle")
                                             .foregroundColor(.secondary)
                                         Text(mod.name)
                                             .font(.system(size: 13))
@@ -205,7 +203,7 @@ public struct ResolutionSheetView: View {
                                 ProgressView()
                                     .controlSize(.small)
                             } else {
-                                Image(systemName: "arrow.down.circle.fill")
+                                Image(systemName: "arrow.down.circle")
                             }
                             Text(loc("start_download"))
                                 .fontWeight(.semibold)
