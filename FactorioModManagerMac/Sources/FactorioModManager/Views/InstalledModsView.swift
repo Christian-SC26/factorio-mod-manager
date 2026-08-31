@@ -49,11 +49,11 @@ public struct InstalledModsView: View {
     @State private var showDependencyDeleteConfirmation: Bool = false
 
     private var enabledCount: Int {
-        appState.installedMods.filter { $0.enabled }.count
+        appState.installedMods.filter { appState.isModEnabled($0.name) }.count
     }
 
     private var disabledCount: Int {
-        appState.installedMods.filter { !$0.enabled }.count
+        appState.installedMods.filter { !appState.isModEnabled($0.name) }.count
     }
 
     private var filteredAndSortedMods: [LocalMod] {
@@ -61,9 +61,9 @@ public struct InstalledModsView: View {
 
         // Filter by status
         if filterMode == 1 {
-            list = list.filter { $0.enabled }
+            list = list.filter { appState.isModEnabled($0.name) }
         } else if filterMode == 2 {
-            list = list.filter { !$0.enabled }
+            list = list.filter { !appState.isModEnabled($0.name) }
         }
 
         // Filter by search query
@@ -331,9 +331,10 @@ public struct InstalledModsView: View {
 
                     // Column 2: Clean Human Title (Clean typography, fixed height, no box icon, no arrow)
                     TableColumn("Mod Name", value: \.displayTitle) { mod in
+                        let isEnabled = appState.isModEnabled(mod.name)
                         Text(mod.displayTitle)
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(mod.enabled ? .primary : .secondary)
+                            .foregroundColor(isEnabled ? .primary : .secondary)
                             .lineLimit(1)
                             .frame(height: 28, alignment: .leading)
                     }

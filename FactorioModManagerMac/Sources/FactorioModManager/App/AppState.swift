@@ -94,12 +94,6 @@ public final class AppState: ObservableObject {
         ModListManager(modsDirectory: modsDirectory)
     }
 
-    // MARK: - Installed Mods State
-    @Published public var installedMods: [LocalMod] = []
-    @Published public var installedModsMap: [String: [LocalMod]] = [:]
-    @Published public var isLoadingMods: Bool = false
-    @Published public var modPortalOwners: [String: String] = [:]
-
     // MARK: - Profiles State
     @Published public var profiles: [Profile] = []
 
@@ -161,15 +155,30 @@ public final class AppState: ObservableObject {
         loadProfiles()
     }
 
+    // MARK: - Installed Mods State
+    @Published public var installedMods: [LocalMod] = []
+    @Published public var installedModsMap: [String: [LocalMod]] = [:]
+    @Published public var modStates: [String: Bool] = [:]
+    @Published public var isLoadingMods: Bool = false
+    @Published public var modPortalOwners: [String: String] = [:]
+
+    public func isModEnabled(_ name: String) -> Bool {
+        modStates[name] ?? true
+    }
+
     public func loadInstalledMods() {
         isLoadingMods = true
+        let states = modListMgr.readModListJson()
+        self.modStates = states
         let map = modListMgr.scanInstalledMods()
         self.installedModsMap = map
 
         var list: [LocalMod] = []
         for (_, versions) in map {
             if let latest = versions.first {
-                list.append(latest)
+                var item = latest
+                item.enabled = states[latest.name] ?? true
+                list.append(item)
             }
         }
         list.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -225,56 +234,50 @@ public final class AppState: ObservableObject {
     // MARK: - Mod Actions
     public func setModEnabled(_ name: String, enabled: Bool) {
         if name == "base" && !enabled { return }
-        modListMgr.setModState(name, enabled: enabled)
+        modStates[name] = enabled
         for i in 0..<installedMods.count {
             if installedMods[i].name == name {
                 installedMods[i].enabled = enabled
             }
         }
+        try? modListMgr.writeModListJson(modStates)
+        objectWillChange.send()
+    }
+
+    public func setMultipleModsEnabled(_ names: [String], enabled: Bool) {
+        for n in names where n != "base" || enabled {
+            modStates[n] = enabled
+        }
+        let nameSet = Set(names)
+        for i in 0..<installedMods.count {
+            if nameSet.contains(installedMods[i].name) && (installedMods[i].name != "base" || enabled) {
+                installedMods[i].enabled = enabled
+            }
+        }
+        try? modListMgr.writeModListJson(modStates)
         objectWillChange.send()
     }
 
     public func toggleModEnabled(_ mod: LocalMod) {
-        let newState = !mod.enabled
-        setModEnabled(mod.name, enabled: newState)
+        let current = modStates[mod.name] ?? mod.enabled
+        setModEnabled(mod.name, enabled: !current)
     }
 
     public func toggleMods(_ mods: [LocalMod]) {
         guard !mods.isEmpty else { return }
-        let anyEnabled = mods.contains { $0.enabled }
+        let anyEnabled = mods.contains { modStates[$0.name] ?? $0.enabled }
         let targetState = !anyEnabled
-        let names = Set(mods.map { $0.name })
-        if targetState {
-            modListMgr.enableMods(Array(names))
-        } else {
-            modListMgr.disableMods(Array(names))
-        }
-        for i in 0..<installedMods.count {
-            if names.contains(installedMods[i].name) {
-                installedMods[i].enabled = targetState
-            }
-        }
-        objectWillChange.send()
+        setMultipleModsEnabled(mods.map(\.name), enabled: targetState)
     }
 
     public func enableAllMods() {
         let names = installedMods.map { $0.name }
-        modListMgr.enableMods(names)
-        for i in 0..<installedMods.count {
-            installedMods[i].enabled = true
-        }
-        objectWillChange.send()
+        setMultipleModsEnabled(names, enabled: true)
     }
 
     public func disableAllMods() {
         let names = installedMods.map { $0.name }
-        modListMgr.disableMods(names)
-        for i in 0..<installedMods.count {
-            if installedMods[i].name != "base" {
-                installedMods[i].enabled = false
-            }
-        }
-        objectWillChange.send()
+        setMultipleModsEnabled(names, enabled: false)
     }
 
     public func checkBrokenDependencies(forDeletedModNames targetNames: Set<String>) -> [BrokenDependencyInfo] {

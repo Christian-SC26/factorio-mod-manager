@@ -134,24 +134,84 @@ public final class ModListManager: Sendable {
                 result[name] = enabled
             }
         }
-        if result["base"] == nil {
-            result["base"] = true
-        }
+        result["base"] = true
         return result
     }
 
-    /// Write mod states back to mod-list.json preserving official structure
+    /// Quick scan of all mod names present in the directory
+    public func scanInstalledModNames() -> Set<String> {
+        let fileManager = FileManager.default
+        guard let contents = try? fileManager.contentsOfDirectory(
+            at: modsDirectory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        var names: Set<String> = []
+        for entry in contents {
+            let filename = entry.lastPathComponent
+            if filename == "mod-list.json" || filename.hasSuffix(".tmp") || filename.hasSuffix(".part") || filename.hasPrefix(".")
+                || filename.lowercased() == "modpacks" || filename.lowercased() == ".fmm_profiles" {
+                continue
+            }
+
+            let isDir = (try? entry.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            if !isDir, let regex = Self.zipRegex {
+                let range = NSRange(location: 0, length: filename.utf16.count)
+                if let match = regex.firstMatch(in: filename, options: [], range: range),
+                   let nRange = Range(match.range(at: 1), in: filename) {
+                    names.insert(String(filename[nRange]))
+                    continue
+                }
+            }
+
+            let baseName = isDir ? filename : entry.deletingPathExtension().lastPathComponent
+            if let regex = Self.dirModRegex {
+                let range = NSRange(location: 0, length: baseName.utf16.count)
+                if let match = regex.firstMatch(in: baseName, options: [], range: range),
+                   let nRange = Range(match.range(at: 1), in: baseName) {
+                    names.insert(String(baseName[nRange]))
+                    continue
+                }
+            }
+
+            names.insert(baseName)
+        }
+        return names
+    }
+
+    /// Write complete mod states to mod-list.json atomically
     public func writeModListJson(_ states: [String: Bool]) throws {
         try FileManager.default.createDirectory(at: modsDirectory, withIntermediateDirectories: true)
+
         var modStates = states
         modStates["base"] = true
 
+        // Ensure EVERY installed mod in the directory has an explicit state in mod-list.json
+        let allInstalled = scanInstalledModNames()
+        for name in allInstalled {
+            if modStates[name] == nil {
+                modStates[name] = true
+            }
+        }
+
         var modsList: [[String: Any]] = []
-        // Put base first
+        // Base always comes first
         modsList.append(["name": "base", "enabled": true])
 
-        for (name, enabled) in modStates.sorted(by: { $0.key < $1.key }) {
-            if name != "base" {
+        // Space Age / official DLC expansions next if present
+        let dlcNames = ["elevated-rails", "quality", "space-age"]
+        for dlc in dlcNames {
+            if let enabled = modStates[dlc] {
+                modsList.append(["name": dlc, "enabled": enabled])
+            }
+        }
+
+        // All other mods alphabetically
+        for (name, enabled) in modStates.sorted(by: { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }) {
+            if name != "base" && !dlcNames.contains(name) {
                 modsList.append(["name": name, "enabled": enabled])
             }
         }
