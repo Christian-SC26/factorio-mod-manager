@@ -125,6 +125,9 @@ public final class AppState: ObservableObject {
     // MARK: - Notifications
     @Published public var currentNotification: AppNotification? = nil
 
+    private var fileWatcherSource: DispatchSourceFileSystemObject? = nil
+    private var activeObserver: NSObjectProtocol? = nil
+
     private init() {
         if !customModsDirPath.isEmpty {
             let url = URL(fileURLWithPath: (customModsDirPath as NSString).expandingTildeInPath)
@@ -133,6 +136,14 @@ public final class AppState: ObservableObject {
             self.modsDirectory = ModListManager.defaultFactorioModsDir()
         }
         refreshAll()
+        setupDiskSyncWatcher()
+    }
+
+    deinit {
+        fileWatcherSource?.cancel()
+        if let obs = activeObserver {
+            NotificationCenter.default.removeObserver(obs)
+        }
     }
 
     // MARK: - Directory Management
@@ -140,12 +151,79 @@ public final class AppState: ObservableObject {
         self.modsDirectory = url
         self.customModsDirPath = url.path
         refreshAll()
+        startDirectoryWatcher()
     }
 
     public func resetModsDirectory() {
         self.customModsDirPath = ""
         self.modsDirectory = ModListManager.defaultFactorioModsDir()
         refreshAll()
+        startDirectoryWatcher()
+    }
+
+    private func setupDiskSyncWatcher() {
+        if activeObserver == nil {
+            activeObserver = NotificationCenter.default.addObserver(
+                forName: NSApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.syncModStatesFromDisk()
+                }
+            }
+        }
+        startDirectoryWatcher()
+    }
+
+    private func startDirectoryWatcher() {
+        fileWatcherSource?.cancel()
+        fileWatcherSource = nil
+
+        let dirPath = modsDirectory.path
+        let fd = open(dirPath, O_EVTONLY)
+        guard fd >= 0 else { return }
+
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd,
+            eventMask: [.write, .extend, .attrib, .link],
+            queue: DispatchQueue.global(qos: .utility)
+        )
+
+        source.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                self?.syncModStatesFromDisk()
+            }
+        }
+
+        source.setCancelHandler {
+            close(fd)
+        }
+
+        source.resume()
+        self.fileWatcherSource = source
+    }
+
+    public func syncModStatesFromDisk() {
+        let diskStates = modListMgr.readModListJson()
+        var hasChanges = false
+
+        if diskStates != self.modStates {
+            self.modStates = diskStates
+            hasChanges = true
+        }
+
+        for i in 0..<installedMods.count {
+            let diskEnabled = diskStates[installedMods[i].name] ?? true
+            if installedMods[i].enabled != diskEnabled {
+                installedMods[i].enabled = diskEnabled
+                hasChanges = true
+            }
+        }
+
+        if hasChanges {
+            objectWillChange.send()
+        }
     }
 
     // MARK: - Refresh

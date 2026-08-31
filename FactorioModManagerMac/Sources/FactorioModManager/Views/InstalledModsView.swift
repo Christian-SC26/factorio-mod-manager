@@ -89,12 +89,8 @@ public struct InstalledModsView: View {
 
         var list = mods.filter { selectedModIDs.contains($0.id) }
         if list.isEmpty {
-            if let window = NSApp.keyWindow ?? NSApp.mainWindow,
-               let tableView = findTableView(in: window.contentView),
-               tableView.selectedRow >= 0, tableView.selectedRow < mods.count {
-                let current = mods[tableView.selectedRow]
-                selectedModIDs = [current.id]
-                list = [current]
+            if let first = mods.first {
+                list = [first]
             }
         }
         return list
@@ -104,25 +100,29 @@ public struct InstalledModsView: View {
         let mods = filteredAndSortedMods
         guard !mods.isEmpty else { return }
 
+        let currentSelected = mods.firstIndex { selectedModIDs.contains($0.id) } ?? 0
+        let targetIndex = min(max(0, currentSelected + delta), mods.count - 1)
+
+        var newSelection: Set<String> = []
+        if extendRange {
+            let start = min(selectionAnchorIndex, targetIndex)
+            let end = max(selectionAnchorIndex, targetIndex)
+            newSelection = Set(mods[start...end].map(\.id))
+        } else {
+            selectionAnchorIndex = targetIndex
+            newSelection = [mods[targetIndex].id]
+        }
+
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            self.selectedModIDs = newSelection
+        }
+
         DispatchQueue.main.async {
             if let window = NSApp.keyWindow ?? NSApp.mainWindow,
                let tableView = findTableView(in: window.contentView) {
-                let current = tableView.selectedRow >= 0 ? tableView.selectedRow : 0
-                let target = min(max(0, current + delta), mods.count - 1)
-
-                if extendRange {
-                    let start = min(selectionAnchorIndex, target)
-                    let end = max(selectionAnchorIndex, target)
-                    let indexSet = IndexSet(integersIn: start...end)
-                    tableView.selectRowIndexes(indexSet, byExtendingSelection: false)
-                    tableView.scrollRowToVisible(target)
-                    selectedModIDs = Set(mods[start...end].map(\.id))
-                } else {
-                    selectionAnchorIndex = target
-                    tableView.selectRowIndexes(IndexSet(integer: target), byExtendingSelection: false)
-                    tableView.scrollRowToVisible(target)
-                    selectedModIDs = [mods[target].id]
-                }
+                tableView.scrollRowToVisible(targetIndex)
             }
         }
     }
@@ -294,7 +294,7 @@ public struct InstalledModsView: View {
 
             Divider()
 
-            // Finder-Style Native Table with Uniform 28px Rows and Calm Grey Selection
+            // Finder-Style Native Table with Fixed 28px Rows and Zero Scroll Animation Lag
             if filteredAndSortedMods.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
@@ -313,10 +313,10 @@ public struct InstalledModsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Table(filteredAndSortedMods, selection: $selectedModIDs, sortOrder: $sortOrder) {
-                    // Column 1: On / Off Switch (System accent color preserved)
+                    // Column 1: On / Off Switch (Instant non-animated toggle on scroll)
                     TableColumn("Active", value: \.enabledSortKey) { mod in
                         Toggle("", isOn: Binding(
-                            get: { mod.enabled },
+                            get: { appState.isModEnabled(mod.name) },
                             set: { isEnabled in
                                 appState.setModEnabled(mod.name, enabled: isEnabled)
                             }
@@ -325,9 +325,12 @@ public struct InstalledModsView: View {
                         .controlSize(.mini)
                         .labelsHidden()
                         .tint(.accentColor)
-                        .frame(height: 28, alignment: .center)
+                        .transaction { transaction in
+                            transaction.animation = nil
+                        }
+                        .frame(width: 38, height: 28, alignment: .center)
                     }
-                    .width(min: 44, ideal: 50, max: 58)
+                    .width(46)
 
                     // Column 2: Clean Human Title (Clean typography, fixed height, no box icon, no arrow)
                     TableColumn("Mod Name", value: \.displayTitle) { mod in
@@ -338,13 +341,13 @@ public struct InstalledModsView: View {
                             .lineLimit(1)
                             .frame(height: 28, alignment: .leading)
                     }
-                    .width(min: 180, ideal: 260)
+                    .width(min: 200, ideal: 260)
 
                     // Column 3: Author (Clickable Link to portal user profile)
                     TableColumn("Author", value: \.author) { mod in
                         AuthorCellView(mod: mod, portalOwner: appState.modPortalOwners[mod.name])
                     }
-                    .width(min: 90, ideal: 130, max: 190)
+                    .width(min: 90, ideal: 120, max: 150)
 
                     // Column 4: Date Added
                     TableColumn("Date Added", value: \.dateSortKey) { mod in
@@ -354,7 +357,7 @@ public struct InstalledModsView: View {
                             .lineLimit(1)
                             .frame(height: 28, alignment: .leading)
                     }
-                    .width(min: 85, ideal: 110, max: 140)
+                    .width(min: 80, ideal: 100, max: 120)
 
                     // Column 5: Version (Pure numbers, no badge, no 'v')
                     TableColumn("Version", value: \.version.raw) { mod in
@@ -364,7 +367,7 @@ public struct InstalledModsView: View {
                             .lineLimit(1)
                             .frame(height: 28, alignment: .leading)
                     }
-                    .width(min: 70, ideal: 80, max: 100)
+                    .width(min: 65, ideal: 75, max: 90)
 
                     // Column 6: Size
                     TableColumn("Size", value: \.fileSize) { mod in
@@ -374,7 +377,7 @@ public struct InstalledModsView: View {
                             .lineLimit(1)
                             .frame(height: 28, alignment: .leading)
                     }
-                    .width(min: 70, ideal: 80, max: 100)
+                    .width(min: 65, ideal: 75, max: 90)
 
                     // Column 7: Actions (Portal link, Details, Reveal, Delete)
                     TableColumn("Actions") { mod in
@@ -427,14 +430,14 @@ public struct InstalledModsView: View {
                         }
                         .frame(height: 28, alignment: .leading)
                     }
-                    .width(min: 105, ideal: 120, max: 140)
+                    .width(min: 105, ideal: 115, max: 130)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
                 .tint(Color.secondary.opacity(0.35))
                 .contextMenu {
                     let targets = getSelectedMods()
                     if !targets.isEmpty {
-                        let anyEnabled = targets.contains { $0.enabled }
+                        let anyEnabled = targets.contains { appState.isModEnabled($0.name) }
                         Button(anyEnabled ? loc("filter_disabled") : loc("filter_enabled")) {
                             appState.toggleMods(targets)
                         }
