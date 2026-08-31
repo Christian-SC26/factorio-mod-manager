@@ -317,7 +317,9 @@ public struct InstalledModsView: View {
                     TableColumn("Active", value: \.enabledSortKey) { mod in
                         Toggle("", isOn: Binding(
                             get: { mod.enabled },
-                            set: { _ in appState.toggleModEnabled(mod) }
+                            set: { isEnabled in
+                                appState.setModEnabled(mod.name, enabled: isEnabled)
+                            }
                         ))
                         .toggleStyle(.switch)
                         .controlSize(.mini)
