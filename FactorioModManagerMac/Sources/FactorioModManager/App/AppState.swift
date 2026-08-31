@@ -231,6 +231,8 @@ public final class AppState: ObservableObject {
         detectedFactorioVersion = modListMgr.detectInstalledFactorioVersion()
         loadInstalledMods()
         loadProfiles()
+        loadPortalModpacks()
+        loadSavedModpacks()
     }
 
     // MARK: - Installed Mods State
@@ -688,57 +690,58 @@ public final class AppState: ObservableObject {
 
     // MARK: - Modpacks Actions
     @Published public var savedModpacks: [(name: String, url: URL)] = []
+    @Published public var portalModpacks: [PortalModpackItem] = []
+    @Published public var isLoadingPortalModpacks: Bool = false
     public var isExclusiveModpackResolution: Bool = false
+
+    private static var portalModpacksCacheURL: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: NSHomeDirectory())
+        let dir = appSupport.appendingPathComponent("FactorioModManager", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("portal_modpacks_cache.json")
+    }
+
+    public static func loadPersistedPortalModpacks() -> [PortalModpackItem] {
+        if let data = try? Data(contentsOf: portalModpacksCacheURL),
+           let list = try? JSONDecoder().decode([PortalModpackItem].self, from: data) {
+            return list
+        }
+        return []
+    }
+
+    public static func savePersistedPortalModpacks(_ list: [PortalModpackItem]) {
+        if let data = try? JSONEncoder().encode(list) {
+            try? data.write(to: portalModpacksCacheURL, options: .atomic)
+        }
+    }
+
+    public func loadPortalModpacks() {
+        if portalModpacks.isEmpty {
+            self.portalModpacks = Self.loadPersistedPortalModpacks()
+        }
+        fetchPortalModpacks()
+    }
+
+    public func fetchPortalModpacks() {
+        isLoadingPortalModpacks = true
+        let branch = effectiveFactorioVersion
+        Task { @MainActor [weak self] in
+            if let fetched = try? await ModPortalClient.shared.fetchPortalModpacks(targetFactorioBranch: branch), !fetched.isEmpty {
+                self?.portalModpacks = fetched
+                Self.savePersistedPortalModpacks(fetched)
+            }
+            self?.isLoadingPortalModpacks = false
+        }
+    }
+
+    public func applyPortalModpack(_ pack: PortalModpackItem) async {
+        showNotification(title: "Modpack", message: "Resolving '\(pack.title)'...")
+        self.isExclusiveModpackResolution = true
+        await resolveAndInstall(targets: [pack.name])
+    }
 
     public func loadSavedModpacks() {
         self.savedModpacks = modListMgr.listSavedModpacks()
-    }
-
-    public func applyCuratedModpack(_ pack: ModListManager.ModpackDefinition) async {
-        let installedNames = Set(installedMods.map(\.name))
-        let missing = pack.targetMods.filter { !installedNames.contains($0) }
-
-        if missing.isEmpty {
-            // All required root mods are present locally: perform instant clean switch
-            let officialSet: Set<String> = ["base", "space-age", "quality", "elevated-rails", "recycler"]
-            var newStates: [String: Bool] = [:]
-            for mod in installedMods {
-                if officialSet.contains(mod.name.lowercased()) {
-                    newStates[mod.name] = modStates[mod.name] ?? true
-                } else {
-                    newStates[mod.name] = false
-                }
-            }
-
-            var toEnable = Set(pack.targetMods)
-            for target in pack.targetMods {
-                if let local = installedMods.first(where: { $0.name == target }) {
-                    for dep in local.getDependencies() where dep.depType == .required || dep.depType == .recommended {
-                        if !dep.isVirtual {
-                            toEnable.insert(dep.name)
-                        }
-                    }
-                }
-            }
-
-            for name in toEnable {
-                newStates[name] = true
-            }
-            newStates["base"] = true
-
-            do {
-                try modListMgr.writeModListJson(newStates)
-                loadInstalledMods()
-                showNotification(title: "Modpack", message: "Activated '\(pack.name)' (\(toEnable.count) mods enabled, other mods disabled).")
-            } catch {
-                showNotification(title: "Modpack", message: error.localizedDescription, isError: true)
-            }
-        } else {
-            // Need to download missing mods: trigger exclusive resolution
-            showNotification(title: "Modpack", message: "Resolving '\(pack.name)' (\(missing.count) mod(s) to download)...")
-            self.isExclusiveModpackResolution = true
-            await resolveAndInstall(targets: pack.targetMods)
-        }
     }
 
     public func applyModpack(from url: URL) async {

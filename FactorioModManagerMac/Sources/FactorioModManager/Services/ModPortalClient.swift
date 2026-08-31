@@ -342,6 +342,92 @@ public actor ModPortalClient {
             .replacingOccurrences(of: "&lt;", with: "<")
             .replacingOccurrences(of: "&gt;", with: ">")
     }
+
+    /// Fetch all modpacks from Factorio Portal API for the specified Factorio branch (e.g. "2.1", "2.0", "1.1")
+    public func fetchPortalModpacks(targetFactorioBranch: String? = nil) async throws -> [PortalModpackItem] {
+        guard let url = URL(string: "https://mods.factorio.com/api/mods?page_size=max") else { return [] }
+        var req = URLRequest(url: url, timeoutInterval: 25)
+        req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 else {
+            return []
+        }
+
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let results = root["results"] as? [[String: Any]] else {
+            return []
+        }
+
+        var packs: [PortalModpackItem] = []
+        let branch = targetFactorioBranch?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        for item in results {
+            guard let cat = item["category"] as? String, cat == "mod-packs" else { continue }
+            let name = item["name"] as? String ?? ""
+            let title = item["title"] as? String ?? name
+            let owner = item["owner"] as? String ?? ""
+            let summary = item["summary"] as? String ?? ""
+            let downloads = item["downloads_count"] as? Int ?? 0
+
+            let rel = item["latest_release"] as? [String: Any] ?? [:]
+            let info = rel["info_json"] as? [String: Any] ?? [:]
+            let fVer = info["factorio_version"] as? String ?? ""
+            let lVer = rel["version"] as? String ?? "1.0.0"
+
+            if !branch.isEmpty {
+                // If checking branch like 2.1, accept 2.1 or 2.0
+                if !fVer.hasPrefix(branch) && !(branch.hasPrefix("2.") && fVer.hasPrefix("2.")) {
+                    continue
+                }
+            }
+
+            packs.append(PortalModpackItem(
+                name: name,
+                title: title,
+                owner: owner,
+                summary: summary,
+                downloadsCount: downloads,
+                category: cat,
+                factorioVersion: fVer,
+                latestVersion: lVer
+            ))
+        }
+
+        return packs.sorted { $0.downloadsCount > $1.downloadsCount }
+    }
+}
+
+public struct PortalModpackItem: Identifiable, Hashable, Codable, Sendable {
+    public var id: String { name }
+    public let name: String
+    public let title: String
+    public let owner: String
+    public let summary: String
+    public let downloadsCount: Int
+    public let category: String
+    public let factorioVersion: String
+    public let latestVersion: String
+
+    public init(
+        name: String,
+        title: String,
+        owner: String = "",
+        summary: String = "",
+        downloadsCount: Int = 0,
+        category: String = "mod-packs",
+        factorioVersion: String = "2.0",
+        latestVersion: String = "1.0.0"
+    ) {
+        self.name = name
+        self.title = title
+        self.owner = owner
+        self.summary = summary
+        self.downloadsCount = downloadsCount
+        self.category = category
+        self.factorioVersion = factorioVersion
+        self.latestVersion = latestVersion
+    }
 }
 
 private extension String {

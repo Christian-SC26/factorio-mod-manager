@@ -34,6 +34,16 @@ public struct InstalledModsView: View {
         return !activeMods.isEmpty && activeMods == currentActiveModNames
     }
 
+    private func formatDownloadsCount(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            return String(format: "%.1fM", Double(count) / 1_000_000)
+        } else if count >= 1_000 {
+            return String(format: "%.1fk", Double(count) / 1_000)
+        } else {
+            return "\(count)"
+        }
+    }
+
     private var activeProfile: Profile? {
         appState.profiles.first { isProfileActive($0) }
     }
@@ -179,23 +189,30 @@ public struct InstalledModsView: View {
 
                         // Modpacks Dropdown Menu
                         Menu {
-                            Section("Popular Overhaul Modpacks") {
-                                ForEach(ModListManager.curatedModpacks) { pack in
-                                    Button(action: {
-                                        Task {
-                                            await appState.applyCuratedModpack(pack)
-                                        }
-                                    }) {
-                                        let isAllActive = !pack.targetMods.isEmpty && pack.targetMods.allSatisfy { appState.isModEnabled($0) }
-                                        let isAllInstalled = !pack.targetMods.isEmpty && pack.targetMods.allSatisfy { target in
-                                            appState.installedMods.contains(where: { $0.name == target })
-                                        }
-                                        if isAllActive && isAllInstalled {
-                                            Label("\(pack.name) (Active)", systemImage: "checkmark")
-                                        } else if isAllInstalled {
-                                            Label("\(pack.name) (Installed)", systemImage: "arrow.triangle.2.circlepath")
-                                        } else {
-                                            Text(pack.name)
+                            Section("Portal Modpacks (\(appState.portalModpacks.count))") {
+                                if appState.portalModpacks.isEmpty {
+                                    if appState.isLoadingPortalModpacks {
+                                        Text("Loading modpacks catalog...")
+                                    } else {
+                                        Text("No modpacks found for Factorio \(appState.effectiveFactorioVersion)")
+                                    }
+                                } else {
+                                    ForEach(appState.portalModpacks) { pack in
+                                        Button(action: {
+                                            Task {
+                                                await appState.applyPortalModpack(pack)
+                                            }
+                                        }) {
+                                            let isInstalled = appState.installedMods.contains(where: { $0.name == pack.name })
+                                            let isEnabled = isInstalled && appState.isModEnabled(pack.name)
+                                            let dlFormatted = formatDownloadsCount(pack.downloadsCount)
+                                            if isEnabled {
+                                                Label("\(pack.title) (\(dlFormatted))", systemImage: "checkmark")
+                                            } else if isInstalled {
+                                                Label("\(pack.title) (Installed • \(dlFormatted))", systemImage: "arrow.triangle.2.circlepath")
+                                            } else {
+                                                Text("\(pack.title) (\(dlFormatted))")
+                                            }
                                         }
                                     }
                                 }
@@ -217,9 +234,14 @@ public struct InstalledModsView: View {
                             Divider()
                             Section("Modpack Actions") {
                                 Button(action: {
+                                    appState.fetchPortalModpacks()
+                                }) {
+                                    Label("Refresh Modpacks Catalog", systemImage: "arrow.triangle.2.circlepath")
+                                }
+                                Button(action: {
                                     appState.importModpackFromFile()
                                 }) {
-                                    Label("Import Modpack...", systemImage: "square.and.arrow.down")
+                                    Label("Import Modpack File...", systemImage: "square.and.arrow.down")
                                 }
                                 Button(action: {
                                     appState.exportCurrentModpackToFile()
@@ -236,7 +258,7 @@ public struct InstalledModsView: View {
                             HStack(spacing: 5) {
                                 Image(systemName: "shippingbox")
                                     .foregroundColor(.secondary)
-                                Text("Modpacks")
+                                Text(appState.portalModpacks.isEmpty ? "Modpacks" : "Modpacks (\(appState.portalModpacks.count))")
                                     .font(.system(size: 12, weight: .medium))
                             }
                         }
