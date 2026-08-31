@@ -81,9 +81,19 @@ public struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
-                Text("Factorio \(appState.effectiveFactorioVersion)")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.secondary)
+                Button(action: {
+                    appState.launchFactorio()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary)
+                        Text("Factorio \(appState.effectiveFactorioVersion)")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                }
+                .buttonStyle(.plain)
+                .help("Launch Factorio (⌥O)")
             }
         }
         .sheet(isPresented: $appState.isResolutionModalPresented) {
@@ -91,6 +101,9 @@ public struct ContentView: View {
         }
         .sheet(isPresented: $appState.isDetailSheetPresented) {
             ModDetailSheet(appState: appState)
+        }
+        .sheet(isPresented: $appState.isKeyboardShortcutsSheetPresented) {
+            KeyboardShortcutsSheetView(appState: appState)
         }
         .frame(minWidth: 860, minHeight: 560)
     }

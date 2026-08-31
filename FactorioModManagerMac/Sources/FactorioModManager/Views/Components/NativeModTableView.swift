@@ -81,6 +81,9 @@ public final class CustomTableView: NSTableView {
                     actionDelegate?.modTableView(enclosingView, didOpenDetails: mod)
                     return
                 }
+            case "f":
+                NotificationCenter.default.post(name: .focusModSearch, object: nil)
+                return
             default:
                 break
             }
@@ -165,11 +168,38 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         setupViews()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleFocusTableNotification),
+            name: .focusModTable,
+            object: nil
+        )
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupViews()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleFocusTableNotification),
+            name: .focusModTable,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func handleFocusTableNotification() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.window?.makeFirstResponder(self.tableView)
+            if self.tableView.selectedRow < 0 && !self.tableItems.isEmpty {
+                let firstModIdx = self.tableItems.firstIndex(where: { if case .mod = $0 { return true } else { return false } }) ?? 0
+                self.tableView.selectRowIndexes(IndexSet(integer: firstModIdx), byExtendingSelection: false)
+            }
+        }
     }
 
     private func rebuildItems() {

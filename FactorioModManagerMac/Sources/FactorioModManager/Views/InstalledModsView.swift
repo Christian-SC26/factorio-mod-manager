@@ -336,9 +336,22 @@ public struct InstalledModsView: View {
                         TextField(loc("search_mods_placeholder"), text: $searchText)
                             .textFieldStyle(.plain)
                             .focused($isSearchFocused)
+                            .onExitCommand {
+                                isSearchFocused = false
+                                searchText = ""
+                                NotificationCenter.default.post(name: .focusModTable, object: nil)
+                            }
+                            .onSubmit {
+                                isSearchFocused = false
+                                NotificationCenter.default.post(name: .focusModTable, object: nil)
+                            }
 
                         if !searchText.isEmpty {
-                            Button(action: { searchText = "" }) {
+                            Button(action: {
+                                searchText = ""
+                                isSearchFocused = false
+                                NotificationCenter.default.post(name: .focusModTable, object: nil)
+                            }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.secondary)
                             }
@@ -357,17 +370,6 @@ public struct InstalledModsView: View {
                     .padding(.vertical, 5)
                     .background(Color(NSColor.controlBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-
-                    // Keyboard shortcuts tip
-                    HStack(spacing: 4) {
-                        Text("↑/↓ / j/k: nav")
-                        Text("•")
-                        Text("⇧: range")
-                        Text("•")
-                        Text("space: toggle")
-                    }
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary.opacity(0.8))
                 }
             }
             .padding(16)
@@ -581,6 +583,9 @@ public struct InstalledModsView: View {
                 .background(Color(NSColor.windowBackgroundColor))
             }
             .frame(minWidth: 540, minHeight: 400)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .focusModSearch)) { _ in
+            isSearchFocused = true
         }
     }
 }

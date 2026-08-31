@@ -67,6 +67,11 @@ public struct AppNotification: Identifiable {
     }
 }
 
+public extension Notification.Name {
+    static let focusModSearch = Notification.Name("fmm_focus_mod_search")
+    static let focusModTable = Notification.Name("fmm_focus_mod_table")
+}
+
 @MainActor
 public final class AppState: ObservableObject {
     public static let shared = AppState()
@@ -76,6 +81,7 @@ public final class AppState: ObservableObject {
     @Published public var selectedModDetail: LocalMod? = nil
     @Published public var selectedModInfoDetail: ModInfo? = nil
     @Published public var isDetailSheetPresented: Bool = false
+    @Published public var isKeyboardShortcutsSheetPresented: Bool = false
 
     // MARK: - Settings (Persisted in AppStorage/UserDefaults)
     @AppStorage("custom_mods_dir") private var customModsDirPath: String = ""
@@ -232,6 +238,47 @@ public final class AppState: ObservableObject {
         if hasChanges {
             objectWillChange.send()
         }
+    }
+
+    // MARK: - Launch Factorio Game
+    public func launchFactorio() {
+        let fileManager = FileManager.default
+        let home = fileManager.homeDirectoryForCurrentUser
+
+        let candidates = [
+            URL(fileURLWithPath: "/Applications/factorio.app"),
+            URL(fileURLWithPath: "/Applications/Factorio.app"),
+            home.appendingPathComponent("Applications/factorio.app"),
+            home.appendingPathComponent("Applications/Factorio.app"),
+            home.appendingPathComponent("Library/Application Support/Steam/steamapps/common/Factorio/factorio.app")
+        ]
+
+        for appURL in candidates {
+            if fileManager.fileExists(atPath: appURL.path) {
+                let config = NSWorkspace.OpenConfiguration()
+                config.activates = true
+                NSWorkspace.shared.openApplication(at: appURL, configuration: config) { _, error in
+                    if let err = error {
+                        Task { @MainActor in
+                            self.showNotification(title: "Factorio", message: err.localizedDescription, isError: true)
+                        }
+                    }
+                }
+                return
+            }
+        }
+
+        // Fallback to steam protocol
+        if let steamURL = URL(string: "steam://run/427520"), NSWorkspace.shared.urlForApplication(toOpen: steamURL) != nil {
+            NSWorkspace.shared.open(steamURL)
+            return
+        }
+
+        // Fallback shell open
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        proc.arguments = ["-a", "factorio"]
+        try? proc.run()
     }
 
     // MARK: - Refresh

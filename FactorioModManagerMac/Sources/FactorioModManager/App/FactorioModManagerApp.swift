@@ -54,6 +54,13 @@ struct FactorioModManagerApp: App {
             }
 
             CommandGroup(replacing: .newItem) {
+                Button("Launch Factorio") {
+                    appState.launchFactorio()
+                }
+                .keyboardShortcut("o", modifiers: .option)
+
+                Divider()
+
                 Button("Install Mods...") {
                     appState.selectedTab = .install
                 }
@@ -77,6 +84,14 @@ struct FactorioModManagerApp: App {
                 .keyboardShortcut("e", modifiers: [.command, .shift])
             }
 
+            CommandGroup(after: .textEditing) {
+                Button("Find Mods...") {
+                    appState.selectedTab = .installed
+                    NotificationCenter.default.post(name: .focusModSearch, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: .command)
+            }
+
             CommandGroup(after: .toolbar) {
                 Button("Refresh Mods") {
                     appState.refreshAll()
@@ -95,6 +110,13 @@ struct FactorioModManagerApp: App {
                     locMgr.toggleLanguage()
                 }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
+            }
+
+            CommandGroup(replacing: .help) {
+                Button("Keyboard Shortcuts...") {
+                    appState.isKeyboardShortcutsSheetPresented = true
+                }
+                .keyboardShortcut("/", modifiers: .command)
             }
         }
     }
