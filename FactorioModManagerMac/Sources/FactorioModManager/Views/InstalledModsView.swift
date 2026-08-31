@@ -179,8 +179,27 @@ public struct InstalledModsView: View {
 
                         // Modpacks Dropdown Menu
                         Menu {
+                            Section("Popular Overhaul Modpacks") {
+                                ForEach(ModListManager.curatedModpacks) { pack in
+                                    Button(action: {
+                                        Task {
+                                            await appState.resolveAndInstall(targets: [pack.targetMod])
+                                        }
+                                    }) {
+                                        if appState.installedMods.contains(where: { $0.name == pack.targetMod && appState.isModEnabled($0.name) }) {
+                                            Label("\(pack.name) (Active)", systemImage: "checkmark")
+                                        } else if appState.installedMods.contains(where: { $0.name == pack.targetMod }) {
+                                            Label("\(pack.name) (Installed)", systemImage: "arrow.triangle.2.circlepath")
+                                        } else {
+                                            Text(pack.name)
+                                        }
+                                    }
+                                }
+                            }
+
                             if !appState.savedModpacks.isEmpty {
-                                Section("Saved Modpacks") {
+                                Divider()
+                                Section("My Saved Modpacks") {
                                     ForEach(appState.savedModpacks, id: \.url) { item in
                                         Button(action: {
                                             Task { await appState.applyModpack(from: item.url) }
@@ -189,8 +208,9 @@ public struct InstalledModsView: View {
                                         }
                                     }
                                 }
-                                Divider()
                             }
+
+                            Divider()
                             Section("Modpack Actions") {
                                 Button(action: {
                                     appState.importModpackFromFile()

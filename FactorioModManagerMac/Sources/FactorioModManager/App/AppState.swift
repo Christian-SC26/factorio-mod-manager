@@ -525,7 +525,7 @@ public final class AppState: ObservableObject {
 
         await withTaskGroup(of: ModUpdateItem?.self) { group in
             var iterator = targets.makeIterator()
-            let maxConcurrent = 6
+            let maxConcurrent = 12
 
             for _ in 0..<maxConcurrent {
                 if let mod = iterator.next() {
@@ -570,14 +570,13 @@ public final class AppState: ObservableObject {
                     }
                 }
 
+                if let item = result {
+                    updates.append(item)
+                    updatesMap[item.name] = item
+                }
+
                 await MainActor.run {
                     self.updatesCheckedCount += 1
-                    if let item = result {
-                        updates.append(item)
-                        updatesMap[item.name] = item
-                        self.updatesAvailable = updates
-                        self.updatesAvailableMap = updatesMap
-                    }
                 }
             }
         }

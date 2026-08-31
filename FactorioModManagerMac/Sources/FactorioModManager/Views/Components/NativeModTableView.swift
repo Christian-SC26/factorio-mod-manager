@@ -654,13 +654,31 @@ public struct NativeModTableViewRepresentable: NSViewRepresentable {
     public func updateNSView(_ nsView: NativeModTableViewNSView, context: Context) {
         context.coordinator.parent = self
         nsView.delegate = context.coordinator
-        nsView.modPortalOwners = modPortalOwners
-        nsView.enabledStates = enabledStates
-        nsView.updatesAvailableMap = updatesAvailableMap
+
+        var needsReload = false
+
         if nsView.officialMods != officialMods || nsView.communityMods != communityMods {
             nsView.officialMods = officialMods
             nsView.communityMods = communityMods
-        } else {
+            needsReload = false
+        }
+
+        if nsView.modPortalOwners != modPortalOwners {
+            nsView.modPortalOwners = modPortalOwners
+            needsReload = true
+        }
+
+        if nsView.enabledStates != enabledStates {
+            nsView.enabledStates = enabledStates
+            needsReload = true
+        }
+
+        if nsView.updatesAvailableMap != updatesAvailableMap {
+            nsView.updatesAvailableMap = updatesAvailableMap
+            needsReload = true
+        }
+
+        if needsReload {
             nsView.tableView.reloadData()
         }
     }

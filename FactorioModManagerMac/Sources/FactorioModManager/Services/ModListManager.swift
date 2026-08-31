@@ -567,55 +567,42 @@ public final class ModListManager: Sendable {
 
     // MARK: - Modpack Export & Import
 
+    public struct ModpackDefinition: Identifiable, Hashable, Sendable {
+        public var id: String { targetMod }
+        public let name: String
+        public let targetMod: String
+        public let minFactorioVersion: String
+        public let description: String
+
+        public init(name: String, targetMod: String, minFactorioVersion: String = "1.1", description: String = "") {
+            self.name = name
+            self.targetMod = targetMod
+            self.minFactorioVersion = minFactorioVersion
+            self.description = description
+        }
+    }
+
+    public static let curatedModpacks: [ModpackDefinition] = [
+        ModpackDefinition(name: "AzzTweaks Overhaul", targetMod: "AzzTweaks", minFactorioVersion: "2.0", description: "Comprehensive expansion adding teleports, custom drills, and quality-of-life"),
+        ModpackDefinition(name: "Space Exploration", targetMod: "space-exploration", minFactorioVersion: "1.1", description: "Interplanetary travel, space platforms, and deep space science"),
+        ModpackDefinition(name: "Krastorio 2", targetMod: "Krastorio2", minFactorioVersion: "2.0", description: "Full tech tree overhaul with new power, fluids, and endgame"),
+        ModpackDefinition(name: "Pyanodons Complete", targetMod: "pycoalprocessing", minFactorioVersion: "2.0", description: "Hardcore complex biological & chemical production overhaul"),
+        ModpackDefinition(name: "SeaBlock", targetMod: "SeaBlock", minFactorioVersion: "1.1", description: "Start stranded on a tiny island and manufacture everything from ocean water"),
+        ModpackDefinition(name: "Ultracube", targetMod: "Ultracube", minFactorioVersion: "2.0", description: "Logistics puzzle centered around a single hyper-dense cube of pure energy"),
+        ModpackDefinition(name: "Freight Forwarding", targetMod: "FreightForwardingPack", minFactorioVersion: "1.1", description: "Haul resources across islands via container cargo ships, trains & planes"),
+        ModpackDefinition(name: "Nullius", targetMod: "nullius", minFactorioVersion: "1.1", description: "Terraform a lifeless planet from inorganic beginnings to complex biosystems"),
+        ModpackDefinition(name: "Industrial Revolution 3", targetMod: "IndustrialRevolution3", minFactorioVersion: "1.1", description: "Progress through distinct technological eras from bronze and steam to electricity"),
+        ModpackDefinition(name: "Warptorio 2", targetMod: "warptorio2", minFactorioVersion: "1.1", description: "Survive and manage expanding factory platforms before each warp countdown"),
+        ModpackDefinition(name: "248k Mod", targetMod: "248k", minFactorioVersion: "2.0", description: "Energy generation, lasers, nuclear fusion & element 248 technology")
+    ]
+
     public var modpacksDirectory: URL {
         let p = modsDirectory.appendingPathComponent("modpacks", isDirectory: true)
         try? FileManager.default.createDirectory(at: p, withIntermediateDirectories: true)
         return p
     }
 
-    /// Scan installed mods for overhaul mods / meta-packs (mods with multiple dependencies) and auto-save modpack manifests
-    public func autoDetectAndSaveInstalledModpacks() {
-        let installed = scanInstalledMods()
-        let pDir = modpacksDirectory
-
-        for (name, versions) in installed {
-            guard !VIRTUAL_BUILTINS.contains(name.lowercased()), let mod = versions.first else { continue }
-            let deps = mod.getDependencies().filter { $0.depType == .required || $0.depType == .recommended }
-            // If a mod has 2 or more dependencies, it represents a composite modpack / preset
-            if deps.count >= 2 {
-                let safeName = Self.safeProfileFilename(from: name)
-                let targetURL = pDir.appendingPathComponent("\(safeName).json")
-                if !FileManager.default.fileExists(atPath: targetURL.path) {
-                    var packMods: [[String: String]] = []
-                    packMods.append([
-                        "name": mod.name,
-                        "version": mod.version.raw,
-                        "url": "https://mods.factorio.com/mod/\(mod.name)"
-                    ])
-                    for d in deps {
-                        let dVer = installed[d.name]?.first?.version.raw ?? "latest"
-                        packMods.append([
-                            "name": d.name,
-                            "version": dVer,
-                            "url": "https://mods.factorio.com/mod/\(d.name)"
-                        ])
-                    }
-                    let dict: [String: Any] = [
-                        "title": mod.displayTitle,
-                        "root_mod": mod.name,
-                        "factorio_version": detectInstalledFactorioVersion(),
-                        "mods": packMods
-                    ]
-                    if let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys]) {
-                        try? data.write(to: targetURL, options: .atomic)
-                    }
-                }
-            }
-        }
-    }
-
     public func listSavedModpacks() -> [(name: String, url: URL)] {
-        autoDetectAndSaveInstalledModpacks()
         let pDir = modpacksDirectory
         guard let files = try? FileManager.default.contentsOfDirectory(at: pDir, includingPropertiesForKeys: nil) else {
             return []
