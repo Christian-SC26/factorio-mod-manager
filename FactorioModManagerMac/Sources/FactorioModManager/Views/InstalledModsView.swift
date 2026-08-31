@@ -105,7 +105,7 @@ public struct InstalledModsView: View {
     }
 
     private func initiateDeletion(for targets: [LocalMod]) {
-        let deletable = targets.filter { $0.name != "base" && !["space-age", "quality", "elevated-rails"].contains($0.name.lowercased()) }
+        let deletable = targets.filter { $0.name != "base" && !["space-age", "quality", "elevated-rails", "recycler"].contains($0.name.lowercased()) }
         guard !deletable.isEmpty else { return }
         modsPendingDeletion = deletable
         let targetNames = Set(deletable.map(\.name))
@@ -239,22 +239,45 @@ public struct InstalledModsView: View {
                     }
 
                     HStack(spacing: 8) {
-                        Button(action: {
-                            Task { await appState.checkForUpdates() }
-                        }) {
-                            HStack(spacing: 6) {
-                                if appState.isCheckingUpdates {
+                        if appState.isCheckingUpdates {
+                            Button(action: {}) {
+                                HStack(spacing: 6) {
                                     ProgressView()
                                         .controlSize(.small)
                                     Text("Checking \(appState.updatesCheckedCount)/\(appState.updatesTotalCount)...")
                                         .font(.system(size: 12))
-                                } else {
+                                }
+                            }
+                            .disabled(true)
+                        } else if !appState.updatesAvailable.isEmpty {
+                            Button(action: {
+                                Task { await appState.updateAllMods() }
+                            }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "arrow.down.circle.fill")
+                                    Text("Update All (\(appState.updatesAvailable.count))")
+                                        .fontWeight(.semibold)
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.green)
+
+                            Button(action: {
+                                Task { await appState.checkForUpdates() }
+                            }) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                            }
+                            .help("Re-check for updates")
+                        } else {
+                            Button(action: {
+                                Task { await appState.checkForUpdates() }
+                            }) {
+                                HStack(spacing: 6) {
                                     Image(systemName: "arrow.triangle.2.circlepath")
                                     Text(loc("check_updates"))
                                 }
                             }
                         }
-                        .disabled(appState.isCheckingUpdates)
 
                         Button(action: {
                             NSWorkspace.shared.open(appState.modsDirectory)

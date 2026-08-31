@@ -299,7 +299,8 @@ public final class AppState: ObservableObject {
             let officialDefs: [(name: String, title: String, desc: String)] = [
                 ("space-age", "Space Age", "Official expansion adding space platforms, interplanetary travel, and new worlds: Vulcanus, Gleba, Fulgora, and Aquilo."),
                 ("quality", "Quality", "Official expansion adding quality levels to items, machines, and equipment."),
-                ("elevated-rails", "Elevated Rails", "Official expansion adding elevated train ramps, rails, and rail supports.")
+                ("elevated-rails", "Elevated Rails", "Official expansion adding elevated train ramps, rails, and rail supports."),
+                ("recycler", "Recycler", "Official built-in recycling mechanics, data, and recycling facilities.")
             ]
 
             for def in officialDefs {
@@ -341,7 +342,7 @@ public final class AppState: ObservableObject {
 
         var commList: [LocalMod] = []
         for (name, versions) in map {
-            if ["base", "space-age", "quality", "elevated-rails"].contains(name.lowercased()) {
+            if ["base", "space-age", "quality", "elevated-rails", "recycler"].contains(name.lowercased()) {
                 continue
             }
             if let latest = versions.first {
@@ -656,14 +657,6 @@ public final class AppState: ObservableObject {
             }
             if !namesToEnable.isEmpty {
                 setMultipleModsEnabled(namesToEnable, enabled: true)
-            }
-        }
-
-        // If this installation was for a composite mod or modpack (e.g. AzzTweaks), auto-save profile
-        if let result = currentResolutionResult, !result.rootMods.isEmpty {
-            let primaryName = result.rootMods.first ?? "Modpack"
-            if !profiles.contains(where: { $0.name.localizedCaseInsensitiveCompare(primaryName) == .orderedSame }) {
-                _ = try? modListMgr.saveProfile(name: primaryName, states: self.modStates)
             }
         }
 

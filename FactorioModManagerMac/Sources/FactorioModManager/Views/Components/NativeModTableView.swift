@@ -103,7 +103,7 @@ public final class CustomTableView: NSTableView {
 
     private func isOfficialMod(_ name: String) -> Bool {
         let lower = name.lowercased()
-        return lower == "base" || lower == "space-age" || lower == "quality" || lower == "elevated-rails"
+        return lower == "base" || lower == "space-age" || lower == "quality" || lower == "elevated-rails" || lower == "recycler"
     }
 
     private var enclosingView: NativeModTableViewNSView {
@@ -534,7 +534,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
 
     private func isOfficialMod(_ name: String) -> Bool {
         let lower = name.lowercased()
-        return lower == "base" || lower == "space-age" || lower == "quality" || lower == "elevated-rails"
+        return lower == "base" || lower == "space-age" || lower == "quality" || lower == "elevated-rails" || lower == "recycler"
     }
 
     public func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
