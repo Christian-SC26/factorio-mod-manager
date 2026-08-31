@@ -21,7 +21,7 @@ classifiers = [
 ]
 
 [project.scripts]
-fmm = "fmm:main"
+fmm = "factorio_mm.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
