@@ -7,11 +7,12 @@ public struct ProfilesView: View {
     @State private var showDeleteConfirmation: Bool = false
 
     private var currentActiveModNames: Set<String> {
-        Set(appState.installedMods.filter { $0.enabled && $0.name != "base" }.map { $0.name })
+        Set(appState.installedMods.filter { appState.isModEnabled($0.name) && $0.name != "base" }.map(\.name))
     }
 
     private func isProfileActive(_ profile: Profile) -> Bool {
-        profile.extractActiveMods() == currentActiveModNames
+        let activeMods = profile.extractActiveMods()
+        return activeMods == currentActiveModNames
     }
 
     public var body: some View {
@@ -46,6 +47,10 @@ public struct ProfilesView: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(newProfileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
+
+                    Text("Saves all currently active mods (\(currentActiveModNames.count)) into a new profile.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 .padding(16)
                 .background(Color(NSColor.controlBackgroundColor))
@@ -77,9 +82,9 @@ public struct ProfilesView: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 HStack {
                                     HStack(spacing: 8) {
-                                        Image(systemName: "folder")
+                                        Image(systemName: active ? "folder.fill" : "folder")
                                             .font(.system(size: 18))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(active ? .accentColor : .secondary)
 
                                         VStack(alignment: .leading, spacing: 2) {
                                             HStack(spacing: 6) {
@@ -88,6 +93,16 @@ public struct ProfilesView: View {
 
                                                 if active {
                                                     StatusBadge(loc("active_badge"), icon: "checkmark.circle")
+                                                }
+
+                                                if let ver = profile.factorioVersion, !ver.isEmpty {
+                                                    Text("Factorio \(ver)")
+                                                        .font(.system(size: 10, design: .monospaced))
+                                                        .foregroundColor(.secondary)
+                                                        .padding(.horizontal, 4)
+                                                        .padding(.vertical, 1)
+                                                        .background(Color.secondary.opacity(0.12))
+                                                        .clipShape(RoundedRectangle(cornerRadius: 3))
                                                 }
                                             }
 
@@ -108,6 +123,15 @@ public struct ProfilesView: View {
                                                     .fontWeight(.medium)
                                             }
                                             .buttonStyle(.borderedProminent)
+                                        } else {
+                                            Button(action: {
+                                                appState.updateProfileWithCurrentMods(profile)
+                                            }) {
+                                                Label("Update", systemImage: "arrow.triangle.2.circlepath")
+                                                    .font(.system(size: 12))
+                                            }
+                                            .buttonStyle(.bordered)
+                                            .help("Update this profile with the current mod setup")
                                         }
 
                                         Button(action: {
@@ -124,7 +148,7 @@ public struct ProfilesView: View {
 
                                 if !activeMods.isEmpty {
                                     Divider()
-                                    // Flow of active mod chips (Monochrome)
+                                    // Flow of active mod chips
                                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 110, maximum: 180), spacing: 6)], alignment: .leading, spacing: 6) {
                                         ForEach(Array(activeMods.sorted()), id: \.self) { modName in
                                             let isInstalled = appState.installedModsMap[modName] != nil
@@ -150,7 +174,7 @@ public struct ProfilesView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .stroke(active ? Color.primary.opacity(0.3) : Color.secondary.opacity(0.15), lineWidth: 1)
+                                    .stroke(active ? Color.accentColor.opacity(0.4) : Color.secondary.opacity(0.15), lineWidth: 1)
                             )
                         }
                     }
@@ -159,6 +183,9 @@ public struct ProfilesView: View {
                 Spacer()
             }
             .padding(24)
+        }
+        .onAppear {
+            appState.loadProfiles()
         }
         .confirmationDialog(
             "Delete Profile?",

@@ -393,6 +393,13 @@ public final class ModListManager: Sendable {
         return p
     }
 
+    public static func safeProfileFilename(from name: String) -> String {
+        let invalidChars = CharacterSet(charactersIn: "\\/:*?\"<>|")
+        let cleaned = name.components(separatedBy: invalidChars).joined(separator: "_")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? "default" : cleaned
+    }
+
     public func listProfiles() -> [Profile] {
         let pDir = profilesDirectory
         guard let files = try? FileManager.default.contentsOfDirectory(at: pDir, includingPropertiesForKeys: nil) else {
@@ -409,16 +416,17 @@ public final class ModListManager: Sendable {
         return profiles.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    public func saveProfile(name: String) throws -> URL {
+    public func saveProfile(name: String, states: [String: Bool]? = nil) throws -> URL {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: " ", with: "_")
-        let safeName = cleanName.isEmpty ? "default" : cleanName
+        guard !cleanName.isEmpty else {
+            throw NSError(domain: "ProfileError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Profile name cannot be empty."])
+        }
 
-        let states = readModListJson()
+        let finalStates = states ?? readModListJson()
         let installed = scanInstalledMods()
 
         var activeMods: [String: String] = [:]
-        for (mName, isEnabled) in states where isEnabled && mName != "base" {
+        for (mName, isEnabled) in finalStates where isEnabled && mName != "base" {
             if let local = installed[mName]?.first {
                 activeMods[mName] = local.version.raw
             } else {
@@ -427,21 +435,41 @@ public final class ModListManager: Sendable {
         }
 
         let profile = Profile(
-            name: safeName,
+            name: cleanName,
             factorioVersion: detectInstalledFactorioVersion(),
             mods: activeMods,
-            allStates: states
+            allStates: finalStates,
+            createdAt: Date(),
+            updatedAt: Date()
         )
 
-        let targetURL = profilesDirectory.appendingPathComponent("\(safeName).json")
-        let data = try JSONEncoder().encode(profile)
+        let safeFilename = Self.safeProfileFilename(from: cleanName)
+        let targetURL = profilesDirectory.appendingPathComponent("\(safeFilename).json")
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(profile)
         try data.write(to: targetURL, options: .atomic)
         return targetURL
     }
 
     public func loadProfile(name: String) -> (success: Bool, activated: [String], missing: [String]) {
-        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: " ", with: "_")
-        let targetURL = profilesDirectory.appendingPathComponent("\(cleanName).json")
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let safeFilename = Self.safeProfileFilename(from: cleanName)
+
+        var targetURL = profilesDirectory.appendingPathComponent("\(safeFilename).json")
+        if !FileManager.default.fileExists(atPath: targetURL.path) {
+            let directURL = profilesDirectory.appendingPathComponent("\(cleanName).json")
+            if FileManager.default.fileExists(atPath: directURL.path) {
+                targetURL = directURL
+            } else {
+                let all = listProfiles()
+                if let matched = all.first(where: { $0.name.localizedCaseInsensitiveCompare(cleanName) == .orderedSame }) {
+                    let matchedFile = Self.safeProfileFilename(from: matched.name)
+                    targetURL = profilesDirectory.appendingPathComponent("\(matchedFile).json")
+                }
+            }
+        }
 
         guard FileManager.default.fileExists(atPath: targetURL.path),
               let data = try? Data(contentsOf: targetURL),
@@ -449,34 +477,69 @@ public final class ModListManager: Sendable {
             return (false, [], [])
         }
 
-        let activeSet = profile.extractActiveMods()
-        let installed = scanInstalledMods()
+        let installedNames = scanInstalledModNames()
+        var newStates: [String: Bool] = [:]
 
-        var newStates: [String: Bool] = ["base": true]
-        for (mName, _) in installed {
-            newStates[mName] = false
-        }
-
-        var activated: [String] = []
-        var missing: [String] = []
-
-        for mName in activeSet.sorted() {
-            if installed[mName] != nil || VIRTUAL_BUILTINS.contains(mName.lowercased()) {
-                newStates[mName] = true
-                activated.append(mName)
-            } else {
-                missing.append(mName)
+        // If the profile saved complete states (both on and off), restore them faithfully
+        if let savedStates = profile.allStates, !savedStates.isEmpty {
+            for (mName, isEnabled) in savedStates {
+                newStates[mName] = isEnabled
+            }
+            // For any installed mod not mentioned in profile, disable it
+            for mName in installedNames {
+                if newStates[mName] == nil {
+                    newStates[mName] = false
+                }
+            }
+        } else {
+            // For legacy profiles with only active mods list:
+            for mName in installedNames {
+                newStates[mName] = false
+            }
+            for (mName, _) in profile.mods {
                 newStates[mName] = true
             }
         }
 
-        try? writeModListJson(newStates)
-        return (true, activated, missing)
+        newStates["base"] = true
+
+        var activated: [String] = []
+        var missing: [String] = []
+
+        for (mName, isEnabled) in newStates where isEnabled && mName != "base" {
+            if installedNames.contains(mName) || VIRTUAL_BUILTINS.contains(mName.lowercased()) {
+                activated.append(mName)
+            } else {
+                missing.append(mName)
+            }
+        }
+
+        do {
+            try writeModListJson(newStates)
+            return (true, activated, missing)
+        } catch {
+            return (false, [], [])
+        }
     }
 
     public func deleteProfile(name: String) -> Bool {
-        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: " ", with: "_")
-        let targetURL = profilesDirectory.appendingPathComponent("\(cleanName).json")
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let safeFilename = Self.safeProfileFilename(from: cleanName)
+        var targetURL = profilesDirectory.appendingPathComponent("\(safeFilename).json")
+
+        if !FileManager.default.fileExists(atPath: targetURL.path) {
+            let directURL = profilesDirectory.appendingPathComponent("\(cleanName).json")
+            if FileManager.default.fileExists(atPath: directURL.path) {
+                targetURL = directURL
+            } else {
+                let all = listProfiles()
+                if let matched = all.first(where: { $0.name.localizedCaseInsensitiveCompare(cleanName) == .orderedSame }) {
+                    let matchedFile = Self.safeProfileFilename(from: matched.name)
+                    targetURL = profilesDirectory.appendingPathComponent("\(matchedFile).json")
+                }
+            }
+        }
+
         guard FileManager.default.fileExists(atPath: targetURL.path) else { return false }
         do {
             try FileManager.default.removeItem(at: targetURL)

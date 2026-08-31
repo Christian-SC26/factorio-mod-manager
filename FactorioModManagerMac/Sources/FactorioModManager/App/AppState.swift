@@ -538,9 +538,21 @@ public final class AppState: ObservableObject {
     // MARK: - Profiles Actions
     public func saveCurrentProfile(name: String) {
         do {
-            _ = try modListMgr.saveProfile(name: name)
+            _ = try modListMgr.saveProfile(name: name, states: self.modStates)
             loadProfiles()
             showNotification(title: loc("profiles_title"), message: loc("profile_saved", name))
+            objectWillChange.send()
+        } catch {
+            showNotification(title: loc("profiles_title"), message: error.localizedDescription, isError: true)
+        }
+    }
+
+    public func updateProfileWithCurrentMods(_ profile: Profile) {
+        do {
+            _ = try modListMgr.saveProfile(name: profile.name, states: self.modStates)
+            loadProfiles()
+            showNotification(title: loc("profiles_title"), message: "Profile '\(profile.name)' updated with current mod configuration.")
+            objectWillChange.send()
         } catch {
             showNotification(title: loc("profiles_title"), message: error.localizedDescription, isError: true)
         }
@@ -550,12 +562,15 @@ public final class AppState: ObservableObject {
         let (success, _, missing) = modListMgr.loadProfile(name: profile.name)
         if success {
             loadInstalledMods()
+            objectWillChange.send()
             if missing.isEmpty {
                 showNotification(title: loc("profiles_title"), message: "Profile '\(profile.name)' activated successfully!")
             } else {
                 showNotification(title: loc("profiles_title"), message: "\(missing.count) mods from profile missing on disk. Resolving...")
                 await resolveAndInstall(targets: missing)
             }
+        } else {
+            showNotification(title: loc("profiles_title"), message: "Failed to load profile '\(profile.name)'.", isError: true)
         }
     }
 
@@ -563,6 +578,7 @@ public final class AppState: ObservableObject {
         if modListMgr.deleteProfile(name: profile.name) {
             loadProfiles()
             showNotification(title: loc("profiles_title"), message: "Profile '\(profile.name)' deleted.")
+            objectWillChange.send()
         }
     }
 

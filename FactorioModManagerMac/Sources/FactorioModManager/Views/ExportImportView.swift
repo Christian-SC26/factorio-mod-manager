@@ -95,7 +95,7 @@ public struct ExportImportView: View {
 
                     Divider()
 
-                    let activeCount = appState.installedMods.filter { $0.enabled && $0.name != "base" }.count
+                    let activeCount = appState.installedMods.filter { appState.isModEnabled($0.name) && $0.name != "base" }.count
                     Text("Current active mods ready for export: \(activeCount)")
                         .font(.subheadline.bold())
 
