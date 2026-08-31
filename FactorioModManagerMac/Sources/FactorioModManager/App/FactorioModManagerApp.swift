@@ -46,6 +46,13 @@ struct FactorioModManagerApp: App {
         .commands {
             SidebarCommands()
 
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings...") {
+                    appState.selectedTab = .settings
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+
             CommandGroup(replacing: .newItem) {
                 Button("Install Mods...") {
                     appState.selectedTab = .install
@@ -89,13 +96,6 @@ struct FactorioModManagerApp: App {
                 }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
             }
-        }
-
-        Settings {
-            SettingsView(appState: appState)
-                .environmentObject(appState)
-                .environmentObject(locMgr)
-                .frame(width: 600, height: 480)
         }
     }
 }

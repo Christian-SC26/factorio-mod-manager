@@ -81,35 +81,9 @@ public struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
-                // Factorio version text (clean, no gamepad icon, no capsule background)
                 Text("Factorio \(appState.effectiveFactorioVersion)")
                     .font(.system(size: 12, weight: .regular))
                     .foregroundColor(.secondary)
-
-                // Language toggle button (clean, no extra capsule background)
-                Button(action: {
-                    locMgr.toggleLanguage()
-                }) {
-                    Text(locMgr.language == .en ? "RU" : "EN")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .help("Switch Language / Сменить язык")
-
-                // Open mods folder
-                Button(action: {
-                    NSWorkspace.shared.open(appState.modsDirectory)
-                }) {
-                    Image(systemName: "folder")
-                }
-                .help(loc("open_mods_folder"))
-
-                // Refresh button
-                Button(action: {
-                    appState.refreshAll()
-                }) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .help("Refresh installed mods")
             }
         }
         .sheet(isPresented: $appState.isResolutionModalPresented) {
