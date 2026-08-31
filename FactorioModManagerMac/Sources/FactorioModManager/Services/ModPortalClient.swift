@@ -360,7 +360,14 @@ public actor ModPortalClient {
         }
 
         var packs: [PortalModpackItem] = []
-        let branch = targetFactorioBranch?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let rawBranch = targetFactorioBranch?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let branch: String
+        let parts = rawBranch.components(separatedBy: ".")
+        if parts.count >= 2 {
+            branch = "\(parts[0]).\(parts[1])"
+        } else {
+            branch = rawBranch
+        }
 
         for item in results {
             guard let cat = item["category"] as? String, cat == "mod-packs" else { continue }
@@ -376,8 +383,8 @@ public actor ModPortalClient {
             let lVer = rel["version"] as? String ?? "1.0.0"
 
             if !branch.isEmpty {
-                // If checking branch like 2.1, accept 2.1 or 2.0
-                if !fVer.hasPrefix(branch) && !(branch.hasPrefix("2.") && fVer.hasPrefix("2.")) {
+                // Strict branch match: e.g. for "2.1", fVer must start with "2.1"
+                if !fVer.hasPrefix(branch) {
                     continue
                 }
             }

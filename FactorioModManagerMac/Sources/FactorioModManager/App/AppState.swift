@@ -89,6 +89,14 @@ public final class AppState: ObservableObject {
     public var effectiveFactorioVersion: String {
         customFactorioVersion.isEmpty ? detectedFactorioVersion : customFactorioVersion
     }
+    public var effectiveFactorioBranch: String {
+        let full = effectiveFactorioVersion.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = full.components(separatedBy: ".")
+        if parts.count >= 2 {
+            return "\(parts[0]).\(parts[1])"
+        }
+        return full
+    }
 
     public var modListMgr: ModListManager {
         ModListManager(modsDirectory: modsDirectory)
@@ -701,9 +709,12 @@ public final class AppState: ObservableObject {
         return dir.appendingPathComponent("portal_modpacks_cache.json")
     }
 
-    public static func loadPersistedPortalModpacks() -> [PortalModpackItem] {
+    public static func loadPersistedPortalModpacks(forBranch branch: String? = nil) -> [PortalModpackItem] {
         if let data = try? Data(contentsOf: portalModpacksCacheURL),
            let list = try? JSONDecoder().decode([PortalModpackItem].self, from: data) {
+            if let b = branch, !b.isEmpty {
+                return list.filter { $0.factorioVersion.hasPrefix(b) }
+            }
             return list
         }
         return []
@@ -716,17 +727,16 @@ public final class AppState: ObservableObject {
     }
 
     public func loadPortalModpacks() {
-        if portalModpacks.isEmpty {
-            self.portalModpacks = Self.loadPersistedPortalModpacks()
-        }
+        let branch = effectiveFactorioBranch
+        self.portalModpacks = Self.loadPersistedPortalModpacks(forBranch: branch)
         fetchPortalModpacks()
     }
 
     public func fetchPortalModpacks() {
         isLoadingPortalModpacks = true
-        let branch = effectiveFactorioVersion
+        let branch = effectiveFactorioBranch
         Task { @MainActor [weak self] in
-            if let fetched = try? await ModPortalClient.shared.fetchPortalModpacks(targetFactorioBranch: branch), !fetched.isEmpty {
+            if let fetched = try? await ModPortalClient.shared.fetchPortalModpacks(targetFactorioBranch: branch) {
                 self?.portalModpacks = fetched
                 Self.savePersistedPortalModpacks(fetched)
             }
