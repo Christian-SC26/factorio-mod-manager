@@ -9,23 +9,26 @@ public struct AuthorCellView: View {
         let authorDisplay = portalOwner ?? mod.cleanAuthorName
         let portalURL = mod.portalAuthorURL(portalOwner: portalOwner)
 
-        if let url = portalURL {
-            Button(action: {
-                NSWorkspace.shared.open(url)
-            }) {
+        Group {
+            if let url = portalURL {
+                Button(action: {
+                    NSWorkspace.shared.open(url)
+                }) {
+                    Text(authorDisplay)
+                        .font(.system(size: 12))
+                        .foregroundColor(.accentColor)
+                        .lineLimit(1)
+                }
+                .buttonStyle(.plain)
+                .help("Open \(authorDisplay)'s portal page (⌘A)")
+            } else {
                 Text(authorDisplay)
                     .font(.system(size: 12))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(.secondary)
                     .lineLimit(1)
             }
-            .buttonStyle(.plain)
-            .help("Open \(authorDisplay)'s portal page (⌘A)")
-        } else {
-            Text(authorDisplay)
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-                .lineLimit(1)
         }
+        .frame(height: 28, alignment: .leading)
     }
 }
 
@@ -33,11 +36,9 @@ public struct InstalledModsView: View {
     @ObservedObject var appState: AppState
     @State private var filterMode: Int = 0 // 0: All, 1: Enabled, 2: Disabled
     @State private var searchText: String = ""
-    @State private var cursorIndex: Int = 0
-    @State private var selectedIndices: Set<Int> = [0]
     @State private var selectedModIDs: Set<String> = []
+    @State private var selectionAnchorIndex: Int = 0
     @State private var sortOrder = [KeyPathComparator(\LocalMod.displayTitle, order: .forward)]
-    @State private var wasShiftPressed: Bool = false
     @State private var eventMonitor: Any? = nil
     @FocusState private var isSearchFocused: Bool
 
@@ -86,67 +87,53 @@ public struct InstalledModsView: View {
         let mods = filteredAndSortedMods
         guard !mods.isEmpty else { return [] }
 
-        let valid = selectedIndices.filter { $0 >= 0 && $0 < mods.count }
-        if !valid.isEmpty {
-            return valid.sorted().map { mods[$0] }
-        }
-        if cursorIndex >= 0 && cursorIndex < mods.count {
-            return [mods[cursorIndex]]
-        }
-        return []
-    }
-
-    private func syncSelectionToTable() {
-        let mods = filteredAndSortedMods
-        guard !mods.isEmpty else { return }
-
-        let valid = selectedIndices.filter { $0 >= 0 && $0 < mods.count }
-        let targetIndices = valid.isEmpty ? [cursorIndex] : valid
-        let indexSet = IndexSet(targetIndices)
-        selectedModIDs = Set(targetIndices.map { mods[$0].id })
-
-        if let window = NSApp.keyWindow ?? NSApp.mainWindow,
-           let tableView = findTableView(in: window.contentView) {
-            tableView.selectRowIndexes(indexSet, byExtendingSelection: false)
-            if cursorIndex >= 0 && cursorIndex < mods.count {
-                tableView.scrollRowToVisible(cursorIndex)
+        var list = mods.filter { selectedModIDs.contains($0.id) }
+        if list.isEmpty {
+            if let window = NSApp.keyWindow ?? NSApp.mainWindow,
+               let tableView = findTableView(in: window.contentView),
+               tableView.selectedRow >= 0, tableView.selectedRow < mods.count {
+                let current = mods[tableView.selectedRow]
+                selectedModIDs = [current.id]
+                list = [current]
             }
         }
+        return list
     }
 
-    private func moveCursor(by delta: Int, extendSelection: Bool) {
+    private func moveSelection(by delta: Int, extendRange: Bool) {
         let mods = filteredAndSortedMods
         guard !mods.isEmpty else { return }
 
-        let nextCursor = min(max(0, cursorIndex + delta), mods.count - 1)
-        cursorIndex = nextCursor
+        DispatchQueue.main.async {
+            if let window = NSApp.keyWindow ?? NSApp.mainWindow,
+               let tableView = findTableView(in: window.contentView) {
+                let current = tableView.selectedRow >= 0 ? tableView.selectedRow : 0
+                let target = min(max(0, current + delta), mods.count - 1)
 
-        if extendSelection {
-            selectedIndices.insert(nextCursor)
-        }
-
-        syncSelectionToTable()
-    }
-
-    private func toggleMarkCurrentCursor() {
-        let mods = filteredAndSortedMods
-        guard !mods.isEmpty else { return }
-
-        if selectedIndices.contains(cursorIndex) {
-            if selectedIndices.count > 1 {
-                selectedIndices.remove(cursorIndex)
+                if extendRange {
+                    let start = min(selectionAnchorIndex, target)
+                    let end = max(selectionAnchorIndex, target)
+                    let indexSet = IndexSet(integersIn: start...end)
+                    tableView.selectRowIndexes(indexSet, byExtendingSelection: false)
+                    tableView.scrollRowToVisible(target)
+                    selectedModIDs = Set(mods[start...end].map(\.id))
+                } else {
+                    selectionAnchorIndex = target
+                    tableView.selectRowIndexes(IndexSet(integer: target), byExtendingSelection: false)
+                    tableView.scrollRowToVisible(target)
+                    selectedModIDs = [mods[target].id]
+                }
             }
-        } else {
-            selectedIndices.insert(cursorIndex)
         }
-
-        syncSelectionToTable()
     }
 
     private func findTableView(in view: NSView?) -> NSTableView? {
         guard let view = view else { return nil }
         if let tv = view as? NSTableView {
+            tv.rowHeight = 28
+            tv.usesAutomaticRowHeights = false
             tv.selectionHighlightStyle = .regular
+            tv.focusRingType = .none
             return tv
         }
         for sub in view.subviews {
@@ -292,13 +279,11 @@ public struct InstalledModsView: View {
 
                     // Keyboard shortcuts tip
                     HStack(spacing: 4) {
-                        Text("j/k: move")
+                        Text("j/k: nav")
                         Text("•")
-                        Text("⇧/x: mark")
+                        Text("⇧j/k: range")
                         Text("•")
-                        Text("⇧j/k: multi")
-                        Text("•")
-                        Text("space: toggle (\(selectedIndices.count))")
+                        Text("space: toggle")
                     }
                     .font(.system(size: 11))
                     .foregroundColor(.secondary.opacity(0.8))
@@ -309,7 +294,7 @@ public struct InstalledModsView: View {
 
             Divider()
 
-            // Finder-Style Native Table with Multi-Selection, Plain Version, and Fast Virtualization
+            // Finder-Style Native Table with Uniform 28px Rows and Calm Grey Selection
             if filteredAndSortedMods.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
@@ -328,7 +313,7 @@ public struct InstalledModsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Table(filteredAndSortedMods, selection: $selectedModIDs, sortOrder: $sortOrder) {
-                    // Column 1: On / Off Switch (System color preserved)
+                    // Column 1: On / Off Switch (System accent color preserved)
                     TableColumn("Active", value: \.enabledSortKey) { mod in
                         Toggle("", isOn: Binding(
                             get: { mod.enabled },
@@ -338,23 +323,17 @@ public struct InstalledModsView: View {
                         .controlSize(.mini)
                         .labelsHidden()
                         .tint(.accentColor)
+                        .frame(height: 28, alignment: .center)
                     }
                     .width(min: 44, ideal: 50, max: 58)
 
-                    // Column 2: Clean Human Title (with active cursor indicator)
+                    // Column 2: Clean Human Title (Clean typography, fixed height, no box icon, no arrow)
                     TableColumn("Mod Name", value: \.displayTitle) { mod in
-                        let isCursor = (filteredAndSortedMods.indices.contains(cursorIndex) && filteredAndSortedMods[cursorIndex].id == mod.id)
-                        HStack(spacing: 6) {
-                            if isCursor {
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.accentColor)
-                            }
-                            Text(mod.displayTitle)
-                                .font(.system(size: 13, weight: isCursor ? .semibold : .medium))
-                                .foregroundColor(mod.enabled ? .primary : .secondary)
-                                .lineLimit(1)
-                        }
+                        Text(mod.displayTitle)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(mod.enabled ? .primary : .secondary)
+                            .lineLimit(1)
+                            .frame(height: 28, alignment: .leading)
                     }
                     .width(min: 180, ideal: 260)
 
@@ -369,6 +348,8 @@ public struct InstalledModsView: View {
                         Text(mod.formattedDate)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .frame(height: 28, alignment: .leading)
                     }
                     .width(min: 85, ideal: 110, max: 140)
 
@@ -377,6 +358,8 @@ public struct InstalledModsView: View {
                         Text(mod.version.raw)
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .frame(height: 28, alignment: .leading)
                     }
                     .width(min: 70, ideal: 80, max: 100)
 
@@ -385,6 +368,8 @@ public struct InstalledModsView: View {
                         Text(mod.fileSize > 0 ? formatBytes(mod.fileSize) : "—")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .frame(height: 28, alignment: .leading)
                     }
                     .width(min: 70, ideal: 80, max: 100)
 
@@ -437,10 +422,12 @@ public struct InstalledModsView: View {
                             .buttonStyle(.plain)
                             .help("Delete Mod (⌫)")
                         }
+                        .frame(height: 28, alignment: .leading)
                     }
                     .width(min: 105, ideal: 120, max: 140)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .tint(Color.secondary.opacity(0.35))
                 .contextMenu {
                     let targets = getSelectedMods()
                     if !targets.isEmpty {
@@ -480,13 +467,12 @@ public struct InstalledModsView: View {
             }
         }
         .onAppear {
-            if selectedIndices.isEmpty {
-                selectedIndices = [0]
+            if selectedModIDs.isEmpty, let first = filteredAndSortedMods.first {
+                selectedModIDs = [first.id]
             }
             if eventMonitor == nil {
                 setupKeyboardMonitor()
             }
-            syncSelectionToTable()
         }
         .onDisappear {
             if let monitor = eventMonitor {
@@ -501,9 +487,7 @@ public struct InstalledModsView: View {
         ) {
             Button(loc("delete_selected"), role: .destructive) {
                 appState.deleteMods(modsPendingDeletion)
-                selectedIndices = [0]
-                cursorIndex = 0
-                syncSelectionToTable()
+                selectedModIDs.removeAll()
             }
             Button(loc("cancel"), role: .cancel) {}
         } message: {
@@ -600,18 +584,14 @@ public struct InstalledModsView: View {
                     Button("Delete Anyway", role: .destructive) {
                         showDependencyDeleteConfirmation = false
                         appState.deleteMods(modsPendingDeletion)
-                        selectedIndices = [0]
-                        cursorIndex = 0
-                        syncSelectionToTable()
+                        selectedModIDs.removeAll()
                     }
 
                     Button("Delete & Disable Dependent Mods") {
                         showDependencyDeleteConfirmation = false
                         let dependentList = Array(Set(brokenDependenciesForPendingDeletion.map(\.dependentMod)))
                         appState.deleteModsAndDisableDependents(mods: modsPendingDeletion, dependentMods: dependentList)
-                        selectedIndices = [0]
-                        cursorIndex = 0
-                        syncSelectionToTable()
+                        selectedModIDs.removeAll()
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -623,23 +603,7 @@ public struct InstalledModsView: View {
     }
 
     private func setupKeyboardMonitor() {
-        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
-            // Handle Shift key press/release (flagsChanged)
-            if event.type == .flagsChanged {
-                let shiftPressed = event.modifierFlags.contains(.shift)
-                if shiftPressed && !self.wasShiftPressed {
-                    self.wasShiftPressed = true
-                    DispatchQueue.main.async {
-                        self.toggleMarkCurrentCursor()
-                    }
-                } else if !shiftPressed {
-                    self.wasShiftPressed = false
-                }
-                return event
-            }
-
-            guard event.type == .keyDown else { return event }
-
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let isCmd = event.modifierFlags.contains(.command)
             let isShift = event.modifierFlags.contains(.shift)
             let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
@@ -671,15 +635,6 @@ public struct InstalledModsView: View {
                     return nil
                 }
                 return event
-            }
-
-            // Escape when not in search: reset multi-selection to current cursor
-            if event.keyCode == 53 {
-                DispatchQueue.main.async {
-                    self.selectedIndices = [self.cursorIndex]
-                    self.syncSelectionToTable()
-                }
-                return nil
             }
 
             // Delete / Backspace key (keyCode 51 = Delete/Backspace, keyCode 117 = Forward Delete)
@@ -729,28 +684,17 @@ public struct InstalledModsView: View {
                 }
             }
 
-            // Navigation and marking keys without Command
+            // Global navigation keys: J (Down), K (Up), Space (Toggle)
             if !isCmd {
                 switch chars {
                 case "j":
-                    DispatchQueue.main.async {
-                        self.moveCursor(by: 1, extendSelection: isShift)
-                    }
+                    self.moveSelection(by: 1, extendRange: isShift)
                     return nil
                 case "k":
-                    DispatchQueue.main.async {
-                        self.moveCursor(by: -1, extendSelection: isShift)
-                    }
-                    return nil
-                case "x", "v": // Explicit mark/unmark key
-                    DispatchQueue.main.async {
-                        self.toggleMarkCurrentCursor()
-                    }
+                    self.moveSelection(by: -1, extendRange: isShift)
                     return nil
                 case " ":
-                    DispatchQueue.main.async {
-                        self.toggleSelectedMods()
-                    }
+                    self.toggleSelectedMods()
                     return nil
                 default:
                     break

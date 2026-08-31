@@ -158,11 +158,7 @@ public final class ModListManager: Sendable {
 
         let dict: [String: Any] = ["mods": modsList]
         let data = try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
-
-        let tmpURL = modListJsonURL.appendingPathExtension("tmp")
-        try data.write(to: tmpURL, options: .atomic)
-        _ = try? FileManager.default.removeItem(at: modListJsonURL)
-        try FileManager.default.moveItem(at: tmpURL, to: modListJsonURL)
+        try data.write(to: modListJsonURL, options: .atomic)
     }
 
     private static let cacheLock = NSLock()
