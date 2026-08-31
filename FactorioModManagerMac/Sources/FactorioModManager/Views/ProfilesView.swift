@@ -12,7 +12,7 @@ public struct ProfilesView: View {
 
     private func isProfileActive(_ profile: Profile) -> Bool {
         let activeMods = profile.extractActiveMods()
-        return activeMods == currentActiveModNames
+        return !activeMods.isEmpty && activeMods == currentActiveModNames
     }
 
     public var body: some View {
@@ -83,8 +83,8 @@ public struct ProfilesView: View {
                                 HStack {
                                     HStack(spacing: 8) {
                                         Image(systemName: active ? "folder.fill" : "folder")
-                                            .font(.system(size: 18))
-                                            .foregroundColor(active ? .accentColor : .secondary)
+                                            .font(.system(size: 20))
+                                            .foregroundColor(active ? .green : .secondary)
 
                                         VStack(alignment: .leading, spacing: 2) {
                                             HStack(spacing: 6) {
@@ -92,7 +92,7 @@ public struct ProfilesView: View {
                                                     .font(.system(size: 14, weight: .bold))
 
                                                 if active {
-                                                    StatusBadge(loc("active_badge"), icon: "checkmark.circle")
+                                                    StatusBadge(loc("active_badge"), color: .green, icon: "checkmark.circle.fill")
                                                 }
 
                                                 if let ver = profile.factorioVersion, !ver.isEmpty {
@@ -108,13 +108,13 @@ public struct ProfilesView: View {
 
                                             Text(String(format: loc("profile_mods_count"), activeMods.count))
                                                 .font(.caption)
-                                                .foregroundColor(.secondary)
+                                                .foregroundColor(active ? .green.opacity(0.8) : .secondary)
                                         }
                                     }
 
                                     Spacer()
 
-                                    HStack(spacing: 8) {
+                                    HStack(spacing: 10) {
                                         if !active {
                                             Button(action: {
                                                 Task { await appState.activateProfile(profile) }
@@ -124,14 +124,26 @@ public struct ProfilesView: View {
                                             }
                                             .buttonStyle(.borderedProminent)
                                         } else {
+                                            HStack(spacing: 5) {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .foregroundColor(.green)
+                                                Text(loc("active_badge"))
+                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .foregroundColor(.green)
+                                            }
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 4)
+                                            .background(Color.green.opacity(0.12))
+                                            .clipShape(Capsule())
+
                                             Button(action: {
                                                 appState.updateProfileWithCurrentMods(profile)
                                             }) {
                                                 Label("Update", systemImage: "arrow.triangle.2.circlepath")
-                                                    .font(.system(size: 12))
+                                                    .font(.system(size: 11))
                                             }
                                             .buttonStyle(.bordered)
-                                            .help("Update this profile with the current mod setup")
+                                            .help("Update this profile with current active mods")
                                         }
 
                                         Button(action: {
@@ -154,7 +166,7 @@ public struct ProfilesView: View {
                                             let isInstalled = appState.installedModsMap[modName] != nil
                                             HStack(spacing: 4) {
                                                 Circle()
-                                                    .fill(isInstalled ? Color.primary.opacity(0.8) : Color.secondary.opacity(0.4))
+                                                    .fill(active ? (isInstalled ? Color.green : Color.secondary.opacity(0.4)) : (isInstalled ? Color.primary.opacity(0.8) : Color.secondary.opacity(0.4)))
                                                     .frame(width: 5, height: 5)
                                                 Text(modName)
                                                     .font(.system(size: 11))
@@ -163,18 +175,18 @@ public struct ProfilesView: View {
                                             }
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 3)
-                                            .background(Color.secondary.opacity(0.1))
+                                            .background(active ? Color.green.opacity(0.08) : Color.secondary.opacity(0.1))
                                             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                                         }
                                     }
                                 }
                             }
                             .padding(14)
-                            .background(Color(NSColor.controlBackgroundColor))
+                            .background(active ? Color.green.opacity(0.04) : Color(NSColor.controlBackgroundColor))
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .stroke(active ? Color.accentColor.opacity(0.4) : Color.secondary.opacity(0.15), lineWidth: 1)
+                                    .stroke(active ? Color.green.opacity(0.6) : Color.secondary.opacity(0.15), lineWidth: active ? 1.5 : 1)
                             )
                         }
                     }
