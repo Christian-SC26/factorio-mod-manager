@@ -127,11 +127,13 @@ public struct InstalledModsView: View {
         }
     }
 
+    @discardableResult
     private func findTableView(in view: NSView?) -> NSTableView? {
         guard let view = view else { return nil }
         if let tv = view as? NSTableView {
             tv.rowHeight = 28
             tv.usesAutomaticRowHeights = false
+            tv.intercellSpacing = NSSize(width: 8, height: 0)
             tv.selectionHighlightStyle = .regular
             tv.focusRingType = .none
             return tv
@@ -279,9 +281,9 @@ public struct InstalledModsView: View {
 
                     // Keyboard shortcuts tip
                     HStack(spacing: 4) {
-                        Text("j/k: nav")
+                        Text("↑/↓ / j/k: nav")
                         Text("•")
-                        Text("⇧j/k: range")
+                        Text("⇧↑/↓: range")
                         Text("•")
                         Text("space: toggle")
                     }
@@ -294,7 +296,7 @@ public struct InstalledModsView: View {
 
             Divider()
 
-            // Finder-Style Native Table with Fixed 28px Rows and Zero Scroll Animation Lag
+            // Finder-Style Native Table with Strictly Fixed 28px Rows and Zero Lag
             if filteredAndSortedMods.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
@@ -433,6 +435,7 @@ public struct InstalledModsView: View {
                     .width(min: 105, ideal: 115, max: 130)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: true))
+                .environment(\.defaultMinListRowHeight, 28)
                 .tint(Color.secondary.opacity(0.35))
                 .contextMenu {
                     let targets = getSelectedMods()
@@ -478,6 +481,12 @@ public struct InstalledModsView: View {
             }
             if eventMonitor == nil {
                 setupKeyboardMonitor()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                if let window = NSApp.keyWindow ?? NSApp.mainWindow,
+                   let tv = findTableView(in: window.contentView) {
+                    window.makeFirstResponder(tv)
+                }
             }
         }
         .onDisappear {
@@ -613,6 +622,7 @@ public struct InstalledModsView: View {
             let isCmd = event.modifierFlags.contains(.command)
             let isShift = event.modifierFlags.contains(.shift)
             let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
+            let keyCode = event.keyCode
 
             // Handle Cmd + F to focus search
             if isCmd && chars == "f" {
@@ -634,7 +644,7 @@ public struct InstalledModsView: View {
 
             // If user is currently typing in search field, let normal typing proceed
             if self.isSearchFocused {
-                if event.keyCode == 53 { // Escape
+                if keyCode == 53 { // Escape
                     DispatchQueue.main.async {
                         self.isSearchFocused = false
                     }
@@ -644,7 +654,7 @@ public struct InstalledModsView: View {
             }
 
             // Delete / Backspace key (keyCode 51 = Delete/Backspace, keyCode 117 = Forward Delete)
-            if event.keyCode == 51 || event.keyCode == 117 {
+            if keyCode == 51 || keyCode == 117 {
                 let targets = self.getSelectedMods()
                 if !targets.isEmpty {
                     DispatchQueue.main.async {
@@ -690,20 +700,19 @@ public struct InstalledModsView: View {
                 }
             }
 
-            // Global navigation keys: J (Down), K (Up), Space (Toggle)
+            // Global navigation keys: Arrow Down / J (Down), Arrow Up / K (Up), Space (Toggle)
             if !isCmd {
-                switch chars {
-                case "j":
+                if keyCode == 125 || chars == "j" { // Arrow Down or J
                     self.moveSelection(by: 1, extendRange: isShift)
                     return nil
-                case "k":
+                }
+                if keyCode == 126 || chars == "k" { // Arrow Up or K
                     self.moveSelection(by: -1, extendRange: isShift)
                     return nil
-                case " ":
+                }
+                if keyCode == 49 || chars == " " { // Space
                     self.toggleSelectedMods()
                     return nil
-                default:
-                    break
                 }
             }
 
