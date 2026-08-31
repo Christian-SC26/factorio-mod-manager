@@ -627,29 +627,42 @@ public final class AppState: ObservableObject {
     }
 
     public func executeDownload(for modsToDownload: [ResolvedMod]) async {
-        guard !modsToDownload.isEmpty else { return }
-        isDownloading = true
-        downloadProgressList = modsToDownload.map {
-            DownloadProgress(modName: $0.name, version: $0.release.version.raw)
+        if !modsToDownload.isEmpty {
+            isDownloading = true
+            downloadProgressList = modsToDownload.map {
+                DownloadProgress(modName: $0.name, version: $0.release.version.raw)
+            }
+
+            let downloader = ModDownloader(
+                modListMgr: modListMgr,
+                cleanOld: cleanOldVersions,
+                autoEnable: autoEnableMods
+            )
+
+            _ = await downloader.downloadAll(mods: modsToDownload) { [weak self] p in
+                Task { @MainActor in
+                    if let idx = self?.downloadProgressList.firstIndex(where: { $0.modName == p.modName }) {
+                        self?.downloadProgressList[idx] = p
+                    }
+                }
+            }
+            isDownloading = false
         }
 
-        let downloader = ModDownloader(
-            modListMgr: modListMgr,
-            cleanOld: cleanOldVersions,
-            autoEnable: autoEnableMods
-        )
-
-        _ = await downloader.downloadAll(mods: modsToDownload) { [weak self] p in
-            Task { @MainActor in
-                if let idx = self?.downloadProgressList.firstIndex(where: { $0.modName == p.modName }) {
-                    self?.downloadProgressList[idx] = p
-                }
+        // IMPORTANT: Also enable all already installed / up-to-date mods that belong to this modpack/resolution plan!
+        if autoEnableMods {
+            var namesToEnable = modsToDownload.map(\.name)
+            if let upToDate = currentResolutionResult?.modsUpToDate {
+                namesToEnable.append(contentsOf: upToDate.map(\.name))
+            }
+            if !namesToEnable.isEmpty {
+                setMultipleModsEnabled(namesToEnable, enabled: true)
             }
         }
 
-        isDownloading = false
         loadInstalledMods()
         loadProfiles()
+        loadSavedModpacks()
         await checkForUpdates()
     }
 
@@ -660,6 +673,67 @@ public final class AppState: ObservableObject {
             includeOptional: false,
             forceReinstall: false
         )
+    }
+
+    // MARK: - Modpacks Actions
+    @Published public var savedModpacks: [(name: String, url: URL)] = []
+
+    public func loadSavedModpacks() {
+        self.savedModpacks = modListMgr.listSavedModpacks()
+    }
+
+    public func applyModpack(from url: URL) async {
+        do {
+            let targets = try modListMgr.importModpack(from: url)
+            guard !targets.isEmpty else {
+                showNotification(title: loc("export_import_title"), message: "No mods found in modpack.", isError: true)
+                return
+            }
+            showNotification(title: loc("export_import_title"), message: "Importing \(targets.count) mods from '\(url.lastPathComponent)'...")
+            await resolveAndInstall(targets: targets)
+        } catch {
+            showNotification(title: loc("export_import_title"), message: error.localizedDescription, isError: true)
+        }
+    }
+
+    public func importModpackFromFile() {
+        let openPanel = NSOpenPanel()
+        openPanel.allowedContentTypes = [.json, .plainText]
+        openPanel.allowsMultipleSelection = false
+        openPanel.canChooseDirectories = false
+        openPanel.canChooseFiles = true
+        openPanel.title = "Import Modpack"
+
+        if openPanel.runModal() == .OK, let url = openPanel.url {
+            Task {
+                await self.applyModpack(from: url)
+            }
+        }
+    }
+
+    public func exportCurrentModpackToFile() {
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.json]
+        savePanel.nameFieldStringValue = "modpack_\(Date().timeIntervalSince1970).json"
+        savePanel.canCreateDirectories = true
+        savePanel.title = "Export Modpack"
+
+        if savePanel.runModal() == .OK, let url = savePanel.url {
+            do {
+                let count = try modListMgr.exportModpack(to: url)
+                loadSavedModpacks()
+                showNotification(
+                    title: loc("export_import_title"),
+                    message: String(format: loc("exported_success"), count, url.lastPathComponent)
+                )
+            } catch {
+                showNotification(
+                    title: loc("export_import_title"),
+                    message: error.localizedDescription,
+                    isError: true
+                )
+            }
+        }
     }
 
     // MARK: - Profiles Actions

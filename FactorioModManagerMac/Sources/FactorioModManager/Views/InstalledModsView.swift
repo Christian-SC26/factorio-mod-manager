@@ -7,6 +7,8 @@ public struct InstalledModsView: View {
     @State private var searchText: String = ""
     @State private var sortColumn: String = "displayTitle"
     @State private var sortAscending: Bool = true
+    @State private var showSaveProfileSheet: Bool = false
+    @State private var newProfileName: String = ""
     @FocusState private var isSearchFocused: Bool
 
     // Deletion confirmation state
@@ -21,6 +23,19 @@ public struct InstalledModsView: View {
 
     private var disabledCount: Int {
         appState.installedMods.filter { !appState.isModEnabled($0.name) }.count
+    }
+
+    private var currentActiveModNames: Set<String> {
+        Set(appState.installedMods.filter { appState.isModEnabled($0.name) && $0.name != "base" }.map(\.name))
+    }
+
+    private func isProfileActive(_ profile: Profile) -> Bool {
+        let activeMods = profile.extractActiveMods()
+        return !activeMods.isEmpty && activeMods == currentActiveModNames
+    }
+
+    private var activeProfile: Profile? {
+        appState.profiles.first { isProfileActive($0) }
     }
 
     private var filteredOfficialMods: [LocalMod] {
@@ -118,6 +133,90 @@ public struct InstalledModsView: View {
                     }
 
                     Spacer()
+
+                    // Quick Switch Menus: Profiles & Modpacks
+                    HStack(spacing: 8) {
+                        // Profiles Dropdown Menu
+                        Menu {
+                            Section("Saved Profiles (\(appState.profiles.count))") {
+                                if appState.profiles.isEmpty {
+                                    Text(loc("no_profiles_saved"))
+                                } else {
+                                    ForEach(appState.profiles) { profile in
+                                        Button(action: {
+                                            Task { await appState.activateProfile(profile) }
+                                        }) {
+                                            if isProfileActive(profile) {
+                                                Label("\(profile.name) (Active)", systemImage: "checkmark")
+                                            } else {
+                                                Text(profile.name)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Divider()
+                            Button(action: {
+                                newProfileName = ""
+                                showSaveProfileSheet = true
+                            }) {
+                                Label("Save Current as Profile...", systemImage: "plus")
+                            }
+                            Button(action: {
+                                appState.selectedTab = .profiles
+                            }) {
+                                Label("Manage Profiles...", systemImage: "folder")
+                            }
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: activeProfile != nil ? "folder.fill" : "folder")
+                                    .foregroundColor(activeProfile != nil ? .green : .secondary)
+                                Text(activeProfile?.name ?? "Profiles")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .lineLimit(1)
+                            }
+                        }
+
+                        // Modpacks Dropdown Menu
+                        Menu {
+                            if !appState.savedModpacks.isEmpty {
+                                Section("Saved Modpacks") {
+                                    ForEach(appState.savedModpacks, id: \.url) { item in
+                                        Button(action: {
+                                            Task { await appState.applyModpack(from: item.url) }
+                                        }) {
+                                            Label(item.name, systemImage: "shippingbox")
+                                        }
+                                    }
+                                }
+                                Divider()
+                            }
+                            Section("Modpack Actions") {
+                                Button(action: {
+                                    appState.importModpackFromFile()
+                                }) {
+                                    Label("Import Modpack...", systemImage: "square.and.arrow.down")
+                                }
+                                Button(action: {
+                                    appState.exportCurrentModpackToFile()
+                                }) {
+                                    Label("Export Current Modpack...", systemImage: "square.and.arrow.up")
+                                }
+                                Button(action: {
+                                    appState.selectedTab = .exportImport
+                                }) {
+                                    Label("Manage Modpacks...", systemImage: "shippingbox")
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: "shippingbox")
+                                    .foregroundColor(.secondary)
+                                Text("Modpacks")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                        }
+                    }
 
                     HStack(spacing: 8) {
                         Button(action: {
@@ -264,6 +363,38 @@ public struct InstalledModsView: View {
                     }
                 )
             }
+        }
+        .onAppear {
+            appState.loadProfiles()
+            appState.loadSavedModpacks()
+        }
+        .sheet(isPresented: $showSaveProfileSheet) {
+            VStack(spacing: 16) {
+                HStack {
+                    Text("Save Current Profile")
+                        .font(.headline)
+                    Spacer()
+                    Button("Cancel") { showSaveProfileSheet = false }
+                }
+
+                TextField(loc("profile_name_placeholder"), text: $newProfileName)
+                    .textFieldStyle(.roundedBorder)
+
+                HStack {
+                    Spacer()
+                    Button("Save Profile") {
+                        let trimmed = newProfileName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            appState.saveCurrentProfile(name: trimmed)
+                            showSaveProfileSheet = false
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(newProfileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .padding(20)
+            .frame(width: 360)
         }
         // Simple Deletion Confirmation (No broken dependencies)
         .confirmationDialog(

@@ -567,6 +567,23 @@ public final class ModListManager: Sendable {
 
     // MARK: - Modpack Export & Import
 
+    public var modpacksDirectory: URL {
+        let p = modsDirectory.appendingPathComponent("modpacks", isDirectory: true)
+        try? FileManager.default.createDirectory(at: p, withIntermediateDirectories: true)
+        return p
+    }
+
+    public func listSavedModpacks() -> [(name: String, url: URL)] {
+        let pDir = modpacksDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(at: pDir, includingPropertiesForKeys: nil) else {
+            return []
+        }
+        return files
+            .filter { ["json", "txt"].contains($0.pathExtension.lowercased()) }
+            .map { (name: $0.deletingPathExtension().lastPathComponent, url: $0) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     public func exportModpack(to destinationURL: URL) throws -> Int {
         let states = readModListJson()
         let installed = scanInstalledMods()

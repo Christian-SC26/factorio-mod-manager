@@ -192,27 +192,45 @@ public struct ResolutionSheetView: View {
 
                 Spacer()
 
-                if let res = appState.currentResolutionResult, !res.modsToDownload.isEmpty {
-                    Button(action: {
-                        Task {
-                            await appState.executeDownload(for: res.modsToDownload)
-                        }
-                    }) {
-                        HStack(spacing: 6) {
-                            if appState.isDownloading {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Image(systemName: "arrow.down.circle")
+                if let res = appState.currentResolutionResult {
+                    if !res.modsToDownload.isEmpty {
+                        Button(action: {
+                            Task {
+                                await appState.executeDownload(for: res.modsToDownload)
                             }
-                            Text(loc("start_download"))
-                                .fontWeight(.semibold)
+                        }) {
+                            HStack(spacing: 6) {
+                                if appState.isDownloading {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "arrow.down.circle")
+                                }
+                                Text(loc("start_download"))
+                                    .fontWeight(.semibold)
+                            }
+                            .padding(.horizontal, 12)
                         }
-                        .padding(.horizontal, 12)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(appState.isDownloading)
+                    } else if !res.modsUpToDate.isEmpty {
+                        Button(action: {
+                            Task {
+                                await appState.executeDownload(for: [])
+                                dismiss()
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text("Enable All (\(res.modsUpToDate.count)) Mods")
+                                    .fontWeight(.semibold)
+                            }
+                            .padding(.horizontal, 12)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(appState.isDownloading)
                 }
             }
             .padding(16)
