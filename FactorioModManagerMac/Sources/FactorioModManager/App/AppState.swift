@@ -240,12 +240,37 @@ public final class AppState: ObservableObject {
     @Published public var isLoadingMods: Bool = false
     @Published public var modPortalOwners: [String: String] = [:]
 
+    private static var ownersCacheURL: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: NSHomeDirectory())
+        let dir = appSupport.appendingPathComponent("FactorioModManager", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("portal_owners_cache.json")
+    }
+
+    public static func loadPersistedPortalOwners() -> [String: String] {
+        if let data = try? Data(contentsOf: ownersCacheURL),
+           let dict = try? JSONDecoder().decode([String: String].self, from: data) {
+            return dict
+        }
+        return (UserDefaults.standard.dictionary(forKey: "persisted_mod_portal_owners") as? [String: String]) ?? [:]
+    }
+
+    public static func savePersistedPortalOwners(_ dict: [String: String]) {
+        if let data = try? JSONEncoder().encode(dict) {
+            try? data.write(to: ownersCacheURL, options: .atomic)
+        }
+        UserDefaults.standard.set(dict, forKey: "persisted_mod_portal_owners")
+    }
+
     public func isModEnabled(_ name: String) -> Bool {
         modStates[name] ?? true
     }
 
     public func loadInstalledMods() {
         isLoadingMods = true
+        if modPortalOwners.isEmpty {
+            self.modPortalOwners = Self.loadPersistedPortalOwners()
+        }
         let states = modListMgr.readModListJson()
         self.modStates = states
         let map = modListMgr.scanInstalledMods()
@@ -267,13 +292,15 @@ public final class AppState: ObservableObject {
     }
 
     public func fetchMissingPortalOwners() {
-        let targets = installedMods.map { $0.name }.filter { modPortalOwners[$0] == nil && $0 != "base" }
+        let existing = self.modPortalOwners
+        let targets = installedMods.map(\.name).filter { existing[$0] == nil && $0 != "base" }
         guard !targets.isEmpty else { return }
 
-        Task.detached(priority: .background) {
+        Task.detached(priority: .background) { [weak self] in
+            var newFetched: [String: String] = [:]
             await withTaskGroup(of: (String, String?).self) { group in
                 var iterator = targets.makeIterator()
-                let maxConcurrent = 6
+                let maxConcurrent = 4
 
                 for _ in 0..<maxConcurrent {
                     if let name = iterator.next() {
@@ -296,11 +323,20 @@ public final class AppState: ObservableObject {
                         }
                     }
                     if let owner = owner {
-                        await MainActor.run {
-                            self.modPortalOwners[name] = owner
-                        }
+                        newFetched[name] = owner
                     }
                 }
+            }
+
+            guard !newFetched.isEmpty, let self = self else { return }
+            let batch = newFetched
+
+            await MainActor.run {
+                for (k, v) in batch {
+                    self.modPortalOwners[k] = v
+                }
+                Self.savePersistedPortalOwners(self.modPortalOwners)
+                self.objectWillChange.send()
             }
         }
     }
