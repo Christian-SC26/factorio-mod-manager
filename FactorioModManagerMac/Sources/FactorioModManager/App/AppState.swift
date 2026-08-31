@@ -235,6 +235,8 @@ public final class AppState: ObservableObject {
 
     // MARK: - Installed Mods State
     @Published public var installedMods: [LocalMod] = []
+    @Published public var officialMods: [LocalMod] = []
+    @Published public var communityMods: [LocalMod] = []
     @Published public var installedModsMap: [String: [LocalMod]] = [:]
     @Published public var modStates: [String: Bool] = [:]
     @Published public var isLoadingMods: Bool = false
@@ -266,6 +268,67 @@ public final class AppState: ObservableObject {
         modStates[name] ?? true
     }
 
+    private func buildOfficialMods(states: [String: Bool]) -> [LocalMod] {
+        let factorioVer = detectedFactorioVersion
+        let isV2 = factorioVer.hasPrefix("2.")
+
+        var list: [LocalMod] = []
+
+        // Base mod
+        let baseInfo = LocalModInfo(
+            name: "base",
+            version: factorioVer,
+            title: "Base mod",
+            author: "Wube Software",
+            description: "Basic gameplay data and core engine assets for Factorio.",
+            factorio_version: factorioVer
+        )
+        let baseMod = LocalMod(
+            name: "base",
+            version: FactorioVersion(factorioVer),
+            fileURL: URL(fileURLWithPath: "/Applications/factorio.app"),
+            isDirectory: false,
+            enabled: true,
+            fileSize: 0,
+            modificationDate: nil,
+            info: baseInfo
+        )
+        list.append(baseMod)
+
+        if isV2 {
+            let officialDefs: [(name: String, title: String, desc: String)] = [
+                ("space-age", "Space Age", "Official expansion adding space platforms, interplanetary travel, and new worlds: Vulcanus, Gleba, Fulgora, and Aquilo."),
+                ("quality", "Quality", "Official expansion adding quality levels to items, machines, and equipment."),
+                ("elevated-rails", "Elevated Rails", "Official expansion adding elevated train ramps, rails, and rail supports.")
+            ]
+
+            for def in officialDefs {
+                let isEnabled = states[def.name] ?? true
+                let dlcInfo = LocalModInfo(
+                    name: def.name,
+                    version: factorioVer,
+                    title: def.title,
+                    author: "Wube Software",
+                    description: def.desc,
+                    factorio_version: factorioVer
+                )
+                let dlcMod = LocalMod(
+                    name: def.name,
+                    version: FactorioVersion(factorioVer),
+                    fileURL: URL(fileURLWithPath: "/Applications/factorio.app"),
+                    isDirectory: false,
+                    enabled: isEnabled,
+                    fileSize: 0,
+                    modificationDate: nil,
+                    info: dlcInfo
+                )
+                list.append(dlcMod)
+            }
+        }
+
+        return list
+    }
+
     public func loadInstalledMods() {
         isLoadingMods = true
         if modPortalOwners.isEmpty {
@@ -276,16 +339,23 @@ public final class AppState: ObservableObject {
         let map = modListMgr.scanInstalledMods()
         self.installedModsMap = map
 
-        var list: [LocalMod] = []
-        for (_, versions) in map {
+        var commList: [LocalMod] = []
+        for (name, versions) in map {
+            if ["base", "space-age", "quality", "elevated-rails"].contains(name.lowercased()) {
+                continue
+            }
             if let latest = versions.first {
                 var item = latest
                 item.enabled = states[latest.name] ?? true
-                list.append(item)
+                commList.append(item)
             }
         }
-        list.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        self.installedMods = list
+        commList.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        let offList = buildOfficialMods(states: states)
+        self.officialMods = offList
+        self.communityMods = commList
+        self.installedMods = offList + commList
         self.isLoadingMods = false
 
         fetchMissingPortalOwners()
@@ -439,32 +509,89 @@ public final class AppState: ObservableObject {
     }
 
     // MARK: - Updates
+    @Published public var updatesCheckedCount: Int = 0
+    @Published public var updatesTotalCount: Int = 0
+    @Published public var updatesAvailableMap: [String: ModUpdateItem] = [:]
+
     public func checkForUpdates() async {
         isCheckingUpdates = true
+        let targets = communityMods
+        self.updatesTotalCount = targets.count
+        self.updatesCheckedCount = 0
         var updates: [ModUpdateItem] = []
+        var updatesMap: [String: ModUpdateItem] = [:]
         let client = ModPortalClient.shared
+        let targetBranch = effectiveFactorioVersion
 
-        for mod in installedMods where !VIRTUAL_BUILTINS.contains(mod.name.lowercased()) {
-            do {
-                let info = try await client.fetchModInfo(mod.name)
-                if let remoteLatest = info.getLatestRelease(targetFactorioBranch: effectiveFactorioVersion) {
-                    if remoteLatest.version > mod.version {
-                        updates.append(ModUpdateItem(
-                            name: mod.name,
-                            title: mod.title,
-                            localVersion: mod.version,
-                            remoteVersion: remoteLatest.version,
-                            modInfo: info
-                        ))
+        await withTaskGroup(of: ModUpdateItem?.self) { group in
+            var iterator = targets.makeIterator()
+            let maxConcurrent = 6
+
+            for _ in 0..<maxConcurrent {
+                if let mod = iterator.next() {
+                    group.addTask {
+                        do {
+                            let info = try await client.fetchModInfo(mod.name)
+                            if let remoteLatest = info.getLatestRelease(targetFactorioBranch: targetBranch) {
+                                if remoteLatest.version > mod.version {
+                                    return ModUpdateItem(
+                                        name: mod.name,
+                                        title: mod.title,
+                                        localVersion: mod.version,
+                                        remoteVersion: remoteLatest.version,
+                                        modInfo: info
+                                    )
+                                }
+                            }
+                        } catch {}
+                        return nil
                     }
                 }
-            } catch {
-                // Ignore individual mod lookup errors
+            }
+
+            while let result = await group.next() {
+                if let nextMod = iterator.next() {
+                    group.addTask {
+                        do {
+                            let info = try await client.fetchModInfo(nextMod.name)
+                            if let remoteLatest = info.getLatestRelease(targetFactorioBranch: targetBranch) {
+                                if remoteLatest.version > nextMod.version {
+                                    return ModUpdateItem(
+                                        name: nextMod.name,
+                                        title: nextMod.title,
+                                        localVersion: nextMod.version,
+                                        remoteVersion: remoteLatest.version,
+                                        modInfo: info
+                                    )
+                                }
+                            }
+                        } catch {}
+                        return nil
+                    }
+                }
+
+                await MainActor.run {
+                    self.updatesCheckedCount += 1
+                    if let item = result {
+                        updates.append(item)
+                        updatesMap[item.name] = item
+                        self.updatesAvailable = updates
+                        self.updatesAvailableMap = updatesMap
+                    }
+                }
             }
         }
 
-        self.updatesAvailable = updates
-        self.isCheckingUpdates = false
+        await MainActor.run {
+            self.updatesAvailable = updates
+            self.updatesAvailableMap = updatesMap
+            self.isCheckingUpdates = false
+            if updates.isEmpty {
+                self.showNotification(title: loc("updates_title"), message: "All mods are up to date.")
+            } else {
+                self.showNotification(title: loc("updates_title"), message: "\(updates.count) mod update(s) available!")
+            }
+        }
     }
 
     public func updateAllMods() async {
@@ -575,7 +702,7 @@ public final class AppState: ObservableObject {
     }
 
     public func deleteProfile(_ profile: Profile) {
-        if modListMgr.deleteProfile(name: profile.name) {
+        if modListMgr.deleteProfile(name: profile.name, filename: profile.filename) {
             loadProfiles()
             showNotification(title: loc("profiles_title"), message: "Profile '\(profile.name)' deleted.")
             objectWillChange.send()

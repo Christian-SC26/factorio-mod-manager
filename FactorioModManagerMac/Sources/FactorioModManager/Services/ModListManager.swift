@@ -408,8 +408,12 @@ public final class ModListManager: Sendable {
 
         var profiles: [Profile] = []
         for file in files where file.pathExtension.lowercased() == "json" {
+            let baseName = file.deletingPathExtension().lastPathComponent
             if let data = try? Data(contentsOf: file),
-               let prof = try? JSONDecoder().decode(Profile.self, from: data) {
+               var prof = try? JSONDecoder().decode(Profile.self, from: data) {
+                let resolvedName = (prof.name.isEmpty || prof.name == "Unnamed") ? baseName : prof.name
+                prof.name = resolvedName
+                prof.filename = file.lastPathComponent
                 profiles.append(prof)
             }
         }
@@ -434,8 +438,10 @@ public final class ModListManager: Sendable {
             }
         }
 
+        let safeFilename = Self.safeProfileFilename(from: cleanName)
         let profile = Profile(
             name: cleanName,
+            filename: "\(safeFilename).json",
             factorioVersion: detectInstalledFactorioVersion(),
             mods: activeMods,
             allStates: finalStates,
@@ -443,7 +449,6 @@ public final class ModListManager: Sendable {
             updatedAt: Date()
         )
 
-        let safeFilename = Self.safeProfileFilename(from: cleanName)
         let targetURL = profilesDirectory.appendingPathComponent("\(safeFilename).json")
 
         let encoder = JSONEncoder()
@@ -462,11 +467,13 @@ public final class ModListManager: Sendable {
             let directURL = profilesDirectory.appendingPathComponent("\(cleanName).json")
             if FileManager.default.fileExists(atPath: directURL.path) {
                 targetURL = directURL
+            } else if FileManager.default.fileExists(atPath: profilesDirectory.appendingPathComponent(cleanName).path) {
+                targetURL = profilesDirectory.appendingPathComponent(cleanName)
             } else {
                 let all = listProfiles()
-                if let matched = all.first(where: { $0.name.localizedCaseInsensitiveCompare(cleanName) == .orderedSame }) {
-                    let matchedFile = Self.safeProfileFilename(from: matched.name)
-                    targetURL = profilesDirectory.appendingPathComponent("\(matchedFile).json")
+                if let matched = all.first(where: { $0.name.localizedCaseInsensitiveCompare(cleanName) == .orderedSame || $0.filename == cleanName }) {
+                    let matchedFile = matched.filename ?? "\(Self.safeProfileFilename(from: matched.name)).json"
+                    targetURL = profilesDirectory.appendingPathComponent(matchedFile)
                 }
             }
         }
@@ -522,31 +529,40 @@ public final class ModListManager: Sendable {
         }
     }
 
-    public func deleteProfile(name: String) -> Bool {
+    public func deleteProfile(name: String, filename: String? = nil) -> Bool {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let safeFilename = Self.safeProfileFilename(from: cleanName)
-        var targetURL = profilesDirectory.appendingPathComponent("\(safeFilename).json")
 
-        if !FileManager.default.fileExists(atPath: targetURL.path) {
-            let directURL = profilesDirectory.appendingPathComponent("\(cleanName).json")
-            if FileManager.default.fileExists(atPath: directURL.path) {
-                targetURL = directURL
-            } else {
-                let all = listProfiles()
-                if let matched = all.first(where: { $0.name.localizedCaseInsensitiveCompare(cleanName) == .orderedSame }) {
-                    let matchedFile = Self.safeProfileFilename(from: matched.name)
-                    targetURL = profilesDirectory.appendingPathComponent("\(matchedFile).json")
-                }
+        var candidateURLs: [URL] = []
+        if let fn = filename {
+            candidateURLs.append(profilesDirectory.appendingPathComponent(fn))
+        }
+        candidateURLs.append(profilesDirectory.appendingPathComponent("\(safeFilename).json"))
+        candidateURLs.append(profilesDirectory.appendingPathComponent("\(cleanName).json"))
+        candidateURLs.append(profilesDirectory.appendingPathComponent(cleanName))
+
+        for targetURL in candidateURLs {
+            if FileManager.default.fileExists(atPath: targetURL.path) {
+                do {
+                    try FileManager.default.removeItem(at: targetURL)
+                    return true
+                } catch {}
             }
         }
 
-        guard FileManager.default.fileExists(atPath: targetURL.path) else { return false }
-        do {
-            try FileManager.default.removeItem(at: targetURL)
-            return true
-        } catch {
-            return false
+        let all = listProfiles()
+        if let matched = all.first(where: { $0.name.localizedCaseInsensitiveCompare(cleanName) == .orderedSame || $0.filename == cleanName }) {
+            let matchedFile = matched.filename ?? "\(Self.safeProfileFilename(from: matched.name)).json"
+            let targetURL = profilesDirectory.appendingPathComponent(matchedFile)
+            if FileManager.default.fileExists(atPath: targetURL.path) {
+                do {
+                    try FileManager.default.removeItem(at: targetURL)
+                    return true
+                } catch {}
+            }
         }
+
+        return false
     }
 
     // MARK: - Modpack Export & Import

@@ -23,8 +23,26 @@ public struct InstalledModsView: View {
         appState.installedMods.filter { !appState.isModEnabled($0.name) }.count
     }
 
-    private var filteredAndSortedMods: [LocalMod] {
-        var list = appState.installedMods
+    private var filteredOfficialMods: [LocalMod] {
+        var list = appState.officialMods
+        if filterMode == 1 {
+            list = list.filter { appState.isModEnabled($0.name) }
+        } else if filterMode == 2 {
+            list = list.filter { !appState.isModEnabled($0.name) }
+        }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if !query.isEmpty {
+            list = list.filter {
+                $0.name.lowercased().contains(query)
+                || $0.displayTitle.lowercased().contains(query)
+                || $0.summary.lowercased().contains(query)
+            }
+        }
+        return list
+    }
+
+    private var filteredCommunityMods: [LocalMod] {
+        var list = appState.communityMods
 
         // Filter by status
         if filterMode == 1 {
@@ -56,6 +74,8 @@ public struct InstalledModsView: View {
                 result = a.author.localizedCaseInsensitiveCompare(b.author) == .orderedAscending
             case "dateSortKey":
                 result = a.dateSortKey < b.dateSortKey
+            case "factorioVersion":
+                result = a.factorioVersion < b.factorioVersion
             case "version.raw":
                 result = a.version < b.version
             case "fileSize":
@@ -70,9 +90,10 @@ public struct InstalledModsView: View {
     }
 
     private func initiateDeletion(for targets: [LocalMod]) {
-        guard !targets.isEmpty else { return }
-        modsPendingDeletion = targets
-        let targetNames = Set(targets.map(\.name))
+        let deletable = targets.filter { $0.name != "base" && !["space-age", "quality", "elevated-rails"].contains($0.name.lowercased()) }
+        guard !deletable.isEmpty else { return }
+        modsPendingDeletion = deletable
+        let targetNames = Set(deletable.map(\.name))
         let broken = appState.checkBrokenDependencies(forDeletedModNames: targetNames)
         brokenDependenciesForPendingDeletion = broken
 
@@ -102,9 +123,16 @@ public struct InstalledModsView: View {
                         Button(action: {
                             Task { await appState.checkForUpdates() }
                         }) {
-                            HStack(spacing: 5) {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                Text(loc("check_updates"))
+                            HStack(spacing: 6) {
+                                if appState.isCheckingUpdates {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Checking \(appState.updatesCheckedCount)/\(appState.updatesTotalCount)...")
+                                        .font(.system(size: 12))
+                                } else {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                    Text(loc("check_updates"))
+                                }
                             }
                         }
                         .disabled(appState.isCheckingUpdates)
@@ -180,7 +208,7 @@ public struct InstalledModsView: View {
             Divider()
 
             // Pure Native AppKit Table View (120 FPS, Pixel-locked rows, True Finder navigation)
-            if filteredAndSortedMods.isEmpty {
+            if filteredOfficialMods.isEmpty && filteredCommunityMods.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
                     Image(systemName: "archivebox")
@@ -198,9 +226,11 @@ public struct InstalledModsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 NativeModTableViewRepresentable(
-                    mods: filteredAndSortedMods,
+                    officialMods: filteredOfficialMods,
+                    communityMods: filteredCommunityMods,
                     modPortalOwners: appState.modPortalOwners,
                     enabledStates: appState.modStates,
+                    updatesAvailableMap: appState.updatesAvailableMap,
                     onToggleMod: { mod, newState in
                         appState.setModEnabled(mod.name, enabled: newState)
                     },

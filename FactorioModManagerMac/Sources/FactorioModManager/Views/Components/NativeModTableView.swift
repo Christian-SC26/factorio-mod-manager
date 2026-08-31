@@ -1,6 +1,21 @@
 import AppKit
 import SwiftUI
 
+public enum ModTableRowItem: Equatable {
+    case groupHeader(String)
+    case mod(LocalMod)
+
+    public var modValue: LocalMod? {
+        if case let .mod(m) = self { return m }
+        return nil
+    }
+
+    public var isGroupHeader: Bool {
+        if case .groupHeader = self { return true }
+        return false
+    }
+}
+
 public protocol NativeModTableViewDelegate: AnyObject {
     func modTableView(_ view: NativeModTableViewNSView, didToggleMod mod: LocalMod, newState: Bool)
     func modTableView(_ view: NativeModTableViewNSView, didToggleSelection mods: [LocalMod])
@@ -14,7 +29,7 @@ public protocol NativeModTableViewDelegate: AnyObject {
 
 public final class CustomTableView: NSTableView {
     public weak var actionDelegate: NativeModTableViewDelegate?
-    public var currentMods: [LocalMod] = []
+    public var currentItems: [ModTableRowItem] = []
 
     public override func keyDown(with event: NSEvent) {
         let isCmd = event.modifierFlags.contains(.command)
@@ -33,7 +48,7 @@ public final class CustomTableView: NSTableView {
 
         // Delete / Backspace
         if keyCode == 51 || keyCode == 117 {
-            let selected = selectedMods()
+            let selected = selectedMods().filter { $0.name != "base" && !isOfficialMod($0.name) }
             if !selected.isEmpty {
                 actionDelegate?.modTableView(enclosingView, didRequestDelete: selected)
                 return
@@ -51,8 +66,9 @@ public final class CustomTableView: NSTableView {
                     return
                 }
             case "o":
-                if !selected.isEmpty {
-                    actionDelegate?.modTableView(enclosingView, didRevealInFinder: selected)
+                let nonOfficial = selected.filter { !isOfficialMod($0.name) }
+                if !nonOfficial.isEmpty {
+                    actionDelegate?.modTableView(enclosingView, didRevealInFinder: nonOfficial)
                     return
                 }
             case "a":
@@ -85,25 +101,32 @@ public final class CustomTableView: NSTableView {
         super.keyDown(with: event)
     }
 
+    private func isOfficialMod(_ name: String) -> Bool {
+        let lower = name.lowercased()
+        return lower == "base" || lower == "space-age" || lower == "quality" || lower == "elevated-rails"
+    }
+
     private var enclosingView: NativeModTableViewNSView {
         (superview?.superview as? NativeModTableViewNSView) ?? NativeModTableViewNSView()
     }
 
     public func selectedMods() -> [LocalMod] {
-        let indices = selectedRowIndexes.filter { $0 >= 0 && $0 < currentMods.count }
-        if !indices.isEmpty {
-            return indices.map { currentMods[$0] }
-        }
-        if selectedRow >= 0 && selectedRow < currentMods.count {
-            return [currentMods[selectedRow]]
-        }
-        return []
+        let indices = selectedRowIndexes.filter { $0 >= 0 && $0 < currentItems.count }
+        return indices.compactMap { currentItems[$0].modValue }
     }
 
     private func moveRowSelection(delta: Int, extend: Bool) {
-        guard !currentMods.isEmpty else { return }
+        guard !currentItems.isEmpty else { return }
         let current = selectedRow >= 0 ? selectedRow : 0
-        let target = min(max(0, current + delta), currentMods.count - 1)
+        var target = current + delta
+
+        // Skip headers if needed
+        while target >= 0 && target < currentItems.count && currentItems[target].isGroupHeader {
+            target += (delta >= 0 ? 1 : -1)
+        }
+
+        target = min(max(0, target), currentItems.count - 1)
+        if currentItems[target].isGroupHeader { return }
 
         if extend {
             var set = selectedRowIndexes
@@ -125,14 +148,19 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         }
     }
 
-    public var mods: [LocalMod] = [] {
-        didSet {
-            tableView.currentMods = mods
-            tableView.reloadData()
-        }
+    public var officialMods: [LocalMod] = [] {
+        didSet { rebuildItems() }
+    }
+    public var communityMods: [LocalMod] = [] {
+        didSet { rebuildItems() }
     }
     public var modPortalOwners: [String: String] = [:]
     public var enabledStates: [String: Bool] = [:]
+    public var updatesAvailableMap: [String: ModUpdateItem] = [:] {
+        didSet { tableView.reloadData() }
+    }
+
+    private var tableItems: [ModTableRowItem] = []
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -142,6 +170,30 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupViews()
+    }
+
+    private func rebuildItems() {
+        var items: [ModTableRowItem] = []
+
+        if !officialMods.isEmpty {
+            items.append(.groupHeader("OFFICIAL FACTORIO CONTENT & EXPANSIONS"))
+            for m in officialMods {
+                items.append(.mod(m))
+            }
+        }
+
+        if !communityMods.isEmpty {
+            if !officialMods.isEmpty {
+                items.append(.groupHeader("INSTALLED COMMUNITY MODS (\(communityMods.count))"))
+            }
+            for m in communityMods {
+                items.append(.mod(m))
+            }
+        }
+
+        self.tableItems = items
+        self.tableView.currentItems = items
+        self.tableView.reloadData()
     }
 
     private func setupViews() {
@@ -190,25 +242,33 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
 
         let colDate = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("date"))
         colDate.title = "Date Added"
-        colDate.width = 100
+        colDate.width = 95
         colDate.minWidth = 80
-        colDate.maxWidth = 140
+        colDate.maxWidth = 130
         colDate.sortDescriptorPrototype = NSSortDescriptor(key: "dateSortKey", ascending: false)
         tableView.addTableColumn(colDate)
 
+        let colGameVer = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("game_ver"))
+        colGameVer.title = "Game Ver"
+        colGameVer.width = 68
+        colGameVer.minWidth = 58
+        colGameVer.maxWidth = 85
+        colGameVer.sortDescriptorPrototype = NSSortDescriptor(key: "factorioVersion", ascending: false)
+        tableView.addTableColumn(colGameVer)
+
         let colVersion = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("version"))
         colVersion.title = "Version"
-        colVersion.width = 75
-        colVersion.minWidth = 60
-        colVersion.maxWidth = 95
+        colVersion.width = 110
+        colVersion.minWidth = 85
+        colVersion.maxWidth = 145
         colVersion.sortDescriptorPrototype = NSSortDescriptor(key: "version.raw", ascending: false)
         tableView.addTableColumn(colVersion)
 
         let colSize = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("size"))
         colSize.title = "Size"
-        colSize.width = 75
-        colSize.minWidth = 60
-        colSize.maxWidth = 95
+        colSize.width = 70
+        colSize.minWidth = 55
+        colSize.maxWidth = 90
         colSize.sortDescriptorPrototype = NSSortDescriptor(key: "fileSize", ascending: false)
         tableView.addTableColumn(colSize)
 
@@ -232,13 +292,43 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
 
     // MARK: - NSTableViewDataSource & Delegate
     public func numberOfRows(in tableView: NSTableView) -> Int {
-        mods.count
+        tableItems.count
+    }
+
+    public func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
+        guard row >= 0 && row < tableItems.count else { return false }
+        return tableItems[row].isGroupHeader
     }
 
     public func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard row >= 0 && row < mods.count, let col = tableColumn else { return nil }
-        let mod = mods[row]
+        guard row >= 0 && row < tableItems.count else { return nil }
+        let item = tableItems[row]
+
+        // Handle Group Header Row
+        if case let .groupHeader(title) = item {
+            var cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("groupHeader"), owner: self) as? NSTableCellView
+            if cell == nil {
+                cell = NSTableCellView()
+                cell?.identifier = NSUserInterfaceItemIdentifier("groupHeader")
+                let tf = NSTextField(labelWithString: "")
+                tf.font = .systemFont(ofSize: 11, weight: .bold)
+                tf.textColor = .secondaryLabelColor
+                tf.translatesAutoresizingMaskIntoConstraints = false
+                cell?.addSubview(tf)
+                NSLayoutConstraint.activate([
+                    tf.leadingAnchor.constraint(equalTo: cell!.leadingAnchor, constant: 6),
+                    tf.trailingAnchor.constraint(equalTo: cell!.trailingAnchor, constant: -6),
+                    tf.centerYAnchor.constraint(equalTo: cell!.centerYAnchor)
+                ])
+            }
+            let tf = cell?.subviews.first as? NSTextField
+            tf?.stringValue = title
+            return cell
+        }
+
+        guard case let .mod(mod) = item, let col = tableColumn else { return nil }
         let isEnabled = enabledStates[mod.name] ?? mod.enabled
+        let isOfficial = isOfficialMod(mod.name)
         let identifier = col.identifier
 
         var cell = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView
@@ -248,7 +338,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         }
         guard let cellView = cell else { return nil }
 
-        // Remove old custom subviews if any
+        // Remove old subviews
         for sub in cellView.subviews {
             sub.removeFromSuperview()
         }
@@ -261,6 +351,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
             sw.target = self
             sw.action = #selector(switchToggled(_:))
             sw.tag = row
+            sw.isEnabled = (mod.name != "base") // Base mod is always locked enabled
             sw.translatesAutoresizingMaskIntoConstraints = false
             cellView.addSubview(sw)
             NSLayoutConstraint.activate([
@@ -270,7 +361,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
 
         case "name":
             let tf = NSTextField(labelWithString: mod.displayTitle)
-            tf.font = .systemFont(ofSize: 13, weight: .medium)
+            tf.font = .systemFont(ofSize: 13, weight: isOfficial ? .semibold : .medium)
             tf.textColor = isEnabled ? .labelColor : .secondaryLabelColor
             tf.lineBreakMode = .byTruncatingTail
             tf.translatesAutoresizingMaskIntoConstraints = false
@@ -283,7 +374,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
 
         case "author":
             let authorName = modPortalOwners[mod.name] ?? mod.cleanAuthorName
-            let hasPortal = mod.portalAuthorURL(portalOwner: modPortalOwners[mod.name]) != nil
+            let hasPortal = !isOfficial && (mod.portalAuthorURL(portalOwner: modPortalOwners[mod.name]) != nil)
 
             let btn = NSButton(title: authorName, target: self, action: #selector(authorClicked(_:)))
             btn.tag = row
@@ -301,7 +392,8 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
             ])
 
         case "date":
-            let tf = NSTextField(labelWithString: mod.formattedDate)
+            let dateString = isOfficial ? "Built-in" : mod.formattedDate
+            let tf = NSTextField(labelWithString: dateString)
             tf.font = .systemFont(ofSize: 12)
             tf.textColor = .secondaryLabelColor
             tf.translatesAutoresizingMaskIntoConstraints = false
@@ -312,8 +404,8 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
                 tf.centerYAnchor.constraint(equalTo: cellView.centerYAnchor)
             ])
 
-        case "version":
-            let tf = NSTextField(labelWithString: mod.version.raw)
+        case "game_ver":
+            let tf = NSTextField(labelWithString: mod.factorioVersion)
             tf.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
             tf.textColor = .secondaryLabelColor
             tf.translatesAutoresizingMaskIntoConstraints = false
@@ -324,8 +416,57 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
                 tf.centerYAnchor.constraint(equalTo: cellView.centerYAnchor)
             ])
 
+        case "version":
+            let tf = NSTextField()
+            tf.isEditable = false
+            tf.isBordered = false
+            tf.drawsBackground = false
+            tf.translatesAutoresizingMaskIntoConstraints = false
+
+            if let update = updatesAvailableMap[mod.name] {
+                let attr = NSMutableAttributedString()
+                let currentStr = NSAttributedString(
+                    string: mod.version.raw,
+                    attributes: [
+                        .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium),
+                        .foregroundColor: NSColor.secondaryLabelColor
+                    ]
+                )
+                let arrowStr = NSAttributedString(
+                    string: " → ",
+                    attributes: [
+                        .font: NSFont.systemFont(ofSize: 11, weight: .bold),
+                        .foregroundColor: NSColor.systemGreen
+                    ]
+                )
+                let nextStr = NSAttributedString(
+                    string: update.remoteVersion.raw,
+                    attributes: [
+                        .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .bold),
+                        .foregroundColor: NSColor.systemGreen
+                    ]
+                )
+                attr.append(currentStr)
+                attr.append(arrowStr)
+                attr.append(nextStr)
+                tf.attributedStringValue = attr
+                tf.toolTip = "Update available: \(mod.version.raw) → \(update.remoteVersion.raw)"
+            } else {
+                tf.stringValue = mod.version.raw
+                tf.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+                tf.textColor = .secondaryLabelColor
+            }
+
+            cellView.addSubview(tf)
+            NSLayoutConstraint.activate([
+                tf.leadingAnchor.constraint(equalTo: cellView.leadingAnchor),
+                tf.trailingAnchor.constraint(equalTo: cellView.trailingAnchor),
+                tf.centerYAnchor.constraint(equalTo: cellView.centerYAnchor)
+            ])
+
         case "size":
-            let tf = NSTextField(labelWithString: mod.fileSize > 0 ? formatBytes(mod.fileSize) : "—")
+            let sizeString = isOfficial ? "Built-in" : (mod.fileSize > 0 ? formatBytes(mod.fileSize) : "—")
+            let tf = NSTextField(labelWithString: sizeString)
             tf.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
             tf.textColor = .secondaryLabelColor
             tf.translatesAutoresizingMaskIntoConstraints = false
@@ -343,15 +484,16 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
             stack.alignment = .centerY
             stack.translatesAutoresizingMaskIntoConstraints = false
 
-            // Safari
+            // Safari (Portal link)
             let bSafari = NSButton(image: NSImage(systemSymbolName: "safari", accessibilityDescription: "Portal") ?? NSImage(), target: self, action: #selector(portalClicked(_:)))
             bSafari.tag = row
             bSafari.isBordered = false
-            bSafari.contentTintColor = .controlAccentColor
-            bSafari.toolTip = "Open on Factorio Portal (⌘L)"
+            bSafari.contentTintColor = isOfficial ? .secondaryLabelColor.withAlphaComponent(0.4) : .controlAccentColor
+            bSafari.toolTip = isOfficial ? "Official content" : "Open on Factorio Portal (⌘L)"
+            bSafari.isEnabled = !isOfficial
             stack.addArrangedSubview(bSafari)
 
-            // Info
+            // Info Details
             let bInfo = NSButton(image: NSImage(systemSymbolName: "info.circle", accessibilityDescription: "Details") ?? NSImage(), target: self, action: #selector(detailsClicked(_:)))
             bInfo.tag = row
             bInfo.isBordered = false
@@ -359,21 +501,22 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
             bInfo.toolTip = "Mod Details (⌘I)"
             stack.addArrangedSubview(bInfo)
 
-            // Folder
-            let bFolder = NSButton(image: NSImage(systemSymbolName: "folder", accessibilityDescription: "Finder") ?? NSImage(), target: self, action: #selector(revealClicked(_:)))
-            bFolder.tag = row
-            bFolder.isBordered = false
-            bFolder.contentTintColor = .secondaryLabelColor
-            bFolder.toolTip = "Reveal in Finder (⌘O)"
-            stack.addArrangedSubview(bFolder)
+            // Folder (Reveal in Finder)
+            if !isOfficial {
+                let bFolder = NSButton(image: NSImage(systemSymbolName: "folder", accessibilityDescription: "Finder") ?? NSImage(), target: self, action: #selector(revealClicked(_:)))
+                bFolder.tag = row
+                bFolder.isBordered = false
+                bFolder.contentTintColor = .secondaryLabelColor
+                bFolder.toolTip = "Reveal in Finder (⌘O)"
+                stack.addArrangedSubview(bFolder)
 
-            // Trash
-            let bTrash = NSButton(image: NSImage(systemSymbolName: "trash", accessibilityDescription: "Delete") ?? NSImage(), target: self, action: #selector(deleteClicked(_:)))
-            bTrash.tag = row
-            bTrash.isBordered = false
-            bTrash.contentTintColor = .systemRed.withAlphaComponent(0.8)
-            bTrash.toolTip = "Delete Mod (⌫)"
-            stack.addArrangedSubview(bTrash)
+                let bTrash = NSButton(image: NSImage(systemSymbolName: "trash", accessibilityDescription: "Delete") ?? NSImage(), target: self, action: #selector(deleteClicked(_:)))
+                bTrash.tag = row
+                bTrash.isBordered = false
+                bTrash.contentTintColor = .systemRed.withAlphaComponent(0.8)
+                bTrash.toolTip = "Delete Mod (⌫)"
+                stack.addArrangedSubview(bTrash)
+            }
 
             cellView.addSubview(stack)
             NSLayoutConstraint.activate([
@@ -389,6 +532,11 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         return cellView
     }
 
+    private func isOfficialMod(_ name: String) -> Bool {
+        let lower = name.lowercased()
+        return lower == "base" || lower == "space-age" || lower == "quality" || lower == "elevated-rails"
+    }
+
     public func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
         guard let first = tableView.sortDescriptors.first, let key = first.key else { return }
         delegate?.modTableView(self, didChangeSort: key, ascending: first.ascending)
@@ -397,47 +545,48 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
     // MARK: - Actions
     @objc private func switchToggled(_ sender: NSSwitch) {
         let row = sender.tag
-        guard row >= 0 && row < mods.count else { return }
-        let mod = mods[row]
+        guard row >= 0 && row < tableItems.count, case let .mod(mod) = tableItems[row] else { return }
         let newState = sender.state == .on
         delegate?.modTableView(self, didToggleMod: mod, newState: newState)
     }
 
     @objc private func authorClicked(_ sender: NSButton) {
         let row = sender.tag
-        guard row >= 0 && row < mods.count else { return }
-        delegate?.modTableView(self, didOpenAuthor: mods[row])
+        guard row >= 0 && row < tableItems.count, case let .mod(mod) = tableItems[row] else { return }
+        delegate?.modTableView(self, didOpenAuthor: mod)
     }
 
     @objc private func portalClicked(_ sender: NSButton) {
         let row = sender.tag
-        guard row >= 0 && row < mods.count else { return }
-        delegate?.modTableView(self, didOpenPortal: mods[row])
+        guard row >= 0 && row < tableItems.count, case let .mod(mod) = tableItems[row] else { return }
+        delegate?.modTableView(self, didOpenPortal: mod)
     }
 
     @objc private func detailsClicked(_ sender: NSButton) {
         let row = sender.tag
-        guard row >= 0 && row < mods.count else { return }
-        delegate?.modTableView(self, didOpenDetails: mods[row])
+        guard row >= 0 && row < tableItems.count, case let .mod(mod) = tableItems[row] else { return }
+        delegate?.modTableView(self, didOpenDetails: mod)
     }
 
     @objc private func revealClicked(_ sender: NSButton) {
         let row = sender.tag
-        guard row >= 0 && row < mods.count else { return }
-        delegate?.modTableView(self, didRevealInFinder: [mods[row]])
+        guard row >= 0 && row < tableItems.count, case let .mod(mod) = tableItems[row] else { return }
+        delegate?.modTableView(self, didRevealInFinder: [mod])
     }
 
     @objc private func deleteClicked(_ sender: NSButton) {
         let row = sender.tag
-        guard row >= 0 && row < mods.count else { return }
-        delegate?.modTableView(self, didRequestDelete: [mods[row]])
+        guard row >= 0 && row < tableItems.count, case let .mod(mod) = tableItems[row] else { return }
+        delegate?.modTableView(self, didRequestDelete: [mod])
     }
 }
 
 public struct NativeModTableViewRepresentable: NSViewRepresentable {
-    public let mods: [LocalMod]
+    public let officialMods: [LocalMod]
+    public let communityMods: [LocalMod]
     public let modPortalOwners: [String: String]
     public let enabledStates: [String: Bool]
+    public let updatesAvailableMap: [String: ModUpdateItem]
     public let onToggleMod: (LocalMod, Bool) -> Void
     public let onToggleSelection: ([LocalMod]) -> Void
     public let onRequestDelete: ([LocalMod]) -> Void
@@ -494,9 +643,11 @@ public struct NativeModTableViewRepresentable: NSViewRepresentable {
     public func makeNSView(context: Context) -> NativeModTableViewNSView {
         let view = NativeModTableViewNSView()
         view.delegate = context.coordinator
-        view.mods = mods
+        view.officialMods = officialMods
+        view.communityMods = communityMods
         view.modPortalOwners = modPortalOwners
         view.enabledStates = enabledStates
+        view.updatesAvailableMap = updatesAvailableMap
         return view
     }
 
@@ -505,8 +656,10 @@ public struct NativeModTableViewRepresentable: NSViewRepresentable {
         nsView.delegate = context.coordinator
         nsView.modPortalOwners = modPortalOwners
         nsView.enabledStates = enabledStates
-        if nsView.mods != mods {
-            nsView.mods = mods
+        nsView.updatesAvailableMap = updatesAvailableMap
+        if nsView.officialMods != officialMods || nsView.communityMods != communityMods {
+            nsView.officialMods = officialMods
+            nsView.communityMods = communityMods
         } else {
             nsView.tableView.reloadData()
         }
