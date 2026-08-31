@@ -128,12 +128,11 @@ public struct InstalledModsView: View {
         syncSelectionToTable()
     }
 
-    private func toggleCurrentCursorSelection() {
+    private func toggleMarkCurrentCursor() {
         let mods = filteredAndSortedMods
         guard !mods.isEmpty else { return }
 
         if selectedIndices.contains(cursorIndex) {
-            // If already selected and more than 1 item is selected, unselect it; otherwise keep selected
             if selectedIndices.count > 1 {
                 selectedIndices.remove(cursorIndex)
             }
@@ -295,7 +294,7 @@ public struct InstalledModsView: View {
                     HStack(spacing: 4) {
                         Text("j/k: move")
                         Text("•")
-                        Text("⇧: select")
+                        Text("⇧/x: mark")
                         Text("•")
                         Text("⇧j/k: multi")
                         Text("•")
@@ -342,12 +341,20 @@ public struct InstalledModsView: View {
                     }
                     .width(min: 44, ideal: 50, max: 58)
 
-                    // Column 2: Clean Human Title (No box icon)
+                    // Column 2: Clean Human Title (with active cursor indicator)
                     TableColumn("Mod Name", value: \.displayTitle) { mod in
-                        Text(mod.displayTitle)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(mod.enabled ? .primary : .secondary)
-                            .lineLimit(1)
+                        let isCursor = (filteredAndSortedMods.indices.contains(cursorIndex) && filteredAndSortedMods[cursorIndex].id == mod.id)
+                        HStack(spacing: 6) {
+                            if isCursor {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.accentColor)
+                            }
+                            Text(mod.displayTitle)
+                                .font(.system(size: 13, weight: isCursor ? .semibold : .medium))
+                                .foregroundColor(mod.enabled ? .primary : .secondary)
+                                .lineLimit(1)
+                        }
                     }
                     .width(min: 180, ideal: 260)
 
@@ -621,12 +628,13 @@ public struct InstalledModsView: View {
             if event.type == .flagsChanged {
                 let shiftPressed = event.modifierFlags.contains(.shift)
                 if shiftPressed && !self.wasShiftPressed {
-                    // Shift was tapped: add/toggle current cursor row in selection
+                    self.wasShiftPressed = true
                     DispatchQueue.main.async {
-                        self.toggleCurrentCursorSelection()
+                        self.toggleMarkCurrentCursor()
                     }
+                } else if !shiftPressed {
+                    self.wasShiftPressed = false
                 }
-                self.wasShiftPressed = shiftPressed
                 return event
             }
 
@@ -721,7 +729,7 @@ public struct InstalledModsView: View {
                 }
             }
 
-            // Global navigation keys: J (Down), K (Up), Space (Toggle)
+            // Navigation and marking keys without Command
             if !isCmd {
                 switch chars {
                 case "j":
@@ -732,6 +740,11 @@ public struct InstalledModsView: View {
                 case "k":
                     DispatchQueue.main.async {
                         self.moveCursor(by: -1, extendSelection: isShift)
+                    }
+                    return nil
+                case "x", "v": // Explicit mark/unmark key
+                    DispatchQueue.main.async {
+                        self.toggleMarkCurrentCursor()
                     }
                     return nil
                 case " ":
