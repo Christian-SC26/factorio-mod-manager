@@ -183,12 +183,16 @@ public struct InstalledModsView: View {
                                 ForEach(ModListManager.curatedModpacks) { pack in
                                     Button(action: {
                                         Task {
-                                            await appState.resolveAndInstall(targets: [pack.targetMod])
+                                            await appState.applyCuratedModpack(pack)
                                         }
                                     }) {
-                                        if appState.installedMods.contains(where: { $0.name == pack.targetMod && appState.isModEnabled($0.name) }) {
+                                        let isAllActive = !pack.targetMods.isEmpty && pack.targetMods.allSatisfy { appState.isModEnabled($0) }
+                                        let isAllInstalled = !pack.targetMods.isEmpty && pack.targetMods.allSatisfy { target in
+                                            appState.installedMods.contains(where: { $0.name == target })
+                                        }
+                                        if isAllActive && isAllInstalled {
                                             Label("\(pack.name) (Active)", systemImage: "checkmark")
-                                        } else if appState.installedMods.contains(where: { $0.name == pack.targetMod }) {
+                                        } else if isAllInstalled {
                                             Label("\(pack.name) (Installed)", systemImage: "arrow.triangle.2.circlepath")
                                         } else {
                                             Text(pack.name)

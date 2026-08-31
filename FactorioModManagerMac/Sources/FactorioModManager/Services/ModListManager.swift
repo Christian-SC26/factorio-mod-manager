@@ -568,32 +568,121 @@ public final class ModListManager: Sendable {
     // MARK: - Modpack Export & Import
 
     public struct ModpackDefinition: Identifiable, Hashable, Sendable {
-        public var id: String { targetMod }
+        public var id: String { name }
         public let name: String
-        public let targetMod: String
+        public let targetMods: [String]
         public let minFactorioVersion: String
         public let description: String
 
-        public init(name: String, targetMod: String, minFactorioVersion: String = "1.1", description: String = "") {
+        public init(name: String, targetMods: [String], minFactorioVersion: String = "1.1", description: String = "") {
             self.name = name
-            self.targetMod = targetMod
+            self.targetMods = targetMods
             self.minFactorioVersion = minFactorioVersion
             self.description = description
+        }
+
+        public var primaryMod: String {
+            targetMods.first ?? ""
         }
     }
 
     public static let curatedModpacks: [ModpackDefinition] = [
-        ModpackDefinition(name: "AzzTweaks Overhaul", targetMod: "AzzTweaks", minFactorioVersion: "2.0", description: "Comprehensive expansion adding teleports, custom drills, and quality-of-life"),
-        ModpackDefinition(name: "Space Exploration", targetMod: "space-exploration", minFactorioVersion: "1.1", description: "Interplanetary travel, space platforms, and deep space science"),
-        ModpackDefinition(name: "Krastorio 2", targetMod: "Krastorio2", minFactorioVersion: "2.0", description: "Full tech tree overhaul with new power, fluids, and endgame"),
-        ModpackDefinition(name: "Pyanodons Complete", targetMod: "pycoalprocessing", minFactorioVersion: "2.0", description: "Hardcore complex biological & chemical production overhaul"),
-        ModpackDefinition(name: "SeaBlock", targetMod: "SeaBlock", minFactorioVersion: "1.1", description: "Start stranded on a tiny island and manufacture everything from ocean water"),
-        ModpackDefinition(name: "Ultracube", targetMod: "Ultracube", minFactorioVersion: "2.0", description: "Logistics puzzle centered around a single hyper-dense cube of pure energy"),
-        ModpackDefinition(name: "Freight Forwarding", targetMod: "FreightForwardingPack", minFactorioVersion: "1.1", description: "Haul resources across islands via container cargo ships, trains & planes"),
-        ModpackDefinition(name: "Nullius", targetMod: "nullius", minFactorioVersion: "1.1", description: "Terraform a lifeless planet from inorganic beginnings to complex biosystems"),
-        ModpackDefinition(name: "Industrial Revolution 3", targetMod: "IndustrialRevolution3", minFactorioVersion: "1.1", description: "Progress through distinct technological eras from bronze and steam to electricity"),
-        ModpackDefinition(name: "Warptorio 2", targetMod: "warptorio2", minFactorioVersion: "1.1", description: "Survive and manage expanding factory platforms before each warp countdown"),
-        ModpackDefinition(name: "248k Mod", targetMod: "248k", minFactorioVersion: "2.0", description: "Energy generation, lasers, nuclear fusion & element 248 technology")
+        ModpackDefinition(
+            name: "AzzTweaks Overhaul",
+            targetMods: ["AzzTweaks", "AzzTeleport", "AncientDrill", "TaskList", "VehicleSnap", "BottleneckLite", "squeak-through-2", "RateCalculator", "textplates", "PipeVisualizer-2-1-Support", "AutoDeconstruct", "even-distribution", "FactorySearch", "factoryplanner"],
+            minFactorioVersion: "2.0",
+            description: "Teleports, advanced mining drills, and essential quality-of-life tools"
+        ),
+        ModpackDefinition(
+            name: "Pyanodons Complete Suite",
+            targetMods: ["pycoalprocessing", "pyalienlife", "pyalternativeenergy", "pyfusionenergy", "pyhightech", "pyindustry", "pypetroleumhandling", "pypostprocessing", "pyrawores"],
+            minFactorioVersion: "2.0",
+            description: "The ultimate complex chemistry, biological processing, and hardcore technology overhaul"
+        ),
+        ModpackDefinition(
+            name: "Space Exploration",
+            targetMods: ["space-exploration", "space-exploration-graphics", "aai-containers", "aai-loaders", "alien-biomes", "informatron"],
+            minFactorioVersion: "1.1",
+            description: "Build cargo rockets, space stations, and discover interplanetary worlds"
+        ),
+        ModpackDefinition(
+            name: "Krastorio 2",
+            targetMods: ["Krastorio2"],
+            minFactorioVersion: "2.0",
+            description: "Full technology tree rebalance, antimatter power, advanced creep & endgame science"
+        ),
+        ModpackDefinition(
+            name: "Space Exploration + Krastorio 2 (SEK2)",
+            targetMods: ["space-exploration", "Krastorio2", "aai-containers", "aai-loaders", "alien-biomes", "informatron"],
+            minFactorioVersion: "1.1",
+            description: "Legendary combined deep-space megabase experience with Krastorio technology"
+        ),
+        ModpackDefinition(
+            name: "SeaBlock Complete Pack",
+            targetMods: ["SeaBlock", "SeaBlockMetaPack", "alien-biomes", "bobassembly", "boblogistics", "bobmining", "bobplates", "angelsrefining", "angelspetrochem"],
+            minFactorioVersion: "1.1",
+            description: "Start stranded on a tiny island and manufacture everything from sea water"
+        ),
+        ModpackDefinition(
+            name: "Ultracube: Age of Cube",
+            targetMods: ["Ultracube"],
+            minFactorioVersion: "2.0",
+            description: "Logistics puzzle revolving around a single dense cube of concentrated power"
+        ),
+        ModpackDefinition(
+            name: "Freight Forwarding Pack",
+            targetMods: ["FreightForwardingPack"],
+            minFactorioVersion: "1.1",
+            description: "Inter-island logistics with container freight ships, long-range trains & cargo planes"
+        ),
+        ModpackDefinition(
+            name: "Nullius",
+            targetMods: ["nullius"],
+            minFactorioVersion: "1.1",
+            description: "Inorganic engineering and planet-wide terraforming before life exists"
+        ),
+        ModpackDefinition(
+            name: "Industrial Revolution 3",
+            targetMods: ["IndustrialRevolution3"],
+            minFactorioVersion: "1.1",
+            description: "Progression through historical technology eras: copper, bronze, iron, steel, and electricity"
+        ),
+        ModpackDefinition(
+            name: "Warptorio 2",
+            targetMods: ["warptorio2"],
+            minFactorioVersion: "1.1",
+            description: "Survival inside an expanding dimensional warp portal platform against infinite biters"
+        ),
+        ModpackDefinition(
+            name: "248k Mod Suite",
+            targetMods: ["248k"],
+            minFactorioVersion: "2.0",
+            description: "Nuclear fission, fusion, laser optics, and element 248 exotic physics"
+        ),
+        ModpackDefinition(
+            name: "Exotic Industries",
+            targetMods: ["exotic-industries-modpack"],
+            minFactorioVersion: "1.1",
+            description: "Deep multi-age progression with custom multiblock machines and steam technology"
+        ),
+        ModpackDefinition(
+            name: "Bob's & Angel's Classic Overhaul",
+            targetMods: ["bobassembly", "bobelectronics", "bobequipment", "bobinserters", "boblibrary", "boblogistics", "bobmining", "bobmodules", "bobores", "bobplates", "bobpower", "bobrevamp", "bobtech", "angelsrefining", "angelspetrochem", "angelssmelting"],
+            minFactorioVersion: "1.1",
+            description: "The classic legendary high-complexity refining, metallurgy and logistics expansion"
+        ),
+        ModpackDefinition(
+            name: "Factorio 2.0 Extra Planets Pack",
+            targetMods: ["planet-muluna", "planetaris-hyarion", "planetaris-arig", "planetaris-tellus", "carna", "Velora", "skewer_planet_vesta", "Muria", "Paracelsin", "maraxsis", "obsidiax", "secretas"],
+            minFactorioVersion: "2.0",
+            description: "Massive constellation of 12+ new discoverable Space Age planets"
+        ),
+        ModpackDefinition(
+            name: "Essential QoL Toolkit",
+            targetMods: ["RateCalculator", "FactorySearch", "factoryplanner", "BottleneckLite", "squeak-through-2", "even-distribution", "AutoDeconstruct", "VehicleSnap", "TaskList"],
+            minFactorioVersion: "2.0",
+            description: "Top essential non-intrusive helper tools for planning, building, and logistics"
+        )
     ]
 
     public var modpacksDirectory: URL {

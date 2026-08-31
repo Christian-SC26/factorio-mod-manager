@@ -649,21 +649,32 @@ public final class AppState: ObservableObject {
             isDownloading = false
         }
 
-        // IMPORTANT: Also enable all already installed / up-to-date mods that belong to this modpack/resolution plan!
-        if autoEnableMods {
-            var namesToEnable = modsToDownload.map(\.name)
-            if let upToDate = currentResolutionResult?.modsUpToDate {
-                namesToEnable.append(contentsOf: upToDate.map(\.name))
+        // Modpack and download enabling
+        let namesToEnable = (modsToDownload.map(\.name) + (currentResolutionResult?.modsUpToDate.map(\.name) ?? []))
+
+        if isExclusiveModpackResolution {
+            let officialSet: Set<String> = ["base", "space-age", "quality", "elevated-rails", "recycler"]
+            var newStates: [String: Bool] = [:]
+            for mod in installedMods {
+                if officialSet.contains(mod.name.lowercased()) {
+                    newStates[mod.name] = modStates[mod.name] ?? true
+                } else {
+                    newStates[mod.name] = false
+                }
             }
-            if !namesToEnable.isEmpty {
-                setMultipleModsEnabled(namesToEnable, enabled: true)
+            for name in namesToEnable {
+                newStates[name] = true
             }
+            newStates["base"] = true
+            try? modListMgr.writeModListJson(newStates)
+            isExclusiveModpackResolution = false
+        } else if autoEnableMods && !namesToEnable.isEmpty {
+            setMultipleModsEnabled(namesToEnable, enabled: true)
         }
 
         loadInstalledMods()
         loadProfiles()
         loadSavedModpacks()
-        await checkForUpdates()
     }
 
     public func resolveAndInstall(targets: [String]) async {
@@ -677,9 +688,57 @@ public final class AppState: ObservableObject {
 
     // MARK: - Modpacks Actions
     @Published public var savedModpacks: [(name: String, url: URL)] = []
+    public var isExclusiveModpackResolution: Bool = false
 
     public func loadSavedModpacks() {
         self.savedModpacks = modListMgr.listSavedModpacks()
+    }
+
+    public func applyCuratedModpack(_ pack: ModListManager.ModpackDefinition) async {
+        let installedNames = Set(installedMods.map(\.name))
+        let missing = pack.targetMods.filter { !installedNames.contains($0) }
+
+        if missing.isEmpty {
+            // All required root mods are present locally: perform instant clean switch
+            let officialSet: Set<String> = ["base", "space-age", "quality", "elevated-rails", "recycler"]
+            var newStates: [String: Bool] = [:]
+            for mod in installedMods {
+                if officialSet.contains(mod.name.lowercased()) {
+                    newStates[mod.name] = modStates[mod.name] ?? true
+                } else {
+                    newStates[mod.name] = false
+                }
+            }
+
+            var toEnable = Set(pack.targetMods)
+            for target in pack.targetMods {
+                if let local = installedMods.first(where: { $0.name == target }) {
+                    for dep in local.getDependencies() where dep.depType == .required || dep.depType == .recommended {
+                        if !dep.isVirtual {
+                            toEnable.insert(dep.name)
+                        }
+                    }
+                }
+            }
+
+            for name in toEnable {
+                newStates[name] = true
+            }
+            newStates["base"] = true
+
+            do {
+                try modListMgr.writeModListJson(newStates)
+                loadInstalledMods()
+                showNotification(title: "Modpack", message: "Activated '\(pack.name)' (\(toEnable.count) mods enabled, other mods disabled).")
+            } catch {
+                showNotification(title: "Modpack", message: error.localizedDescription, isError: true)
+            }
+        } else {
+            // Need to download missing mods: trigger exclusive resolution
+            showNotification(title: "Modpack", message: "Resolving '\(pack.name)' (\(missing.count) mod(s) to download)...")
+            self.isExclusiveModpackResolution = true
+            await resolveAndInstall(targets: pack.targetMods)
+        }
     }
 
     public func applyModpack(from url: URL) async {
@@ -690,6 +749,7 @@ public final class AppState: ObservableObject {
                 return
             }
             showNotification(title: loc("export_import_title"), message: "Importing \(targets.count) mods from '\(url.lastPathComponent)'...")
+            self.isExclusiveModpackResolution = true
             await resolveAndInstall(targets: targets)
         } catch {
             showNotification(title: loc("export_import_title"), message: error.localizedDescription, isError: true)
