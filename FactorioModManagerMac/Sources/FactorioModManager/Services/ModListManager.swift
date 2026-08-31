@@ -573,7 +573,49 @@ public final class ModListManager: Sendable {
         return p
     }
 
+    /// Scan installed mods for overhaul mods / meta-packs (mods with multiple dependencies) and auto-save modpack manifests
+    public func autoDetectAndSaveInstalledModpacks() {
+        let installed = scanInstalledMods()
+        let pDir = modpacksDirectory
+
+        for (name, versions) in installed {
+            guard !VIRTUAL_BUILTINS.contains(name.lowercased()), let mod = versions.first else { continue }
+            let deps = mod.getDependencies().filter { $0.depType == .required || $0.depType == .recommended }
+            // If a mod has 2 or more dependencies, it represents a composite modpack / preset
+            if deps.count >= 2 {
+                let safeName = Self.safeProfileFilename(from: name)
+                let targetURL = pDir.appendingPathComponent("\(safeName).json")
+                if !FileManager.default.fileExists(atPath: targetURL.path) {
+                    var packMods: [[String: String]] = []
+                    packMods.append([
+                        "name": mod.name,
+                        "version": mod.version.raw,
+                        "url": "https://mods.factorio.com/mod/\(mod.name)"
+                    ])
+                    for d in deps {
+                        let dVer = installed[d.name]?.first?.version.raw ?? "latest"
+                        packMods.append([
+                            "name": d.name,
+                            "version": dVer,
+                            "url": "https://mods.factorio.com/mod/\(d.name)"
+                        ])
+                    }
+                    let dict: [String: Any] = [
+                        "title": mod.displayTitle,
+                        "root_mod": mod.name,
+                        "factorio_version": detectInstalledFactorioVersion(),
+                        "mods": packMods
+                    ]
+                    if let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys]) {
+                        try? data.write(to: targetURL, options: .atomic)
+                    }
+                }
+            }
+        }
+    }
+
     public func listSavedModpacks() -> [(name: String, url: URL)] {
+        autoDetectAndSaveInstalledModpacks()
         let pDir = modpacksDirectory
         guard let files = try? FileManager.default.contentsOfDirectory(at: pDir, includingPropertiesForKeys: nil) else {
             return []

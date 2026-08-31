@@ -660,6 +660,14 @@ public final class AppState: ObservableObject {
             }
         }
 
+        // If this installation was for a composite mod or modpack (e.g. AzzTweaks), auto-save profile
+        if let result = currentResolutionResult, !result.rootMods.isEmpty {
+            let primaryName = result.rootMods.first ?? "Modpack"
+            if !profiles.contains(where: { $0.name.localizedCaseInsensitiveCompare(primaryName) == .orderedSame }) {
+                _ = try? modListMgr.saveProfile(name: primaryName, states: self.modStates)
+            }
+        }
+
         loadInstalledMods()
         loadProfiles()
         loadSavedModpacks()
