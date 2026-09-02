@@ -99,9 +99,7 @@ final class ModGroupHeaderCellView: NSTableCellView {
 }
 
 final class ModSwitchCellView: NSTableCellView {
-    let toggle = NSSwitch()
     let checkbox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
-    private var currentStyle: ModToggleStyle = .checkbox
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -114,10 +112,6 @@ final class ModSwitchCellView: NSTableCellView {
     }
 
     private func setup() {
-        toggle.controlSize = .mini
-        toggle.sizeToFit()
-        addSubview(toggle)
-
         checkbox.title = ""
         checkbox.imagePosition = .imageOnly
         checkbox.setButtonType(.switch)
@@ -128,59 +122,23 @@ final class ModSwitchCellView: NSTableCellView {
 
     override func layout() {
         super.layout()
-        if currentStyle == .checkbox {
-            checkbox.sizeToFit()
-            let w: CGFloat = 18
-            let h: CGFloat = 18
-            checkbox.frame = NSRect(
-                x: max(0, (bounds.width - w) / 2),
-                y: max(0, (bounds.height - h) / 2),
-                width: w,
-                height: h
-            )
-        } else {
-            toggle.sizeToFit()
-            let w = toggle.frame.width > 0 ? toggle.frame.width : 28
-            let h = toggle.frame.height > 0 ? toggle.frame.height : 16
-            toggle.frame = NSRect(
-                x: max(0, (bounds.width - w) / 2),
-                y: max(0, (bounds.height - h) / 2),
-                width: w,
-                height: h
-            )
-        }
+        checkbox.sizeToFit()
+        let w: CGFloat = 18
+        let h: CGFloat = 18
+        checkbox.frame = NSRect(
+            x: max(0, (bounds.width - w) / 2),
+            y: max(0, (bounds.height - h) / 2),
+            width: w,
+            height: h
+        )
     }
 
-    func configure(
-        isEnabled: Bool,
-        isBase: Bool,
-        row: Int,
-        target: AnyObject?,
-        action: Selector,
-        style: ModToggleStyle = .checkbox
-    ) {
-        self.currentStyle = style
-        let state: NSControl.StateValue = isEnabled ? .on : .off
-
-        if style == .checkbox {
-            toggle.isHidden = true
-            checkbox.isHidden = false
-            checkbox.state = state
-            checkbox.isEnabled = !isBase
-            checkbox.tag = row
-            checkbox.target = target
-            checkbox.action = action
-        } else {
-            checkbox.isHidden = true
-            toggle.isHidden = false
-            toggle.controlSize = (style == .miniSwitch) ? .mini : .regular
-            toggle.state = state
-            toggle.isEnabled = !isBase
-            toggle.tag = row
-            toggle.target = target
-            toggle.action = action
-        }
-        needsLayout = true
+    func configure(isEnabled: Bool, isBase: Bool, row: Int, target: AnyObject?, action: Selector) {
+        checkbox.state = isEnabled ? .on : .off
+        checkbox.isEnabled = !isBase
+        checkbox.tag = row
+        checkbox.target = target
+        checkbox.action = action
     }
 }
 
@@ -413,15 +371,57 @@ final class ModActionsCellView: NSTableCellView {
     }
 }
 
+// MARK: - Dedicated Row View with Focus Indicator
+final class ModTableRowView: NSTableRowView {
+    var isCursorTarget: Bool = false {
+        didSet {
+            if oldValue != isCursorTarget {
+                needsDisplay = true
+            }
+        }
+    }
+
+    override func drawBackground(in dirtyRect: NSRect) {
+        super.drawBackground(in: dirtyRect)
+
+        if isCursorTarget && !isSelected {
+            let focusRect = bounds.insetBy(dx: 2, dy: 1)
+            let path = NSBezierPath(roundedRect: focusRect, xRadius: 4, yRadius: 4)
+            NSColor.controlAccentColor.withAlphaComponent(0.14).setFill()
+            path.fill()
+            NSColor.controlAccentColor.withAlphaComponent(0.8).setStroke()
+            path.lineWidth = 1.5
+            path.stroke()
+        }
+    }
+}
+
 // MARK: - Custom Native Table View
 public final class CustomTableView: NSTableView {
     public weak var actionDelegate: NativeModTableViewDelegate?
     public weak var ownerView: NativeModTableViewNSView?
     public var currentItems: [ModTableRowItem] = []
 
-    public var cursorRow: Int = 0
+    public var cursorRow: Int = 0 {
+        didSet {
+            updateRowDisplay()
+        }
+    }
     public var selectionAnchorRow: Int = 0
     public var preservedSelection: IndexSet = []
+
+    public func updateRowDisplay() {
+        for r in 0..<numberOfRows {
+            if let rv = rowView(atRow: r, makeIfNecessary: false) as? ModTableRowView {
+                rv.isCursorTarget = (r == cursorRow)
+            }
+        }
+    }
+
+    public override func selectRowIndexes(_ indexes: IndexSet, byExtendingSelection extend: Bool) {
+        super.selectRowIndexes(indexes, byExtendingSelection: extend)
+        self.preservedSelection = self.selectedRowIndexes
+    }
 
     public override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
@@ -431,21 +431,19 @@ public final class CustomTableView: NSTableView {
         let isCmd = event.modifierFlags.contains(.command)
 
         if !isShift && !isCmd {
+            // Normal click without shift/cmd: clears previous multi-selection
             preservedSelection.removeAll()
-            if clickedRow >= 0 && clickedRow < currentItems.count {
-                cursorRow = clickedRow
-                selectionAnchorRow = clickedRow
-            }
         }
 
         super.mouseDown(with: event)
 
         if clickedRow >= 0 && clickedRow < currentItems.count {
             cursorRow = clickedRow
-            if !isShift {
-                selectionAnchorRow = clickedRow
-            }
+            selectionAnchorRow = clickedRow
         }
+
+        preservedSelection = selectedRowIndexes
+        updateRowDisplay()
     }
 
     public override func keyDown(with event: NSEvent) {
@@ -460,6 +458,7 @@ public final class CustomTableView: NSTableView {
             preservedSelection.removeAll()
             deselectAll(nil)
             selectionAnchorRow = cursorRow
+            updateRowDisplay()
             return
         }
 
@@ -475,21 +474,23 @@ public final class CustomTableView: NSTableView {
                 selectRowIndexes(current, byExtendingSelection: false)
                 preservedSelection = current
                 selectionAnchorRow = cursorRow
+                updateRowDisplay()
                 return
             }
         }
 
-        // 3. Space: Toggle selected mods (or current cursor mod), and reset selection anchor
+        // 3. Space: Toggle selected mods (or current cursor mod)
         if (keyCode == 49 || chars == " ") && !isCmd && !isCtrl {
             var selected = selectedMods()
             if selected.isEmpty && cursorRow >= 0 && cursorRow < currentItems.count,
                case let .mod(m) = currentItems[cursorRow] {
                 selected = [m]
+                selectRowIndexes(IndexSet(integer: cursorRow), byExtendingSelection: false)
             }
             if !selected.isEmpty {
                 actionDelegate?.modTableView(enclosingView, didToggleSelection: selected)
-                // Reset anchor so subsequent Shift starts fresh
-                preservedSelection = []
+                // Keep selectedRowIndexes intact so highlight never disappears!
+                preservedSelection = selectedRowIndexes
                 selectionAnchorRow = cursorRow
                 return
             }
@@ -582,8 +583,9 @@ public final class CustomTableView: NSTableView {
                 if title.first == c || name.first == c {
                     cursorRow = idx
                     selectionAnchorRow = idx
-                    selectRowIndexes(IndexSet(integer: idx), byExtendingSelection: false)
+                    preservedSelection = selectedRowIndexes
                     scrollRowToVisible(idx)
+                    updateRowDisplay()
                     return
                 }
             }
@@ -738,13 +740,13 @@ public final class CustomTableView: NSTableView {
             let newSelection = preservedSelection.union(rangeSet)
             selectRowIndexes(newSelection, byExtendingSelection: false)
         } else {
-            // Native single selection move
-            preservedSelection = []
+            // Non-extending movement: preserve current selection!
+            preservedSelection = selectedRowIndexes
             selectionAnchorRow = cursorRow
-            selectRowIndexes(IndexSet(integer: cursorRow), byExtendingSelection: false)
         }
 
         scrollRowToVisible(cursorRow)
+        updateRowDisplay()
     }
 }
 
@@ -811,6 +813,9 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
     }
 
     private func rebuildItems() {
+        let savedSelected = tableView.selectedRowIndexes
+        let savedCursor = tableView.cursorRow
+
         var items: [ModTableRowItem] = []
 
         if !officialMods.isEmpty {
@@ -831,9 +836,12 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
 
         self.tableItems = items
         self.tableView.currentItems = items
-        self.tableView.cursorRow = min(max(0, self.tableView.cursorRow), max(0, items.count - 1))
-        self.tableView.selectionAnchorRow = min(max(0, self.tableView.selectionAnchorRow), max(0, items.count - 1))
         self.tableView.reloadData()
+        self.tableView.selectRowIndexes(savedSelected, byExtendingSelection: false)
+        self.tableView.cursorRow = min(max(0, savedCursor), max(0, items.count - 1))
+        self.tableView.selectionAnchorRow = self.tableView.cursorRow
+        self.tableView.preservedSelection = savedSelected
+        self.tableView.updateRowDisplay()
     }
 
     private func setupViews() {
@@ -941,6 +949,17 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         return tableItems[row].isGroupHeader
     }
 
+    public func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        let identifier = NSUserInterfaceItemIdentifier("ModTableRowView")
+        let rowView = (tableView.makeView(withIdentifier: identifier, owner: self) as? ModTableRowView)
+            ?? ModTableRowView()
+        rowView.identifier = identifier
+        if let customTable = tableView as? CustomTableView {
+            rowView.isCursorTarget = (row == customTable.cursorRow)
+        }
+        return rowView
+    }
+
     public func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard row >= 0 && row < tableItems.count else { return nil }
         let item = tableItems[row]
@@ -968,8 +987,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
                 isBase: mod.name == FactorioConstants.baseModName,
                 row: row,
                 target: self,
-                action: #selector(switchToggled(_:)),
-                style: toggleStyle
+                action: #selector(switchToggled(_:))
             )
             return cell
 
@@ -1065,24 +1083,20 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         }
     }
 
-    public var toggleStyle: ModToggleStyle = .checkbox
-
     public func updateData(
         official: [LocalMod],
         community: [LocalMod],
         portalOwners: [String: String],
         states: [String: Bool],
         updates: [String: ModUpdateItem],
-        toggleStyle: ModToggleStyle = .checkbox,
         force: Bool = false
     ) {
         let structureChanged = force || self.tableItems.isEmpty || self.officialMods != official || self.communityMods != community
         let ownersChanged = self.modPortalOwners != portalOwners
         let statesChanged = self.enabledStates != states
         let updatesChanged = self.updatesAvailableMap != updates
-        let styleChanged = self.toggleStyle != toggleStyle
 
-        guard structureChanged || ownersChanged || statesChanged || updatesChanged || styleChanged else {
+        guard structureChanged || ownersChanged || statesChanged || updatesChanged else {
             return
         }
 
@@ -1091,12 +1105,18 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         self.modPortalOwners = portalOwners
         self.enabledStates = states
         self.updatesAvailableMap = updates
-        self.toggleStyle = toggleStyle
+
+        let savedSelected = tableView.selectedRowIndexes
+        let savedCursor = tableView.cursorRow
 
         if structureChanged {
             rebuildItems()
         } else {
             tableView.reloadData()
+            tableView.selectRowIndexes(savedSelected, byExtendingSelection: false)
+            tableView.cursorRow = savedCursor
+            tableView.preservedSelection = savedSelected
+            tableView.updateRowDisplay()
         }
     }
 
@@ -1106,11 +1126,10 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
     }
 
     // MARK: - Actions
-    @objc private func switchToggled(_ sender: Any) {
-        guard let control = sender as? NSControl else { return }
-        let row = control.tag
+    @objc private func switchToggled(_ sender: NSButton) {
+        let row = sender.tag
         guard row >= 0 && row < tableItems.count, case let .mod(mod) = tableItems[row] else { return }
-        let newState = (sender as? NSButton)?.state == .on || (sender as? NSSwitch)?.state == .on || control.cell?.state == .on
+        let newState = sender.state == .on
         delegate?.modTableView(self, didToggleMod: mod, newState: newState)
     }
 
@@ -1152,7 +1171,6 @@ public struct NativeModTableViewRepresentable: NSViewRepresentable {
     public let modPortalOwners: [String: String]
     public let enabledStates: [String: Bool]
     public let updatesAvailableMap: [String: ModUpdateItem]
-    public let toggleStyle: ModToggleStyle
     public let onToggleMod: (LocalMod, Bool) -> Void
     public let onToggleSelection: ([LocalMod]) -> Void
     public let onRequestDelete: ([LocalMod]) -> Void
@@ -1168,7 +1186,6 @@ public struct NativeModTableViewRepresentable: NSViewRepresentable {
         modPortalOwners: [String: String],
         enabledStates: [String: Bool],
         updatesAvailableMap: [String: ModUpdateItem],
-        toggleStyle: ModToggleStyle = .checkbox,
         onToggleMod: @escaping (LocalMod, Bool) -> Void,
         onToggleSelection: @escaping ([LocalMod]) -> Void,
         onRequestDelete: @escaping ([LocalMod]) -> Void,
@@ -1183,7 +1200,6 @@ public struct NativeModTableViewRepresentable: NSViewRepresentable {
         self.modPortalOwners = modPortalOwners
         self.enabledStates = enabledStates
         self.updatesAvailableMap = updatesAvailableMap
-        self.toggleStyle = toggleStyle
         self.onToggleMod = onToggleMod
         self.onToggleSelection = onToggleSelection
         self.onRequestDelete = onRequestDelete
@@ -1247,7 +1263,6 @@ public struct NativeModTableViewRepresentable: NSViewRepresentable {
             portalOwners: modPortalOwners,
             states: enabledStates,
             updates: updatesAvailableMap,
-            toggleStyle: toggleStyle,
             force: true
         )
         return view
@@ -1262,7 +1277,6 @@ public struct NativeModTableViewRepresentable: NSViewRepresentable {
             portalOwners: modPortalOwners,
             states: enabledStates,
             updates: updatesAvailableMap,
-            toggleStyle: toggleStyle,
             force: false
         )
     }

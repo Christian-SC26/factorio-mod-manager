@@ -71,18 +71,3 @@ public extension Notification.Name {
     static let focusModSearch = Notification.Name("fmm_focus_mod_search")
     static let focusModTable = Notification.Name("fmm_focus_mod_table")
 }
-
-public enum ModToggleStyle: String, CaseIterable, Identifiable, Sendable {
-    case checkbox = "checkbox"
-    case switchToggle = "switch"
-    case miniSwitch = "mini"
-
-    public var id: String { rawValue }
-    public var displayName: String {
-        switch self {
-        case .checkbox: return "Native Checkbox"
-        case .switchToggle: return "macOS Switch"
-        case .miniSwitch: return "Compact Switch"
-        }
-    }
-}

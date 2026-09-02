@@ -17,7 +17,6 @@ public final class AppState: ObservableObject {
     @AppStorage("custom_factorio_ver") public var customFactorioVersion: String = ""
     @AppStorage("clean_old_versions") public var cleanOldVersions: Bool = true
     @AppStorage("auto_enable_mods") public var autoEnableMods: Bool = true
-    @AppStorage("mod_toggle_style") public var modToggleStyle: String = ModToggleStyle.checkbox.rawValue
 
     // MARK: - Core Services & Managers
     @Published public var modsDirectory: URL = ModListManager.defaultFactorioModsDir()

@@ -141,30 +141,6 @@ public struct SettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
 
-                // Appearance & Mod Toggles
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Appearance & Mod Toggles")
-                        .font(.headline)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Picker("Toggle Control Style:", selection: $appState.modToggleStyle) {
-                            ForEach(ModToggleStyle.allCases) { style in
-                                Text(style.displayName).tag(style.rawValue)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(maxWidth: 380)
-
-                        Text("Choose between native macOS Checkbox, standard macOS Toggle Switch, or Compact Switch.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                }
-
                 // Language Section
                 VStack(alignment: .leading, spacing: 12) {
                     Text(loc("language_title"))
