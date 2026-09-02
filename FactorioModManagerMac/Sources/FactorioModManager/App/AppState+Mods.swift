@@ -215,9 +215,16 @@ extension AppState {
 
     public func toggleMods(_ mods: [LocalMod]) {
         guard !mods.isEmpty else { return }
-        let anyEnabled = mods.contains { modStates[$0.name] ?? $0.enabled }
-        let targetState = !anyEnabled
-        setMultipleModsEnabled(mods.map(\.name), enabled: targetState)
+        var currentStates = modListMgr.readModListJson()
+        for mod in mods {
+            guard mod.name != FactorioConstants.baseModName else { continue }
+            let cur = currentStates[mod.name] ?? mod.enabled
+            currentStates[mod.name] = !cur
+        }
+        currentStates[FactorioConstants.baseModName] = true
+        try? modListMgr.writeModListJson(currentStates)
+        self.modStates = currentStates
+        syncModStatesFromDisk()
     }
 
     public func enableAllMods() {

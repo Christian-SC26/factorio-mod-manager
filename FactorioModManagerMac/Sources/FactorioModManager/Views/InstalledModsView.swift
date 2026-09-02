@@ -379,6 +379,7 @@ public struct InstalledModsView: View {
                     modPortalOwners: appState.modPortalOwners,
                     enabledStates: appState.modStates,
                     updatesAvailableMap: appState.updatesAvailableMap,
+                    toggleStyle: ModToggleStyle(rawValue: appState.modToggleStyle) ?? .checkbox,
                     onToggleMod: { mod, newState in
                         appState.setModEnabled(mod.name, enabled: newState)
                     },
