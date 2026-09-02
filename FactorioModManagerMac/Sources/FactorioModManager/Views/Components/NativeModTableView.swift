@@ -368,40 +368,134 @@ final class ModActionsCellView: NSTableCellView {
     }
 }
 
+// MARK: - Dedicated Row View with Focus Indicator
+final class ModTableRowView: NSTableRowView {
+    var isCursorTarget: Bool = false {
+        didSet {
+            if oldValue != isCursorTarget {
+                needsDisplay = true
+            }
+        }
+    }
+
+    override func drawSelection(in dirtyRect: NSRect) {
+        if isSelected {
+            let selectionRect = bounds.insetBy(dx: 2, dy: 1)
+            let path = NSBezierPath(roundedRect: selectionRect, xRadius: 4, yRadius: 4)
+            NSColor.selectedContentBackgroundColor.setFill()
+            path.fill()
+        }
+    }
+
+    override func drawBackground(in dirtyRect: NSRect) {
+        super.drawBackground(in: dirtyRect)
+
+        if isCursorTarget && !isSelected {
+            let focusRect = bounds.insetBy(dx: 3, dy: 1.5)
+            let path = NSBezierPath(roundedRect: focusRect, xRadius: 4, yRadius: 4)
+            NSColor.controlAccentColor.withAlphaComponent(0.18).setFill()
+            path.fill()
+            NSColor.controlAccentColor.withAlphaComponent(0.85).setStroke()
+            path.lineWidth = 1.5
+            path.stroke()
+        }
+    }
+}
+
 // MARK: - Custom Native Table View
 public final class CustomTableView: NSTableView {
     public weak var actionDelegate: NativeModTableViewDelegate?
     public weak var ownerView: NativeModTableViewNSView?
     public var currentItems: [ModTableRowItem] = []
 
+    public var cursorRow: Int = 0 {
+        didSet {
+            updateRowDisplay()
+        }
+    }
+    public var selectionAnchorRow: Int = 0
+    public var preservedSelection: IndexSet = []
+
+    public func updateRowDisplay() {
+        for r in 0..<numberOfRows {
+            if let rv = rowView(atRow: r, makeIfNecessary: false) as? ModTableRowView {
+                rv.isCursorTarget = (r == cursorRow)
+            }
+        }
+    }
+
+    public override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let clickedRow = row(at: point)
+
+        let isShift = event.modifierFlags.contains(.shift)
+        let isCmd = event.modifierFlags.contains(.command)
+
+        if !isShift && !isCmd {
+            // Normal click clears previous preserved multi-selection
+            preservedSelection.removeAll()
+            if clickedRow >= 0 && clickedRow < currentItems.count {
+                cursorRow = clickedRow
+                selectionAnchorRow = clickedRow
+            }
+        }
+
+        super.mouseDown(with: event)
+
+        if clickedRow >= 0 && clickedRow < currentItems.count {
+            cursorRow = clickedRow
+            if !isShift {
+                selectionAnchorRow = clickedRow
+            }
+        }
+    }
+
     public override func keyDown(with event: NSEvent) {
         let isCmd = event.modifierFlags.contains(.command)
         let isShift = event.modifierFlags.contains(.shift)
+        let isCtrl = event.modifierFlags.contains(.control)
         let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
         let keyCode = event.keyCode
 
-        // Space: Toggle selected mods
+        // 1. Escape: Clear multi-selection
+        if keyCode == 53 {
+            preservedSelection.removeAll()
+            selectRowIndexes(IndexSet(), byExtendingSelection: false)
+            selectionAnchorRow = cursorRow
+            return
+        }
+
+        // 2. Space: Toggle selected mods (or current cursor mod)
         if keyCode == 49 || chars == " " {
-            let selected = selectedMods()
+            var selected = selectedMods()
+            if selected.isEmpty && cursorRow >= 0 && cursorRow < currentItems.count,
+               case let .mod(m) = currentItems[cursorRow] {
+                selected = [m]
+            }
             if !selected.isEmpty {
                 actionDelegate?.modTableView(enclosingView, didToggleSelection: selected)
                 return
             }
         }
 
-        // Delete / Backspace
+        // 3. Delete / Backspace
         if keyCode == 51 || keyCode == 117 {
-            let selected = selectedMods().filter { $0.name != FactorioConstants.baseModName && !isOfficialMod($0.name) }
+            var selected = selectedMods().filter { $0.name != FactorioConstants.baseModName && !isOfficialMod($0.name) }
+            if selected.isEmpty && cursorRow >= 0 && cursorRow < currentItems.count,
+               case let .mod(m) = currentItems[cursorRow],
+               m.name != FactorioConstants.baseModName && !isOfficialMod(m.name) {
+                selected = [m]
+            }
             if !selected.isEmpty {
                 actionDelegate?.modTableView(enclosingView, didRequestDelete: selected)
                 return
             }
         }
 
-        // Command shortcuts
+        // 4. Command shortcuts
         if isCmd {
             let selected = selectedMods()
-            let first = selected.first
+            let first = selected.first ?? (cursorRow >= 0 && cursorRow < currentItems.count ? currentItems[cursorRow].modValue : nil)
             switch chars {
             case "l":
                 if let mod = first {
@@ -413,9 +507,13 @@ public final class CustomTableView: NSTableView {
                 if !nonOfficial.isEmpty {
                     actionDelegate?.modTableView(enclosingView, didRevealInFinder: nonOfficial)
                     return
+                } else if let mod = first, !isOfficialMod(mod.name) {
+                    actionDelegate?.modTableView(enclosingView, didRevealInFinder: [mod])
+                    return
                 }
             case "a":
                 selectAll(nil)
+                preservedSelection = selectedRowIndexes
                 return
             case "i":
                 if let mod = first {
@@ -430,19 +528,49 @@ public final class CustomTableView: NSTableView {
             }
         }
 
-        // Vim j / k navigation
-        if !isCmd && (chars == "j" || chars == "k") {
-            if chars == "j" {
+        // 5. Vim j / k navigation OR Arrow Up / Down (125 = Down, 126 = Up)
+        if !isCmd && !isCtrl {
+            if chars == "j" || keyCode == 125 {
                 moveRowSelection(delta: 1, extend: isShift)
                 return
             }
-            if chars == "k" {
+            if chars == "k" || keyCode == 126 {
                 moveRowSelection(delta: -1, extend: isShift)
                 return
             }
         }
 
+        // 6. Letter jump (press any character key a-z, 0-9 to jump to next matching mod)
+        if !isCmd && !isCtrl && !isShift {
+            if let char = chars.first, (char.isLetter || char.isNumber) && char != "j" && char != "k" && chars != " " {
+                jumpToNextMod(matchingChar: char)
+                return
+            }
+        }
+
         super.keyDown(with: event)
+    }
+
+    private func jumpToNextMod(matchingChar char: Character) {
+        guard !currentItems.isEmpty else { return }
+        let c = Character(char.lowercased())
+        let count = currentItems.count
+        let startIndex = (cursorRow + 1) % count
+
+        for offset in 0..<count {
+            let idx = (startIndex + offset) % count
+            if case let .mod(mod) = currentItems[idx] {
+                let title = mod.displayTitle.lowercased()
+                let name = mod.name.lowercased()
+                if title.first == c || name.first == c {
+                    preservedSelection = selectedRowIndexes
+                    cursorRow = idx
+                    selectionAnchorRow = idx
+                    scrollRowToVisible(idx)
+                    return
+                }
+            }
+        }
     }
 
     public override func mouseUp(with event: NSEvent) {
@@ -563,11 +691,12 @@ public final class CustomTableView: NSTableView {
         return indices.compactMap { currentItems[$0].modValue }
     }
 
-    private func moveRowSelection(delta: Int, extend: Bool) {
+    public func moveRowSelection(delta: Int, extend: Bool) {
         guard !currentItems.isEmpty else { return }
-        let current = selectedRow >= 0 ? selectedRow : 0
-        var target = current + delta
 
+        var target = cursorRow + delta
+
+        // Skip group headers
         while target >= 0 && target < currentItems.count && currentItems[target].isGroupHeader {
             target += (delta >= 0 ? 1 : -1)
         }
@@ -575,14 +704,29 @@ public final class CustomTableView: NSTableView {
         target = min(max(0, target), currentItems.count - 1)
         if currentItems[target].isGroupHeader { return }
 
+        cursorRow = target
+
         if extend {
-            var set = selectedRowIndexes
-            set.insert(target)
-            selectRowIndexes(set, byExtendingSelection: false)
+            // Multi-selection range extension
+            let low = min(selectionAnchorRow, cursorRow)
+            let high = max(selectionAnchorRow, cursorRow)
+
+            var rangeSet = IndexSet()
+            for r in low...high {
+                if !currentItems[r].isGroupHeader {
+                    rangeSet.insert(r)
+                }
+            }
+
+            let newSelection = preservedSelection.union(rangeSet)
+            selectRowIndexes(newSelection, byExtendingSelection: false)
         } else {
-            selectRowIndexes(IndexSet(integer: target), byExtendingSelection: false)
+            // Non-extending movement: preserve current selection!
+            preservedSelection = selectedRowIndexes
+            selectionAnchorRow = cursorRow
         }
-        scrollRowToVisible(target)
+
+        scrollRowToVisible(cursorRow)
     }
 }
 
@@ -647,6 +791,8 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
             self.window?.makeFirstResponder(self.tableView)
             if self.tableView.selectedRow < 0 && !self.tableItems.isEmpty {
                 let firstModIdx = self.tableItems.firstIndex(where: { if case .mod = $0 { return true } else { return false } }) ?? 0
+                self.tableView.cursorRow = firstModIdx
+                self.tableView.selectionAnchorRow = firstModIdx
                 self.tableView.selectRowIndexes(IndexSet(integer: firstModIdx), byExtendingSelection: false)
             }
         }
@@ -673,6 +819,8 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
 
         self.tableItems = items
         self.tableView.currentItems = items
+        self.tableView.cursorRow = min(max(0, self.tableView.cursorRow), max(0, items.count - 1))
+        self.tableView.selectionAnchorRow = min(max(0, self.tableView.selectionAnchorRow), max(0, items.count - 1))
         self.tableView.reloadData()
     }
 
@@ -779,6 +927,17 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
     public func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
         guard row >= 0 && row < tableItems.count else { return false }
         return tableItems[row].isGroupHeader
+    }
+
+    public func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        let identifier = NSUserInterfaceItemIdentifier("ModTableRowView")
+        let rowView = (tableView.makeView(withIdentifier: identifier, owner: self) as? ModTableRowView)
+            ?? ModTableRowView()
+        rowView.identifier = identifier
+        if let customTable = tableView as? CustomTableView {
+            rowView.isCursorTarget = (row == customTable.cursorRow)
+        }
+        return rowView
     }
 
     public func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
