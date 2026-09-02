@@ -89,6 +89,13 @@ public struct FactorioVersion: Comparable, Hashable, CustomStringConvertible, Co
         return true
     }
 
+    /// Check if this version belongs to the same game generation (e.g. 2.x vs 1.x)
+    public func isCompatibleGeneration(_ target: String) -> Bool {
+        let targetVer = FactorioVersion(target)
+        guard !parts.isEmpty && !targetVer.parts.isEmpty else { return true }
+        return parts[0] == targetVer.parts[0]
+    }
+
     public func hash(into hasher: inout Hasher) {
         let padded = parts + Array(repeating: 0, count: max(0, 3 - parts.count))
         hasher.combine(padded)

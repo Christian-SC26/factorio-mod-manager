@@ -50,13 +50,22 @@ public struct UpdatesView: View {
 
             // Main Content
             if appState.isCheckingUpdates {
-                VStack(spacing: 12) {
+                VStack(spacing: 14) {
                     Spacer()
-                    ProgressView()
-                        .scaleEffect(1.2)
-                    Text(loc("checking_for_updates"))
-                        .font(.headline)
-                        .foregroundColor(.secondary)
+                    ProgressView(
+                        value: Double(appState.updatesCheckedCount),
+                        total: Double(max(1, appState.updatesTotalCount))
+                    )
+                    .progressViewStyle(.linear)
+                    .frame(maxWidth: 280)
+
+                    VStack(spacing: 4) {
+                        Text(loc("checking_for_updates"))
+                            .font(.headline)
+                        Text("\(appState.updatesCheckedCount) / \(appState.updatesTotalCount) mods checked")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

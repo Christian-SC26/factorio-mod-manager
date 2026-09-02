@@ -116,8 +116,6 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
             return releases.last
         }
 
-        let targetV = FactorioVersion(branch)
-
         // 1. Exact branch match
         for rel in releases.reversed() {
             if !rel.factorioVersion.isEmpty {
@@ -136,22 +134,7 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
             }
         }
 
-        // 2. Compatible version within the same major version family
-        for rel in releases.reversed() {
-            if !rel.factorioVersion.isEmpty {
-                let relFV = FactorioVersion(rel.factorioVersion)
-                if !relFV.parts.isEmpty && !targetV.parts.isEmpty && relFV.parts[0] == targetV.parts[0] {
-                    if relFV <= targetV {
-                        let baseDep = rel.dependencies.first { $0.name == "base" }
-                        if baseDep == nil || baseDep!.satisfies(targetV) {
-                            return rel
-                        }
-                    }
-                }
-            }
-        }
-
-        return releases.last
+        return nil
     }
 
     /// Find release satisfying version constraints and branch compatibility
@@ -194,23 +177,13 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
         if candidates.isEmpty { return nil }
 
         if let branch = targetFactorioBranch, !branch.isEmpty {
-            let targetV = FactorioVersion(branch)
             let branchCandidates = candidates.filter {
                 FactorioVersion($0.factorioVersion).isCompatibleMajorMinor(branch)
             }
             if let last = branchCandidates.last {
                 return last
             }
-
-            let majorCandidates = candidates.filter {
-                let rFV = FactorioVersion($0.factorioVersion)
-                return !rFV.parts.isEmpty && !targetV.parts.isEmpty
-                    && rFV.parts[0] == targetV.parts[0]
-                    && rFV <= targetV
-            }
-            if let last = majorCandidates.last {
-                return last
-            }
+            return nil
         }
 
         return candidates.last

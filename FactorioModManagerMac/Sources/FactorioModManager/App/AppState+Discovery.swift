@@ -75,7 +75,7 @@ extension AppState {
 
         for mod in installed {
             let deps = mod.getDependencies()
-            for dep in deps where (dep.depType == .recommended || dep.depType == .optional) && !dep.isVirtual {
+            for dep in deps where (dep.depType == .recommended || dep.depType == .optional) && !dep.isVirtual && !FactorioConstants.isOfficialMod(dep.name) {
                 if !installedNames.contains(dep.name) {
                     if suggestionsMap[dep.name] == nil {
                         suggestionsMap[dep.name] = []

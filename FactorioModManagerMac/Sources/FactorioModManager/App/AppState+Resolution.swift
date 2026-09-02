@@ -90,5 +90,9 @@ extension AppState {
         loadInstalledMods()
         loadProfiles()
         loadSavedModpacks()
+
+        // Remove successfully installed mods from updatesAvailable list
+        let installedDownloadedNames = Set(modsToDownload.map(\.name))
+        self.updatesAvailable.removeAll { installedDownloadedNames.contains($0.name) }
     }
 }

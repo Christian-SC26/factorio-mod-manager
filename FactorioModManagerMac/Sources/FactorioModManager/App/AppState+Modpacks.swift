@@ -14,7 +14,9 @@ extension AppState {
         if let data = try? Data(contentsOf: portalModpacksCacheURL),
            let list = try? JSONDecoder().decode([PortalModpackItem].self, from: data) {
             if let b = branch, !b.isEmpty {
-                return list.filter { $0.factorioVersion.hasPrefix(b) }
+                return list.filter {
+                    FactorioVersion($0.factorioVersion).isCompatibleMajorMinor(b)
+                }
             }
             return list
         }

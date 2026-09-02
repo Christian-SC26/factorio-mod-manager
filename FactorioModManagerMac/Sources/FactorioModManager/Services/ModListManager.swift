@@ -641,28 +641,10 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
             description: "The ultimate complex chemistry, biological processing, and hardcore technology overhaul"
         ),
         ModpackDefinition(
-            name: "Space Exploration",
-            targetMods: ["space-exploration", "space-exploration-graphics", "aai-containers", "aai-loaders", "alien-biomes", "informatron"],
-            minFactorioVersion: "1.1",
-            description: "Build cargo rockets, space stations, and discover interplanetary worlds"
-        ),
-        ModpackDefinition(
             name: "Krastorio 2",
             targetMods: ["Krastorio2"],
             minFactorioVersion: "2.0",
             description: "Full technology tree rebalance, antimatter power, advanced creep & endgame science"
-        ),
-        ModpackDefinition(
-            name: "Space Exploration + Krastorio 2 (SEK2)",
-            targetMods: ["space-exploration", "Krastorio2", "aai-containers", "aai-loaders", "alien-biomes", "informatron"],
-            minFactorioVersion: "1.1",
-            description: "Legendary combined deep-space megabase experience with Krastorio technology"
-        ),
-        ModpackDefinition(
-            name: "SeaBlock Complete Pack",
-            targetMods: ["SeaBlock", "SeaBlockMetaPack", "alien-biomes", "bobassembly", "boblogistics", "bobmining", "bobplates", "angelsrefining", "angelspetrochem"],
-            minFactorioVersion: "1.1",
-            description: "Start stranded on a tiny island and manufacture everything from sea water"
         ),
         ModpackDefinition(
             name: "Ultracube: Age of Cube",
@@ -671,46 +653,10 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
             description: "Logistics puzzle revolving around a single dense cube of concentrated power"
         ),
         ModpackDefinition(
-            name: "Freight Forwarding Pack",
-            targetMods: ["FreightForwardingPack"],
-            minFactorioVersion: "1.1",
-            description: "Inter-island logistics with container freight ships, long-range trains & cargo planes"
-        ),
-        ModpackDefinition(
-            name: "Nullius",
-            targetMods: ["nullius"],
-            minFactorioVersion: "1.1",
-            description: "Inorganic engineering and planet-wide terraforming before life exists"
-        ),
-        ModpackDefinition(
-            name: "Industrial Revolution 3",
-            targetMods: ["IndustrialRevolution3"],
-            minFactorioVersion: "1.1",
-            description: "Progression through historical technology eras: copper, bronze, iron, steel, and electricity"
-        ),
-        ModpackDefinition(
-            name: "Warptorio 2",
-            targetMods: ["warptorio2"],
-            minFactorioVersion: "1.1",
-            description: "Survival inside an expanding dimensional warp portal platform against infinite biters"
-        ),
-        ModpackDefinition(
             name: "248k Mod Suite",
             targetMods: ["248k"],
             minFactorioVersion: "2.0",
             description: "Nuclear fission, fusion, laser optics, and element 248 exotic physics"
-        ),
-        ModpackDefinition(
-            name: "Exotic Industries",
-            targetMods: ["exotic-industries-modpack"],
-            minFactorioVersion: "1.1",
-            description: "Deep multi-age progression with custom multiblock machines and steam technology"
-        ),
-        ModpackDefinition(
-            name: "Bob's & Angel's Classic Overhaul",
-            targetMods: ["bobassembly", "bobelectronics", "bobequipment", "bobinserters", "boblibrary", "boblogistics", "bobmining", "bobmodules", "bobores", "bobplates", "bobpower", "bobrevamp", "bobtech", "angelsrefining", "angelspetrochem", "angelssmelting"],
-            minFactorioVersion: "1.1",
-            description: "The classic legendary high-complexity refining, metallurgy and logistics expansion"
         ),
         ModpackDefinition(
             name: "Factorio 2.0 Extra Planets Pack",

@@ -202,8 +202,9 @@ public actor ModPortalClient: ModPortalClientProtocol {
                 if !seenNames.contains(c.name) {
                     seenNames.insert(c.name)
                     foundOnPage += 1
-                    if onlyV2 && !c.factorioVersions.isEmpty {
-                        if !c.factorioVersions.contains("2.0") && !c.factorioVersions.contains("2.1") && !c.factorioVersions.contains("2.") {
+                    if !c.factorioVersions.isEmpty {
+                        let isV2OrV21 = c.factorioVersions.contains("2.0") || c.factorioVersions.contains("2.1") || c.factorioVersions.contains("2.")
+                        if !isV2OrV21 {
                             continue
                         }
                     }
@@ -367,9 +368,8 @@ public actor ModPortalClient: ModPortalClientProtocol {
             let fVer = info["factorio_version"] as? String ?? ""
             let lVer = rel["version"] as? String ?? "1.0.0"
 
-            if !branch.isEmpty {
-                // Strict branch match: e.g. for "2.1", fVer must start with "2.1"
-                if !fVer.hasPrefix(branch) {
+            if !branch.isEmpty && !fVer.isEmpty {
+                if !FactorioVersion(fVer).isCompatibleMajorMinor(branch) {
                     continue
                 }
             }

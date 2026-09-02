@@ -213,20 +213,41 @@ public actor ModDownloader: ModDownloading {
     }
 
     private func cleanOlderVersions(modName: String, keepingFile: URL, in directory: URL) {
-        guard let items = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else {
+        guard !FactorioConstants.isOfficialMod(modName) else { return }
+        guard let items = try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.isDirectoryKey]
+        ) else {
             return
         }
 
-        let regex = RegexHelper.zipFilename
+        let zipRegex = RegexHelper.zipFilename
+        let dirRegex = RegexHelper.dirModName
+        let targetLower = modName.lowercased()
 
-        for item in items where item != keepingFile && item.pathExtension.lowercased() == "zip" {
+        for item in items where item.standardizedFileURL != keepingFile.standardizedFileURL {
             let filename = item.lastPathComponent
-            let range = NSRange(location: 0, length: filename.utf16.count)
-            if let match = regex.firstMatch(in: filename, options: [], range: range),
-               let nRange = Range(match.range(at: 1), in: filename) {
-                let name = String(filename[nRange])
-                if name.lowercased() == modName.lowercased() {
+            let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+
+            if isDir {
+                let range = NSRange(location: 0, length: filename.utf16.count)
+                if let match = dirRegex.firstMatch(in: filename, options: [], range: range),
+                   let nRange = Range(match.range(at: 1), in: filename) {
+                    let name = String(filename[nRange])
+                    if name.lowercased() == targetLower {
+                        _ = try? FileManager.default.removeItem(at: item)
+                    }
+                } else if filename.lowercased() == targetLower {
                     _ = try? FileManager.default.removeItem(at: item)
+                }
+            } else if item.pathExtension.lowercased() == "zip" {
+                let range = NSRange(location: 0, length: filename.utf16.count)
+                if let match = zipRegex.firstMatch(in: filename, options: [], range: range),
+                   let nRange = Range(match.range(at: 1), in: filename) {
+                    let name = String(filename[nRange])
+                    if name.lowercased() == targetLower {
+                        _ = try? FileManager.default.removeItem(at: item)
+                    }
                 }
             }
         }
