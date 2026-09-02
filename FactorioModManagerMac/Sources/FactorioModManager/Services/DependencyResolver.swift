@@ -101,8 +101,8 @@ public struct ResolutionResult: Sendable {
 }
 
 public actor DependencyResolver {
-    private let client: ModPortalClient
-    private let modListMgr: ModListManager
+    private let client: any ModPortalClientProtocol
+    private let modListMgr: any ModListManaging
     private let targetFactorioBranch: String?
     private let includeRecommended: Bool
     private let includeOptional: Bool
@@ -116,8 +116,8 @@ public actor DependencyResolver {
     private var graph: [String: [String]] = [:]
 
     public init(
-        client: ModPortalClient = .shared,
-        modListMgr: ModListManager,
+        client: any ModPortalClientProtocol = ModPortalClient.shared,
+        modListMgr: any ModListManaging,
         targetFactorioBranch: String? = nil,
         includeRecommended: Bool = true,
         includeOptional: Bool = false,
@@ -195,7 +195,7 @@ public actor DependencyResolver {
         depth: Int
     ) async {
         // Ignore virtual built-ins (base, core, etc.)
-        if VIRTUAL_BUILTINS.contains(modName.lowercased()) {
+        if FactorioConstants.isVirtualBuiltin(modName) {
             return
         }
 
@@ -295,7 +295,7 @@ public actor DependencyResolver {
         // Recursively resolve dependencies of this release
         for dep in release.dependencies {
             if dep.isVirtual {
-                if dep.name == "base", let targetBranch = targetFactorioBranch {
+                if dep.name == FactorioConstants.baseModName, let targetBranch = targetFactorioBranch {
                     let targetV = FactorioVersion(targetBranch)
                     if let depV = dep.version {
                         var isCompat = dep.satisfies(targetV)
@@ -342,7 +342,9 @@ public actor DependencyResolver {
     }
 
     private func checkConflicts() {
-        for (modName, var resMod) in resolved {
+        let keys = Array(resolved.keys)
+        for modName in keys {
+            guard var resMod = resolved[modName] else { continue }
             for dep in resMod.release.dependencies {
                 if dep.isConflict {
                     let conflictTarget = dep.name

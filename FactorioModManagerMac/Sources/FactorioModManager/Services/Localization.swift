@@ -153,6 +153,7 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "save_current_profile": "Save Current Setup as Profile",
             "profile_name_placeholder": "Profile name (e.g. space-age)",
             "save_button": "Save Profile",
+            "profile_saved": "Profile '%@' saved successfully",
             "activate_profile": "Activate Profile",
             "active_badge": "ACTIVE",
             "delete_profile": "Delete",
@@ -160,6 +161,16 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "missing_mods_warning": "Warning: %d mods in this profile are missing on disk.",
             "download_missing_button": "Download Missing Mods",
             "no_profiles_saved": "No profiles saved yet.",
+
+            // Error Messages
+            "error_empty_mod_name": "Mod name cannot be empty",
+            "error_mod_not_found": "Mod '%@' not found on portal",
+            "error_corrupted_data": "Corrupted or invalid metadata for '%@'",
+            "error_invalid_download_url": "Invalid download URL: %@",
+            "error_destination_file_creation": "Failed to create destination file at '%@'",
+            "error_invalid_zip": "'%@' is not a valid ZIP archive",
+            "error_empty_profile_name": "Profile name cannot be empty",
+            "error_file_not_found": "File not found at '%@'",
 
             // Search Portal View
             "search_portal_title": "Search Mod Portal",
@@ -317,6 +328,7 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "save_current_profile": "Сохранить текущую сборку как профиль",
             "profile_name_placeholder": "Имя профиля (например space-age)",
             "save_button": "Сохранить профиль",
+            "profile_saved": "Профиль '%@' успешно сохранен",
             "activate_profile": "Активировать профиль",
             "active_badge": "АКТИВЕН",
             "delete_profile": "Удалить",
@@ -324,6 +336,16 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "missing_mods_warning": "Внимание: %d модов из этого профиля отсутствуют на диске.",
             "download_missing_button": "Скачать недостающие моды",
             "no_profiles_saved": "Сохраненных профилей пока нет.",
+
+            // Error Messages
+            "error_empty_mod_name": "Имя мода не может быть пустым",
+            "error_mod_not_found": "Мод '%@' не найден на портале",
+            "error_corrupted_data": "Поврежденные или некорректные данные для '%@'",
+            "error_invalid_download_url": "Некорректная ссылка на скачивание: %@",
+            "error_destination_file_creation": "Не удалось создать целевой файл: %@",
+            "error_invalid_zip": "Файл '%@' не является корректным ZIP-архивом",
+            "error_empty_profile_name": "Имя профиля не может быть пустым",
+            "error_file_not_found": "Файл не найден по пути '%@'",
 
             // Search Portal View
             "search_portal_title": "Поиск на портале",

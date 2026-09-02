@@ -7,12 +7,11 @@ public struct ProfilesView: View {
     @State private var showDeleteConfirmation: Bool = false
 
     private var currentActiveModNames: Set<String> {
-        Set(appState.installedMods.filter { appState.isModEnabled($0.name) && $0.name != "base" }.map(\.name))
+        Set(appState.installedMods.filter { appState.isModEnabled($0.name) && $0.name != FactorioConstants.baseModName }.map(\.name))
     }
 
     private func isProfileActive(_ profile: Profile) -> Bool {
-        let activeMods = profile.extractActiveMods()
-        return !activeMods.isEmpty && activeMods == currentActiveModNames
+        profile.isMatchingActiveMods(currentActiveModNames)
     }
 
     public var body: some View {

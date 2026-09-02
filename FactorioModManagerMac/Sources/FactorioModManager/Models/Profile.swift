@@ -83,15 +83,21 @@ public struct Profile: Identifiable, Hashable, Codable, Sendable {
 
     public func extractActiveMods() -> Set<String> {
         var active = Set<String>()
-        for (k, _) in mods where k != "base" {
+        for (k, _) in mods where k != FactorioConstants.baseModName {
             active.insert(k)
         }
         if let states = allStates {
-            for (k, enabled) in states where enabled && k != "base" {
+            for (k, enabled) in states where enabled && k != FactorioConstants.baseModName {
                 active.insert(k)
             }
         }
         return active
+    }
+
+    /// Check if this profile's active mods exactly match a given set of enabled mod names
+    public func isMatchingActiveMods(_ activeSet: Set<String>) -> Bool {
+        let active = extractActiveMods()
+        return !active.isEmpty && active == activeSet
     }
 }
 

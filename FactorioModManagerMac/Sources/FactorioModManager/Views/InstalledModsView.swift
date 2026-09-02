@@ -26,22 +26,15 @@ public struct InstalledModsView: View {
     }
 
     private var currentActiveModNames: Set<String> {
-        Set(appState.installedMods.filter { appState.isModEnabled($0.name) && $0.name != "base" }.map(\.name))
+        Set(appState.installedMods.filter { appState.isModEnabled($0.name) && $0.name != FactorioConstants.baseModName }.map(\.name))
     }
 
     private func isProfileActive(_ profile: Profile) -> Bool {
-        let activeMods = profile.extractActiveMods()
-        return !activeMods.isEmpty && activeMods == currentActiveModNames
+        profile.isMatchingActiveMods(currentActiveModNames)
     }
 
     private func formatDownloadsCount(_ count: Int) -> String {
-        if count >= 1_000_000 {
-            return String(format: "%.1fM", Double(count) / 1_000_000)
-        } else if count >= 1_000 {
-            return String(format: "%.1fk", Double(count) / 1_000)
-        } else {
-            return "\(count)"
-        }
+        Formatters.formatDownloads(count)
     }
 
     private var activeProfile: Profile? {
@@ -115,7 +108,7 @@ public struct InstalledModsView: View {
     }
 
     private func initiateDeletion(for targets: [LocalMod]) {
-        let deletable = targets.filter { $0.name != "base" && !["space-age", "quality", "elevated-rails", "recycler"].contains($0.name.lowercased()) }
+        let deletable = targets.filter { $0.name != FactorioConstants.baseModName && !FactorioConstants.isOfficialMod($0.name) }
         guard !deletable.isEmpty else { return }
         modsPendingDeletion = deletable
         let targetNames = Set(deletable.map(\.name))
@@ -198,22 +191,7 @@ public struct InstalledModsView: View {
                                     }
                                 } else {
                                     ForEach(appState.portalModpacks) { pack in
-                                        Button(action: {
-                                            Task {
-                                                await appState.applyPortalModpack(pack)
-                                            }
-                                        }) {
-                                            let isInstalled = appState.installedMods.contains(where: { $0.name == pack.name })
-                                            let isEnabled = isInstalled && appState.isModEnabled(pack.name)
-                                            let dlFormatted = formatDownloadsCount(pack.downloadsCount)
-                                            if isEnabled {
-                                                Label("\(pack.title) (\(dlFormatted))", systemImage: "checkmark")
-                                            } else if isInstalled {
-                                                Label("\(pack.title) (Installed • \(dlFormatted))", systemImage: "arrow.triangle.2.circlepath")
-                                            } else {
-                                                Text("\(pack.title) (\(dlFormatted))")
-                                            }
-                                        }
+                                        portalPackButton(for: pack)
                                     }
                                 }
                             }
@@ -586,6 +564,27 @@ public struct InstalledModsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusModSearch)) { _ in
             isSearchFocused = true
+        }
+    }
+
+    @ViewBuilder
+    private func portalPackButton(for pack: PortalModpackItem) -> some View {
+        let isInstalled = appState.installedMods.contains(where: { $0.name == pack.name })
+        let isEnabled = isInstalled && appState.isModEnabled(pack.name)
+        let dlFormatted = Formatters.formatDownloads(pack.downloadsCount)
+
+        Button(action: {
+            Task {
+                await appState.applyPortalModpack(pack)
+            }
+        }) {
+            if isEnabled {
+                Label("\(pack.title) (\(dlFormatted))", systemImage: "checkmark")
+            } else if isInstalled {
+                Label("\(pack.title) (Installed • \(dlFormatted))", systemImage: "arrow.triangle.2.circlepath")
+            } else {
+                Text("\(pack.title) (\(dlFormatted))")
+            }
         }
     }
 }

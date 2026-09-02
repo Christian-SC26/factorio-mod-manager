@@ -81,7 +81,7 @@ public struct ModDetailSheet: View {
                         if let info = modInfo, info.downloadsCount > 0 {
                             HStack(spacing: 4) {
                                 Image(systemName: "arrow.down.circle")
-                                Text(String(format: loc("downloads_count_badge"), "\(info.downloadsCount)"))
+                                Text(String(format: loc("downloads_count_badge"), Formatters.formatDownloads(info.downloadsCount)))
                             }
                             .font(.caption)
                             .foregroundColor(.secondary)

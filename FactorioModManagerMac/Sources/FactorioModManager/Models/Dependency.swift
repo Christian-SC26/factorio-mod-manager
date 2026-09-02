@@ -7,14 +7,7 @@ public enum DependencyType: String, Codable, Sendable {
     case incompatible = "incompatible" // '!': incompatible conflict
 }
 
-public let VIRTUAL_BUILTINS: Set<String> = [
-    "base",
-    "core",
-    "quality",
-    "space-age",
-    "elevated-rails",
-    "recycler"
-]
+public let VIRTUAL_BUILTINS: Set<String> = FactorioConstants.virtualBuiltins
 
 public struct Dependency: Hashable, CustomStringConvertible, Codable, Sendable {
     public let name: String
@@ -38,7 +31,7 @@ public struct Dependency: Hashable, CustomStringConvertible, Codable, Sendable {
     }
 
     public var isVirtual: Bool {
-        VIRTUAL_BUILTINS.contains(name.lowercased())
+        FactorioConstants.isVirtualBuiltin(name)
     }
 
     public var isRequired: Bool {
@@ -59,12 +52,7 @@ public struct Dependency: Hashable, CustomStringConvertible, Codable, Sendable {
         let trimmed = depStr.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return nil }
 
-        // Regex pattern matching: prefix? name [op version]?
-        let pattern = #"^(?:\s*(\?|\(\?\)|!|~|\+))?\s*([%\w\s\.-]+?)(?:\s*(<=|>=|==|=|<|>)\s*(\d+(?:\.\d+)*))?$"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
-            return Dependency(name: trimmed, rawString: depStr)
-        }
-
+        let regex = RegexHelper.dependency
         let range = NSRange(location: 0, length: trimmed.utf16.count)
         guard let match = regex.firstMatch(in: trimmed, options: [], range: range) else {
             return Dependency(name: trimmed, rawString: depStr)

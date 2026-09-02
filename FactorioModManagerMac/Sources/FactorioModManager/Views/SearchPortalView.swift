@@ -157,7 +157,7 @@ public struct SearchPortalView: View {
                                 if item.downloadsCount > 0 {
                                     HStack(spacing: 4) {
                                         Image(systemName: "arrow.down.circle")
-                                        Text(String(format: loc("downloads_count_badge"), "\(item.downloadsCount)"))
+                                        Text(String(format: loc("downloads_count_badge"), Formatters.formatDownloads(item.downloadsCount)))
                                     }
                                     .font(.caption)
                                     .foregroundColor(.secondary)

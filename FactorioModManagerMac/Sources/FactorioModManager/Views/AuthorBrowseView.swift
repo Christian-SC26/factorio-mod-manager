@@ -194,7 +194,7 @@ public struct AuthorBrowseView: View {
                                     }
 
                                     if item.downloadsCount > 0 {
-                                        Text("\(item.downloadsCount) dl")
+                                        Text("\(Formatters.formatDownloads(item.downloadsCount)) dl")
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }

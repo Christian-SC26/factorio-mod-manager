@@ -32,20 +32,19 @@ public struct DownloadProgress: Identifiable, Sendable {
     }
 }
 
-public func formatBytes(_ size: Int64) -> String {
-    let doubleSize = Double(size)
-    if doubleSize < 1024.0 {
-        return "\(size) B"
-    } else if doubleSize < 1024.0 * 1024.0 {
-        return String(format: "%.1f KB", doubleSize / 1024.0)
-    } else if doubleSize < 1024.0 * 1024.0 * 1024.0 {
-        return String(format: "%.1f MB", doubleSize / (1024.0 * 1024.0))
-    } else {
-        return String(format: "%.2f GB", doubleSize / (1024.0 * 1024.0 * 1024.0))
-    }
+public protocol ModDownloading: Actor {
+    func downloadAll(
+        mods: [ResolvedMod],
+        onProgress: @escaping @Sendable (DownloadProgress) -> Void
+    ) async -> [DownloadProgress]
+
+    func downloadSingle(
+        mod: ResolvedMod,
+        onProgress: @escaping @Sendable (DownloadProgress) -> Void
+    ) async -> DownloadProgress
 }
 
-public actor ModDownloader {
+public actor ModDownloader: ModDownloading {
     private let modListMgr: ModListManager
     private let cleanOld: Bool
     private let autoEnable: Bool
@@ -100,7 +99,7 @@ public actor ModDownloader {
                 modName: mod.name,
                 version: mod.release.version.raw,
                 isCompleted: true,
-                error: "Invalid download URL: \(mod.release.downloadUrl)"
+                error: FMMError.invalidDownloadURL(url: mod.release.downloadUrl).localizedDescription
             )
             onProgress(errProgress)
             return errProgress
@@ -128,7 +127,7 @@ public actor ModDownloader {
                 let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
                 guard let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 else {
                     let code = (response as? HTTPURLResponse)?.statusCode ?? 500
-                    throw NSError(domain: "FMM", code: code, userInfo: [NSLocalizedDescriptionKey: "HTTP \(code)"])
+                    throw FMMError.httpError(statusCode: code, message: nil)
                 }
 
                 let expectedLength = response.expectedContentLength
@@ -137,18 +136,19 @@ public actor ModDownloader {
                 _ = try? FileManager.default.removeItem(at: partFileURL)
                 FileManager.default.createFile(atPath: partFileURL.path, contents: nil)
                 guard let fileHandle = try? FileHandle(forWritingTo: partFileURL) else {
-                    throw NSError(domain: "FMM", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to create destination file"])
+                    throw FMMError.destinationFileCreationFailed(path: partFileURL.path)
                 }
 
                 let startTime = Date()
                 var lastProgressUpdate = Date()
-                var buffer = Data()
+                var buffer = [UInt8]()
                 buffer.reserveCapacity(64 * 1024)
 
                 for try await byte in asyncBytes {
                     buffer.append(byte)
                     if buffer.count >= 64 * 1024 {
-                        try fileHandle.write(contentsOf: buffer)
+                        let chunk = Data(buffer)
+                        try fileHandle.write(contentsOf: chunk)
                         progress.bytesDownloaded += Int64(buffer.count)
                         buffer.removeAll(keepingCapacity: true)
 
@@ -166,7 +166,8 @@ public actor ModDownloader {
                 }
 
                 if !buffer.isEmpty {
-                    try fileHandle.write(contentsOf: buffer)
+                    let chunk = Data(buffer)
+                    try fileHandle.write(contentsOf: chunk)
                     progress.bytesDownloaded += Int64(buffer.count)
                 }
                 try fileHandle.close()
@@ -176,10 +177,10 @@ public actor ModDownloader {
                 progress.speedBytesPerSec = Double(progress.bytesDownloaded) / totalElapsed
                 progress.fractionCompleted = 1.0
 
-                // Validate zip integrity
-                if !validateZip(url: partFileURL) {
+                // Validate zip integrity using ZipArchiveReader
+                if !ZipArchiveReader.isValidZipArchive(at: partFileURL) {
                     _ = try? FileManager.default.removeItem(at: partFileURL)
-                    throw NSError(domain: "FMM", code: 422, userInfo: [NSLocalizedDescriptionKey: "Downloaded file is not a valid ZIP archive"])
+                    throw FMMError.invalidZipArchive(filename: fileName)
                 }
 
                 // Move part to final
@@ -211,21 +212,12 @@ public actor ModDownloader {
         return progress
     }
 
-    private func validateZip(url: URL) -> Bool {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
-        defer { try? handle.close() }
-        guard let header = try? handle.read(upToCount: 4) else { return false }
-        // Standard ZIP header starts with PK (0x50, 0x4B)
-        return header.count >= 2 && header[0] == 0x50 && header[1] == 0x4B
-    }
-
     private func cleanOlderVersions(modName: String, keepingFile: URL, in directory: URL) {
         guard let items = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else {
             return
         }
 
-        let pattern = #"^(.+)_(\d+(?:\.\d+)*)\.zip$"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return }
+        let regex = RegexHelper.zipFilename
 
         for item in items where item != keepingFile && item.pathExtension.lowercased() == "zip" {
             let filename = item.lastPathComponent

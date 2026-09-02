@@ -64,18 +64,18 @@ public struct ReleaseInfo: Hashable, Identifiable, Codable, Sendable {
 
     public init(
         version: FactorioVersion,
-        factorioVersion: String,
-        dependencies: [Dependency],
-        sha1: String?,
-        fileName: String,
-        releasedAt: String,
-        downloadUrl: String
+        factorioVersion: String = "2.0",
+        dependencies: [Dependency] = [],
+        sha1: String? = nil,
+        fileName: String = "",
+        releasedAt: String = "",
+        downloadUrl: String = ""
     ) {
         self.version = version
         self.factorioVersion = factorioVersion
         self.dependencies = dependencies
         self.sha1 = sha1
-        self.fileName = fileName
+        self.fileName = fileName.isEmpty ? "\(version.raw).zip" : fileName
         self.releasedAt = releasedAt
         self.downloadUrl = downloadUrl
     }
@@ -93,15 +93,15 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
 
     public init(
         name: String,
-        title: String,
-        owner: String,
-        summary: String,
-        category: String,
-        downloadsCount: Int,
-        releases: [ReleaseInfo]
+        title: String = "",
+        owner: String = "Unknown",
+        summary: String = "",
+        category: String = "",
+        downloadsCount: Int = 0,
+        releases: [ReleaseInfo] = []
     ) {
         self.name = name
-        self.title = title
+        self.title = title.isEmpty ? name : title
         self.owner = owner
         self.summary = summary
         self.category = category

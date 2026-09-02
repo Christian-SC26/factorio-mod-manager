@@ -1,6 +1,13 @@
 import Foundation
 
-public actor ModPortalClient {
+public protocol ModPortalClientProtocol: Actor {
+    func fetchModInfo(_ modName: String) async throws -> ModInfo
+    func searchPortalMods(query: String, onlyV2: Bool, maxPages: Int) async throws -> [SearchModItem]
+    func fetchAuthorMods(authorOrUrl: String) async throws -> (author: String, mods: [AuthorModItem])
+    func fetchPortalModpacks(targetFactorioBranch: String?) async throws -> [PortalModpackItem]
+}
+
+public actor ModPortalClient: ModPortalClientProtocol {
     public static let shared = ModPortalClient()
 
     private let userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -34,41 +41,32 @@ public actor ModPortalClient {
 
         // 2. Check official portal URL
         if raw.contains("mods.factorio.com") {
-            let pattern = #"mods\.factorio\.com/mod(?:s/[^/]+)?/([^/?#]+)"#
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-                let range = NSRange(location: 0, length: raw.utf16.count)
-                if let match = regex.firstMatch(in: raw, options: [], range: range),
-                   let nameRange = Range(match.range(at: 1), in: raw) {
-                    let modName = String(raw[nameRange])
-                    
-                    var ver: String? = nil
-                    let verPattern = #"/downloads#?(\d+(?:\.\d+)*)?"#
-                    if let verRegex = try? NSRegularExpression(pattern: verPattern) {
-                        if let vMatch = verRegex.firstMatch(in: raw, options: [], range: range),
-                           vMatch.range(at: 1).location != NSNotFound,
-                           let vRange = Range(vMatch.range(at: 1), in: raw) {
-                            ver = String(raw[vRange])
-                        }
-                    }
-                    return (modName, ver, ver != nil ? "==" : nil)
+            let range = NSRange(location: 0, length: raw.utf16.count)
+            if let match = RegexHelper.portalUrl.firstMatch(in: raw, options: [], range: range),
+               let nameRange = Range(match.range(at: 1), in: raw) {
+                let modName = String(raw[nameRange])
+
+                var ver: String? = nil
+                if let vMatch = RegexHelper.portalDownloadVersion.firstMatch(in: raw, options: [], range: range),
+                   vMatch.range(at: 1).location != NSNotFound,
+                   let vRange = Range(vMatch.range(at: 1), in: raw) {
+                    ver = String(raw[vRange])
                 }
+                return (modName, ver, ver != nil ? "==" : nil)
             }
         }
 
         // 3. Check version specifier: name@version, name==version, name>=version, etc.
-        let specPattern = #"^([%\w\.-]+)\s*(@|==|=|>=|<=|>|<)\s*(\d+(?:\.\d+)*)$"#
-        if let specRegex = try? NSRegularExpression(pattern: specPattern) {
-            let range = NSRange(location: 0, length: raw.utf16.count)
-            if let match = specRegex.firstMatch(in: raw, options: [], range: range),
-               let nRange = Range(match.range(at: 1), in: raw),
-               let opRange = Range(match.range(at: 2), in: raw),
-               let vRange = Range(match.range(at: 3), in: raw) {
-                let name = String(raw[nRange])
-                let op = String(raw[opRange])
-                let ver = String(raw[vRange])
-                let opNorm = (op == "@" || op == "=") ? "==" : op
-                return (name, ver, opNorm)
-            }
+        let range = NSRange(location: 0, length: raw.utf16.count)
+        if let match = RegexHelper.versionSpecifier.firstMatch(in: raw, options: [], range: range),
+           let nRange = Range(match.range(at: 1), in: raw),
+           let opRange = Range(match.range(at: 2), in: raw),
+           let vRange = Range(match.range(at: 3), in: raw) {
+            let name = String(raw[nRange])
+            let op = String(raw[opRange])
+            let ver = String(raw[vRange])
+            let opNorm = (op == "@" || op == "=") ? "==" : op
+            return (name, ver, opNorm)
         }
 
         return (raw, nil, nil)
@@ -78,7 +76,7 @@ public actor ModPortalClient {
     public func fetchModInfo(_ modName: String) async throws -> ModInfo {
         let cleaned = modName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else {
-            throw NSError(domain: "FMM", code: 400, userInfo: [NSLocalizedDescriptionKey: "Mod name cannot be empty"])
+            throw FMMError.emptyModName
         }
 
         if let cached = cache[cleaned] {
@@ -110,7 +108,7 @@ public actor ModPortalClient {
                     let (data, response) = try await URLSession.shared.data(for: req)
                     if let httpResp = response as? HTTPURLResponse {
                         if httpResp.statusCode == 404 {
-                            throw NSError(domain: "FMM", code: 404, userInfo: [NSLocalizedDescriptionKey: "Mod '\(cleaned)' not found on portal (404 Not Found)"])
+                            throw FMMError.modNotFound(name: cleaned)
                         }
                         if httpResp.statusCode == 200 {
                             jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -123,7 +121,7 @@ public actor ModPortalClient {
         }
 
         guard let data = jsonObject, let name = data["name"] as? String else {
-            throw NSError(domain: "FMM", code: 404, userInfo: [NSLocalizedDescriptionKey: "Mod '\(cleaned)' not found or data corrupted"])
+            throw FMMError.modNotFound(name: cleaned)
         }
 
         let title = data["title"] as? String ?? name
@@ -273,35 +271,35 @@ public actor ModPortalClient {
         return (authorName, mods)
     }
 
-    /// Parse HTML cards from Factorio portal pages
+    /// Parse HTML cards from Factorio portal pages using precompiled regexes and fast entity decoder
     private nonisolated func parseHtmlModCards(_ html: String) -> [SearchModItem] {
         var cards: [SearchModItem] = []
         let chunks = html.components(separatedBy: "class=\"panel-inset-lighter flex-column p0")
         guard chunks.count > 1 else { return [] }
 
         for chunk in chunks.dropFirst() {
-            guard let nameMatch = chunk.firstMatch(pattern: #"href="/mod/([^"/?#]+)"#) else { continue }
+            guard let nameMatch = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardLink) else { continue }
             let name = nameMatch.trimmingCharacters(in: .whitespaces)
 
             // Title
-            let rawTitle = chunk.firstMatch(pattern: #"<h2[^>]*>.*?<a[^>]*>(.*?)</a>"#) ?? name
-            let title = unescapeHtml(stripHtmlTags(rawTitle)).trimmingCharacters(in: .whitespaces)
+            let rawTitle = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardTitle) ?? name
+            let title = HTMLEntityDecoder.unescape(stripHtmlTags(rawTitle)).trimmingCharacters(in: .whitespaces)
 
             // Owner
-            let owner = chunk.firstMatch(pattern: #"href="/user/([^"/?#]+)""#) ?? "Unknown"
+            let owner = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardOwner) ?? "Unknown"
 
             // Summary
-            let rawSummary = chunk.firstMatch(pattern: #"<p\s+class="[^"<>]*result-field[^"<>]*"[^>]*>(.*?)(?:</p>|</div>)"#)
-                ?? chunk.firstMatch(pattern: #"<p[^>]*class="[^"<>]*line-clamp[^"<>]*"[^>]*>(.*?)(?:</p>|</div>)"#)
-                ?? chunk.firstMatch(pattern: #"<div class="mod-card-summary[^"]*"[^>]*>(.*?)</div>"#)
+            let rawSummary = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardSummary1)
+                ?? RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardSummary2)
+                ?? RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardSummary3)
                 ?? ""
-            let summary = unescapeHtml(stripHtmlTags(rawSummary)).trimmingCharacters(in: .whitespaces)
+            let summary = HTMLEntityDecoder.unescape(stripHtmlTags(rawSummary)).trimmingCharacters(in: .whitespaces)
 
             // Factorio versions
-            let fVer = chunk.firstMatch(pattern: #"title="Available for these Factorio versions"[^>]*>.*?<i[^>]*></i>\s*([^<\n]+)"#) ?? ""
+            let fVer = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardVersions) ?? ""
 
             // Downloads count
-            let dlStr = chunk.firstMatch(pattern: #"title="Downloads[^"]*"[^>]*>.*?<span title="(\d+)""#) ?? "0"
+            let dlStr = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardDownloads) ?? "0"
             let downloads = Int(dlStr) ?? 0
 
             // Deprecated
@@ -322,25 +320,12 @@ public actor ModPortalClient {
     }
 
     private nonisolated func stripHtmlTags(_ str: String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: "<[^<]+?>", options: []) else { return str }
-        return regex.stringByReplacingMatches(in: str, options: [], range: NSRange(location: 0, length: str.utf16.count), withTemplate: "")
-    }
-
-    private nonisolated func unescapeHtml(_ str: String) -> String {
-        guard let data = str.data(using: .utf8) else { return str }
-        let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
-            .documentType: NSAttributedString.DocumentType.html,
-            .characterEncoding: String.Encoding.utf8.rawValue
-        ]
-        if let attr = try? NSAttributedString(data: data, options: options, documentAttributes: nil) {
-            return attr.string
-        }
-        return str
-            .replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&quot;", with: "\"")
-            .replacingOccurrences(of: "&#39;", with: "'")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
+        RegexHelper.htmlTag.stringByReplacingMatches(
+            in: str,
+            options: [],
+            range: NSRange(location: 0, length: str.utf16.count),
+            withTemplate: ""
+        )
     }
 
     /// Fetch all modpacks from Factorio Portal API for the specified Factorio branch (e.g. "2.1", "2.0", "1.1")
@@ -434,17 +419,5 @@ public struct PortalModpackItem: Identifiable, Hashable, Codable, Sendable {
         self.category = category
         self.factorioVersion = factorioVersion
         self.latestVersion = latestVersion
-    }
-}
-
-private extension String {
-    func firstMatch(pattern: String) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else { return nil }
-        let range = NSRange(location: 0, length: self.utf16.count)
-        guard let match = regex.firstMatch(in: self, options: [], range: range) else { return nil }
-        if match.numberOfRanges > 1, match.range(at: 1).location != NSNotFound, let r = Range(match.range(at: 1), in: self) {
-            return String(self[r])
-        }
-        return nil
     }
 }

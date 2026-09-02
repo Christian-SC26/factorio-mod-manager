@@ -1,8 +1,34 @@
 import Foundation
 
-public final class ModListManager: Sendable {
+public protocol ModListManaging: Sendable {
+    var modsDirectory: URL { get }
+    var modListJsonURL: URL { get }
+    func detectInstalledFactorioVersion() -> String
+    func readModListJson() -> [String: Bool]
+    func scanInstalledMods() -> [String: [LocalMod]]
+    func scanInstalledModsAsync() async -> [String: [LocalMod]]
+    func scanInstalledModNames() -> Set<String>
+    func writeModListJson(_ states: [String: Bool]) throws
+    func enableMods(_ names: [String])
+    func disableMods(_ names: [String])
+    func setModState(_ name: String, enabled: Bool)
+    func toggleMod(_ name: String) -> Bool
+    func removeMod(_ name: String, deleteFiles: Bool) -> Int
+    func listProfiles() -> [Profile]
+    func saveProfile(name: String, states: [String: Bool]?) throws -> URL
+    func loadProfile(name: String) -> (success: Bool, activated: [String], missing: [String])
+    func deleteProfile(name: String, filename: String?) -> Bool
+    func exportModpack(to destinationURL: URL) throws -> Int
+    func importModpack(from sourceURL: URL) throws -> [String]
+}
+
+public final class ModListManager: ModListManaging, @unchecked Sendable {
     public let modsDirectory: URL
     public let modListJsonURL: URL
+
+    private static let cacheLock = NSLock()
+    private static var infoCache: [String: (Date, LocalModInfo)] = [:]
+    private static var cachedDetectedVersion: String? = nil
 
     public init(modsDirectory: URL? = nil) {
         let dir = modsDirectory ?? Self.defaultFactorioModsDir()
@@ -41,6 +67,13 @@ public final class ModListManager: Sendable {
 
     /// Detect installed Factorio version from logs or app bundles
     public func detectInstalledFactorioVersion() -> String {
+        Self.cacheLock.lock()
+        if let cached = Self.cachedDetectedVersion {
+            Self.cacheLock.unlock()
+            return cached
+        }
+        Self.cacheLock.unlock()
+
         let fileManager = FileManager.default
         let factorioDir = modsDirectory.deletingLastPathComponent()
 
@@ -59,22 +92,19 @@ public final class ModListManager: Sendable {
                    let content = String(data: logData, encoding: .utf8) {
                     let lines = content.components(separatedBy: .newlines)
                     for line in lines.prefix(60) {
-                        let pattern = #"Factorio\s+(\d+\.\d+\.\d+)"#
-                        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-                            let range = NSRange(location: 0, length: line.utf16.count)
-                            if let match = regex.firstMatch(in: line, options: [], range: range),
-                               let vRange = Range(match.range(at: 1), in: line) {
-                                return String(line[vRange])
-                            }
+                        let range = NSRange(location: 0, length: line.utf16.count)
+                        if let match = RegexHelper.logFactorioVersion.firstMatch(in: line, options: [], range: range),
+                           let vRange = Range(match.range(at: 1), in: line) {
+                            let ver = String(line[vRange])
+                            cacheDetectedVersion(ver)
+                            return ver
                         }
 
-                        let modBasePattern = #"Loading\s+mod\s+(?:base|core)\s+(\d+\.\d+\.\d+)"#
-                        if let regex = try? NSRegularExpression(pattern: modBasePattern, options: .caseInsensitive) {
-                            let range = NSRange(location: 0, length: line.utf16.count)
-                            if let match = regex.firstMatch(in: line, options: [], range: range),
-                               let vRange = Range(match.range(at: 1), in: line) {
-                                return String(line[vRange])
-                            }
+                        if let match = RegexHelper.logBaseModVersion.firstMatch(in: line, options: [], range: range),
+                           let vRange = Range(match.range(at: 1), in: line) {
+                            let ver = String(line[vRange])
+                            cacheDetectedVersion(ver)
+                            return ver
                         }
                     }
                 }
@@ -95,7 +125,9 @@ public final class ModListManager: Sendable {
                let data = try? Data(contentsOf: plistURL),
                let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any] {
                 if let ver = plist["CFBundleShortVersionString"] as? String ?? plist["CFBundleVersion"] as? String {
-                    return ver.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let trimmed = ver.trimmingCharacters(in: .whitespacesAndNewlines)
+                    cacheDetectedVersion(trimmed)
+                    return trimmed
                 }
             }
         }
@@ -111,11 +143,21 @@ public final class ModListManager: Sendable {
                let data = try? Data(contentsOf: base),
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let ver = json["version"] as? String {
-                return ver.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmed = ver.trimmingCharacters(in: .whitespacesAndNewlines)
+                cacheDetectedVersion(trimmed)
+                return trimmed
             }
         }
 
-        return "2.1"
+        let fallback = "2.1"
+        cacheDetectedVersion(fallback)
+        return fallback
+    }
+
+    private func cacheDetectedVersion(_ ver: String) {
+        Self.cacheLock.lock()
+        Self.cachedDetectedVersion = ver
+        Self.cacheLock.unlock()
     }
 
     /// Read mod-list.json into dictionary of [mod_name: enabled_bool]
@@ -158,9 +200,9 @@ public final class ModListManager: Sendable {
             }
 
             let isDir = (try? entry.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-            if !isDir, let regex = Self.zipRegex {
+            if !isDir {
                 let range = NSRange(location: 0, length: filename.utf16.count)
-                if let match = regex.firstMatch(in: filename, options: [], range: range),
+                if let match = RegexHelper.zipFilename.firstMatch(in: filename, options: [], range: range),
                    let nRange = Range(match.range(at: 1), in: filename) {
                     names.insert(String(filename[nRange]))
                     continue
@@ -168,13 +210,11 @@ public final class ModListManager: Sendable {
             }
 
             let baseName = isDir ? filename : entry.deletingPathExtension().lastPathComponent
-            if let regex = Self.dirModRegex {
-                let range = NSRange(location: 0, length: baseName.utf16.count)
-                if let match = regex.firstMatch(in: baseName, options: [], range: range),
-                   let nRange = Range(match.range(at: 1), in: baseName) {
-                    names.insert(String(baseName[nRange]))
-                    continue
-                }
+            let range = NSRange(location: 0, length: baseName.utf16.count)
+            if let match = RegexHelper.dirModName.firstMatch(in: baseName, options: [], range: range),
+               let nRange = Range(match.range(at: 1), in: baseName) {
+                names.insert(String(baseName[nRange]))
+                continue
             }
 
             names.insert(baseName)
@@ -202,7 +242,7 @@ public final class ModListManager: Sendable {
         modsList.append(["name": "base", "enabled": true])
 
         // Space Age / official DLC expansions next if present
-        let dlcNames = ["elevated-rails", "quality", "space-age"]
+        let dlcNames = FactorioConstants.dlcExpansions
         for dlc in dlcNames {
             if let enabled = modStates[dlc] {
                 modsList.append(["name": dlc, "enabled": enabled])
@@ -221,10 +261,13 @@ public final class ModListManager: Sendable {
         try data.write(to: modListJsonURL, options: .atomic)
     }
 
-    private static let cacheLock = NSLock()
-    private static var infoCache: [String: (Date, LocalModInfo)] = [:]
-    private static let zipRegex = try? NSRegularExpression(pattern: #"^(.+)_(\d+(?:\.\d+)*)\.zip$"#, options: .caseInsensitive)
-    private static let dirModRegex = try? NSRegularExpression(pattern: #"^(.+)_(\d+(?:\.\d+)*)$"#)
+    /// Async scan of installed mods on background thread to prevent freezing MainActor UI
+    public func scanInstalledModsAsync() async -> [String: [LocalMod]] {
+        await Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return [:] }
+            return self.scanInstalledMods()
+        }.value
+    }
 
     /// Scan mods directory for all installed mod archives and directories
     public func scanInstalledMods() -> [String: [LocalMod]] {
@@ -281,9 +324,9 @@ public final class ModListManager: Sendable {
 
             // Fast fallback to filename if needed
             if modName == nil || versionStr == nil {
-                if !isDir, let regex = Self.zipRegex {
+                if !isDir {
                     let range = NSRange(location: 0, length: filename.utf16.count)
-                    if let match = regex.firstMatch(in: filename, options: [], range: range),
+                    if let match = RegexHelper.zipFilename.firstMatch(in: filename, options: [], range: range),
                        let nRange = Range(match.range(at: 1), in: filename),
                        let vRange = Range(match.range(at: 2), in: filename) {
                         modName = String(filename[nRange])
@@ -294,14 +337,12 @@ public final class ModListManager: Sendable {
 
             if modName == nil || versionStr == nil {
                 let baseName = isDir ? filename : entry.deletingPathExtension().lastPathComponent
-                if let regex = Self.dirModRegex {
-                    let range = NSRange(location: 0, length: baseName.utf16.count)
-                    if let match = regex.firstMatch(in: baseName, options: [], range: range),
-                       let nRange = Range(match.range(at: 1), in: baseName),
-                       let vRange = Range(match.range(at: 2), in: baseName) {
-                        modName = String(baseName[nRange])
-                        versionStr = String(baseName[vRange])
-                    }
+                let range = NSRange(location: 0, length: baseName.utf16.count)
+                if let match = RegexHelper.dirModName.firstMatch(in: baseName, options: [], range: range),
+                   let nRange = Range(match.range(at: 1), in: baseName),
+                   let vRange = Range(match.range(at: 2), in: baseName) {
+                    modName = String(baseName[nRange])
+                    versionStr = String(baseName[vRange])
                 }
             }
 
@@ -423,7 +464,7 @@ public final class ModListManager: Sendable {
     public func saveProfile(name: String, states: [String: Bool]? = nil) throws -> URL {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanName.isEmpty else {
-            throw NSError(domain: "ProfileError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Profile name cannot be empty."])
+            throw FMMError.emptyProfileName
         }
 
         let finalStates = states ?? readModListJson()
@@ -514,7 +555,7 @@ public final class ModListManager: Sendable {
         var missing: [String] = []
 
         for (mName, isEnabled) in newStates where isEnabled && mName != "base" {
-            if installedNames.contains(mName) || VIRTUAL_BUILTINS.contains(mName.lowercased()) {
+            if installedNames.contains(mName) || FactorioConstants.isVirtualBuiltin(mName) {
                 activated.append(mName)
             } else {
                 missing.append(mName)
@@ -738,7 +779,7 @@ public final class ModListManager: Sendable {
 
     public func importModpack(from sourceURL: URL) throws -> [String] {
         guard FileManager.default.fileExists(atPath: sourceURL.path) else {
-            throw NSError(domain: "FMM", code: 404, userInfo: [NSLocalizedDescriptionKey: "File not found: \(sourceURL.path)"])
+            throw FMMError.fileNotFound(path: sourceURL.path)
         }
 
         var targets: [String] = []
@@ -748,25 +789,25 @@ public final class ModListManager: Sendable {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let rawMods = json["mods"] as? [[String: Any]] {
                     for item in rawMods {
-                        if let name = item["name"] as? String, !VIRTUAL_BUILTINS.contains(name.lowercased()) {
+                        if let name = item["name"] as? String, !FactorioConstants.isVirtualBuiltin(name) {
                             let url = item["url"] as? String ?? name
                             targets.append(url)
                         }
                     }
                 } else if let rawMods = json["mods"] as? [String: String] {
-                    for (k, _) in rawMods where !VIRTUAL_BUILTINS.contains(k.lowercased()) {
+                    for (k, _) in rawMods where !FactorioConstants.isVirtualBuiltin(k) {
                         targets.append(k)
                     }
                 }
             } else if let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                 for item in arr {
-                    if let name = item["name"] as? String, !VIRTUAL_BUILTINS.contains(name.lowercased()) {
+                    if let name = item["name"] as? String, !FactorioConstants.isVirtualBuiltin(name) {
                         let url = item["url"] as? String ?? name
                         targets.append(url)
                     }
                 }
             } else if let strArr = try? JSONSerialization.jsonObject(with: data) as? [String] {
-                for item in strArr where !VIRTUAL_BUILTINS.contains(item.lowercased()) {
+                for item in strArr where !FactorioConstants.isVirtualBuiltin(item) {
                     targets.append(item)
                 }
             }
