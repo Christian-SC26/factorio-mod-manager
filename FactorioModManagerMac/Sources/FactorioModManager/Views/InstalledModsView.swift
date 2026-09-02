@@ -253,9 +253,19 @@ public struct InstalledModsView: View {
                                 }
                             }
                             .disabled(true)
+                        } else if appState.isDirectUpdating {
+                            Button(action: {}) {
+                                HStack(spacing: 6) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Updating \(appState.directUpdateCurrentCount)/\(appState.directUpdateTotalCount)...")
+                                        .font(.system(size: 12))
+                                }
+                            }
+                            .disabled(true)
                         } else if !appState.updatesAvailable.isEmpty {
                             Button(action: {
-                                Task { await appState.updateAllMods() }
+                                Task { await appState.directUpdateAllMods() }
                             }) {
                                 HStack(spacing: 5) {
                                     Image(systemName: "arrow.down.circle.fill")
@@ -574,8 +584,14 @@ public struct InstalledModsView: View {
         let dlFormatted = Formatters.formatDownloads(pack.downloadsCount)
 
         Button(action: {
-            Task {
-                await appState.applyPortalModpack(pack)
+            if isEnabled {
+                appState.toggleInstalledPortalModpack(pack, enable: false)
+            } else if isInstalled {
+                appState.toggleInstalledPortalModpack(pack, enable: true)
+            } else {
+                Task {
+                    await appState.applyPortalModpack(pack)
+                }
             }
         }) {
             if isEnabled {

@@ -57,4 +57,14 @@ extension AppState {
             objectWillChange.send()
         }
     }
+
+    public func revealProfileInFinder(_ profile: Profile) {
+        let filename = profile.filename ?? "\(ModListManager.safeProfileFilename(from: profile.name)).json"
+        let fileURL = modListMgr.profilesDirectory.appendingPathComponent(filename)
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+        } else {
+            NSWorkspace.shared.open(modListMgr.profilesDirectory)
+        }
+    }
 }

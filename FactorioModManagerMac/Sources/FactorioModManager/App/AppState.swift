@@ -56,6 +56,9 @@ public final class AppState: ObservableObject {
     @Published public var isCheckingUpdates: Bool = false
     @Published public var updatesCheckedCount: Int = 0
     @Published public var updatesTotalCount: Int = 0
+    @Published public var isDirectUpdating: Bool = false
+    @Published public var directUpdateCurrentCount: Int = 0
+    @Published public var directUpdateTotalCount: Int = 0
 
     // MARK: - Search Portal State
     @Published public var searchResults: [SearchModItem] = []

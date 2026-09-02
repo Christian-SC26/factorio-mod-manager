@@ -84,6 +84,66 @@ extension AppState {
         )
     }
 
+    public func directUpdateAllMods() async {
+        let updates = updatesAvailable
+        guard !updates.isEmpty else { return }
+
+        self.isDirectUpdating = true
+        self.directUpdateCurrentCount = 0
+        self.directUpdateTotalCount = updates.count
+
+        let targets = updates.map { "\($0.name)@\($0.remoteVersion.raw)" }
+        let resolver = DependencyResolver(
+            client: ModPortalClient.shared,
+            modListMgr: modListMgr,
+            targetFactorioBranch: effectiveFactorioVersion,
+            includeRecommended: true,
+            includeOptional: false,
+            forceReinstall: false
+        )
+
+        let result = await resolver.resolve(targets: targets)
+        let modsToDownload = result.modsToDownload
+
+        if !modsToDownload.isEmpty {
+            self.isDownloading = true
+            self.downloadProgressList = modsToDownload.map {
+                DownloadProgress(modName: $0.name, version: $0.release.version.raw)
+            }
+
+            let downloader = ModDownloader(
+                modListMgr: modListMgr,
+                cleanOld: cleanOldVersions,
+                autoEnable: autoEnableMods
+            )
+
+            _ = await downloader.downloadAll(mods: modsToDownload) { [weak self] p in
+                Task { @MainActor in
+                    guard let self = self else { return }
+                    if let idx = self.downloadProgressList.firstIndex(where: { $0.modName == p.modName }) {
+                        self.downloadProgressList[idx] = p
+                    }
+                    let finished = self.downloadProgressList.filter { $0.isCompleted }.count
+                    self.directUpdateCurrentCount = finished
+                }
+            }
+            self.isDownloading = false
+        }
+
+        let namesToEnable = modsToDownload.map(\.name)
+        if autoEnableMods && !namesToEnable.isEmpty {
+            setMultipleModsEnabled(namesToEnable, enabled: true)
+        }
+
+        loadInstalledMods()
+        loadProfiles()
+        loadSavedModpacks()
+
+        let installedNames = Set(modsToDownload.map(\.name))
+        self.updatesAvailable.removeAll { installedNames.contains($0.name) }
+        self.isDirectUpdating = false
+    }
+
     public func updateSingleMod(_ item: ModUpdateItem) async {
         await resolveDependencies(
             targets: ["\(item.name)@\(item.remoteVersion.raw)"],

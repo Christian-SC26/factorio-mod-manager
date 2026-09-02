@@ -3,12 +3,11 @@ import SwiftUI
 public struct SearchPortalView: View {
     @ObservedObject var appState: AppState
     @State private var queryText: String = ""
-    @State private var searchScope: Int = 1 // 0: All, 1: v2 only, 2: local
+    @State private var selectedVersion: String = "2.1"
 
     private func performSearch() {
-        guard !queryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         Task {
-            await appState.searchPortal(query: queryText, scope: searchScope)
+            await appState.searchPortal(query: queryText, version: selectedVersion)
         }
     }
 
@@ -25,7 +24,12 @@ public struct SearchPortalView: View {
                             .onSubmit { performSearch() }
 
                         if !queryText.isEmpty {
-                            Button(action: { queryText = "" }) {
+                            Button(action: {
+                                queryText = ""
+                                Task {
+                                    await appState.loadPortalCatalog(version: selectedVersion)
+                                }
+                            }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.secondary)
                             }
@@ -49,20 +53,30 @@ public struct SearchPortalView: View {
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(queryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || appState.isSearching)
+                    .disabled(appState.isSearching)
                 }
 
-                // Scope Picker
+                // Version Filter: 2.1 and 2.0 only
                 HStack {
-                    Picker("", selection: $searchScope) {
-                        Text(loc("scope_v2")).tag(1)
-                        Text(loc("scope_all")).tag(0)
-                        Text(loc("scope_local")).tag(2)
+                    Picker("", selection: $selectedVersion) {
+                        Text("Factorio 2.1").tag("2.1")
+                        Text("Factorio 2.0").tag("2.0")
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 380)
+                    .frame(maxWidth: 240)
+                    .onChange(of: selectedVersion) { newVer in
+                        Task {
+                            await appState.searchPortal(query: queryText, version: newVer)
+                        }
+                    }
 
                     Spacer()
+
+                    if !appState.searchResults.isEmpty {
+                        Text("\(appState.searchResults.count) mods (by update date)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .padding(16)
@@ -76,7 +90,7 @@ public struct SearchPortalView: View {
                     Spacer()
                     ProgressView()
                         .scaleEffect(1.2)
-                    Text(loc("searching"))
+                    Text(queryText.isEmpty ? "Loading Factorio \(selectedVersion) mods catalog..." : loc("searching"))
                         .font(.headline)
                         .foregroundColor(.secondary)
                     Spacer()
@@ -101,9 +115,16 @@ public struct SearchPortalView: View {
                         .foregroundColor(.secondary)
                     Text(loc("search_portal_title"))
                         .font(.title3.bold())
-                    Text("Search thousands of Factorio mods online and install with one click.")
+                    Text("No mods found for Factorio \(selectedVersion).")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
+
+                    Button("Reload Catalog") {
+                        Task {
+                            await appState.loadPortalCatalog(version: selectedVersion)
+                        }
+                    }
+                    .buttonStyle(.bordered)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -213,6 +234,13 @@ public struct SearchPortalView: View {
                     .padding(.vertical, 6)
                 }
                 .listStyle(.inset(alternatesRowBackgrounds: true))
+            }
+        }
+        .onAppear {
+            if appState.searchResults.isEmpty {
+                Task {
+                    await appState.loadPortalCatalog(version: selectedVersion)
+                }
             }
         }
     }

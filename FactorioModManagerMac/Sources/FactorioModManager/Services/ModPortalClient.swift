@@ -3,8 +3,19 @@ import Foundation
 public protocol ModPortalClientProtocol: Actor {
     func fetchModInfo(_ modName: String) async throws -> ModInfo
     func searchPortalMods(query: String, onlyV2: Bool, maxPages: Int) async throws -> [SearchModItem]
+    func searchPortalMods(query: String, version: String, maxPages: Int) async throws -> [SearchModItem]
+    func fetchCatalog(version: String, pageSize: Int) async throws -> [SearchModItem]
     func fetchAuthorMods(authorOrUrl: String) async throws -> (author: String, mods: [AuthorModItem])
     func fetchPortalModpacks(targetFactorioBranch: String?) async throws -> [PortalModpackItem]
+}
+
+public extension ModPortalClientProtocol {
+    func searchPortalMods(query: String, version: String = "2.1", maxPages: Int = 5) async throws -> [SearchModItem] {
+        return []
+    }
+    func fetchCatalog(version: String = "2.1", pageSize: Int = 100) async throws -> [SearchModItem] {
+        return []
+    }
 }
 
 public actor ModPortalClient: ModPortalClientProtocol {
@@ -172,7 +183,103 @@ public actor ModPortalClient: ModPortalClientProtocol {
         return modInfo
     }
 
-    /// Search mods on Factorio Mod Portal
+    /// Fetch full catalog of mods for a Factorio version (e.g. "2.1" or "2.0") sorted by update date
+    public func fetchCatalog(version: String, pageSize: Int = 100) async throws -> [SearchModItem] {
+        let v = (version == "2.0" || version == "2.1") ? version : "2.1"
+        let urlStr = "https://mods.factorio.com/api/mods?version=\(v)&sort=updated_at&order=desc&page_size=\(pageSize)"
+        guard let url = URL(string: urlStr) else { return [] }
+
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 else {
+            return []
+        }
+
+        struct ApiCatalogResponse: Decodable {
+            struct ModEntry: Decodable {
+                let name: String
+                let title: String
+                let owner: String?
+                let summary: String?
+                let downloads_count: Int?
+                let category: String?
+                struct Release: Decodable {
+                    let version: String?
+                    struct Info: Decodable {
+                        let factorio_version: String?
+                    }
+                    let info_json: Info?
+                }
+                let latest_release: Release?
+            }
+            let results: [ModEntry]?
+        }
+
+        guard let decoded = try? JSONDecoder().decode(ApiCatalogResponse.self, from: data),
+              let list = decoded.results else {
+            return []
+        }
+
+        return list.map { m in
+            let fVer = m.latest_release?.info_json?.factorio_version ?? v
+            return SearchModItem(
+                name: m.name,
+                title: m.title,
+                owner: m.owner ?? "",
+                summary: m.summary ?? "",
+                factorioVersions: fVer,
+                downloadsCount: m.downloads_count ?? 0,
+                isDeprecated: m.category == "deprecated"
+            )
+        }
+    }
+
+    /// Search mods on Factorio Mod Portal filtered by version ("2.1" or "2.0")
+    public func searchPortalMods(query: String, version: String = "2.1", maxPages: Int = 5) async throws -> [SearchModItem] {
+        let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanQuery.isEmpty {
+            return try await fetchCatalog(version: version)
+        }
+
+        var results: [SearchModItem] = []
+        var seenNames = Set<String>()
+        let v = (version == "2.0" || version == "2.1") ? version : "2.1"
+
+        for page in 1...maxPages {
+            var urlStr = "https://mods.factorio.com/search?query=\(cleanQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cleanQuery)&version=\(v)"
+            if page > 1 {
+                urlStr += "&page=\(page)"
+            }
+
+            guard let url = URL(string: urlStr) else { break }
+            var req = URLRequest(url: url, timeoutInterval: 12)
+            req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+
+            guard let (data, response) = try? await URLSession.shared.data(for: req),
+                  let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200,
+                  let html = String(data: data, encoding: .utf8) else {
+                break
+            }
+
+            let cards = parseHtmlModCards(html)
+            var foundOnPage = 0
+            for c in cards {
+                if !seenNames.contains(c.name) {
+                    seenNames.insert(c.name)
+                    foundOnPage += 1
+                    results.append(c)
+                }
+            }
+
+            if foundOnPage == 0 { break }
+        }
+
+        return results
+    }
+
+    /// Search mods on Factorio Mod Portal (backward compatibility)
     public func searchPortalMods(query: String, onlyV2: Bool = false, maxPages: Int = 5) async throws -> [SearchModItem] {
         let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanQuery.isEmpty else { return [] }

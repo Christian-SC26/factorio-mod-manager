@@ -77,6 +77,35 @@ extension AppState {
         )
     }
 
+    public func getTransitiveInstalledModNames(for rootModName: String) -> Set<String> {
+        var visited = Set<String>()
+        var queue = [rootModName]
+
+        while !queue.isEmpty {
+            let current = queue.removeFirst()
+            if visited.contains(current) { continue }
+            visited.insert(current)
+
+            if let local = installedMods.first(where: { $0.name == current }) {
+                for dep in local.getDependencies() {
+                    if dep.isRequired || dep.depType == .recommended {
+                        if !dep.isVirtual && dep.name != FactorioConstants.baseModName {
+                            if !visited.contains(dep.name) {
+                                queue.append(dep.name)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return visited
+    }
+
+    public func toggleInstalledPortalModpack(_ pack: PortalModpackItem, enable: Bool) {
+        let names = getTransitiveInstalledModNames(for: pack.name)
+        setMultipleModsEnabled(Array(names), enabled: enable)
+    }
+
     public func applyPortalModpack(_ pack: PortalModpackItem) async {
         await installPortalModpack(pack, exclusive: true)
     }

@@ -2,6 +2,38 @@ import Foundation
 import SwiftUI
 
 extension AppState {
+    public func loadPortalCatalog(version: String = "2.1") async {
+        isSearching = true
+        lastSearchQuery = ""
+        do {
+            let results = try await ModPortalClient.shared.fetchCatalog(version: version, pageSize: 100)
+            self.searchResults = results
+        } catch {
+            self.searchResults = []
+            showNotification(title: loc("search_portal_title"), message: error.localizedDescription, isError: true)
+        }
+        isSearching = false
+    }
+
+    public func searchPortal(query: String, version: String = "2.1") async {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            await loadPortalCatalog(version: version)
+            return
+        }
+
+        isSearching = true
+        lastSearchQuery = trimmed
+        do {
+            let results = try await ModPortalClient.shared.searchPortalMods(query: trimmed, version: version)
+            self.searchResults = results
+        } catch {
+            self.searchResults = []
+            showNotification(title: loc("search_portal_title"), message: error.localizedDescription, isError: true)
+        }
+        isSearching = false
+    }
+
     public func searchPortalMods(query: String, onlyV2: Bool = false) async {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
