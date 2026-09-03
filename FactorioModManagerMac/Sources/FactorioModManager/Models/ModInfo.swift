@@ -108,6 +108,7 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
     public let description: String
     public let changelog: String
     public let screenshots: [ModScreenshot]
+    public let thumbnail: String?
 
     public init(
         name: String,
@@ -119,7 +120,8 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
         releases: [ReleaseInfo] = [],
         description: String = "",
         changelog: String = "",
-        screenshots: [ModScreenshot] = []
+        screenshots: [ModScreenshot] = [],
+        thumbnail: String? = nil
     ) {
         self.name = name
         self.title = title.isEmpty ? name : title
@@ -131,6 +133,7 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
         self.description = description
         self.changelog = changelog
         self.screenshots = screenshots
+        self.thumbnail = thumbnail
     }
 
     /// Get latest release matching Factorio branch (e.g. "2.1", "2.0", "1.1")

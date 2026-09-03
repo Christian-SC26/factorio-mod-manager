@@ -187,6 +187,18 @@ public actor ModPortalClient: ModPortalClientProtocol {
             }
         }
 
+        let rawThumbnail = data["thumbnail"] as? String
+        let thumbnail: String?
+        if let thumb = rawThumbnail, !thumb.isEmpty {
+            if thumb.hasPrefix("http://") || thumb.hasPrefix("https://") {
+                thumbnail = thumb
+            } else {
+                thumbnail = "https://assets-mod.factorio.com\(thumb)"
+            }
+        } else {
+            thumbnail = nil
+        }
+
         let modInfo = ModInfo(
             name: name,
             title: title,
@@ -197,7 +209,8 @@ public actor ModPortalClient: ModPortalClientProtocol {
             releases: releases,
             description: description,
             changelog: changelog,
-            screenshots: screenshots
+            screenshots: screenshots,
+            thumbnail: thumbnail
         )
 
         cache[cleaned] = modInfo

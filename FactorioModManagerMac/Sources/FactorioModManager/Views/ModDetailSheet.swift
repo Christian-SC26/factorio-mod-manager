@@ -2,12 +2,58 @@ import SwiftUI
 import AppKit
 import MarkdownUI
 
+enum ScrollDirection {
+    case up, down
+}
+
+struct ScrollControllerView: NSViewRepresentable {
+    @Binding var scrollAction: ScrollDirection?
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard let action = scrollAction else { return }
+        DispatchQueue.main.async {
+            scrollAction = nil
+            if let window = nsView.window, let scrollView = findDetailScrollView(in: window.contentView) {
+                let delta: CGFloat = (action == .down) ? 120 : -120
+                let clipView = scrollView.contentView
+                var newOrigin = clipView.bounds.origin
+                let docHeight = scrollView.documentView?.frame.height ?? 0
+                let clipHeight = clipView.bounds.height
+                let maxOriginY = max(0, docHeight - clipHeight)
+                newOrigin.y = max(0, min(maxOriginY, newOrigin.y + delta))
+                clipView.scroll(to: newOrigin)
+                scrollView.reflectScrolledClipView(clipView)
+            }
+        }
+    }
+
+    private func findDetailScrollView(in view: NSView?) -> NSScrollView? {
+        guard let view = view else { return nil }
+        if let sv = view as? NSScrollView {
+            return sv
+        }
+        for sub in view.subviews {
+            if let found = findDetailScrollView(in: sub) {
+                return found
+            }
+        }
+        return nil
+    }
+}
+
 public struct ModDetailSheet: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) var dismiss
 
     @State private var activeTab: Int = 0
     @State private var previewScreenshotIndex: Int? = nil
+    @State private var scrollAction: ScrollDirection? = nil
+    @State private var keyMonitor: Any? = nil
 
     private var localMod: LocalMod? {
         appState.selectedModDetail
@@ -33,10 +79,14 @@ public struct ModDetailSheet: View {
         modInfo?.summary ?? localMod?.summary ?? ""
     }
 
+    private var thumbnailUrl: String? {
+        modInfo?.thumbnail
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
             // Header
-            HStack(alignment: .center) {
+            HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(titleText)
                         .font(.title2.bold())
@@ -47,7 +97,26 @@ public struct ModDetailSheet: View {
 
                 Spacer()
 
-                Button(action: { dismiss() }) {
+                // Mod Thumbnail / Icon in top right
+                if let thumb = thumbnailUrl, let url = URL(string: thumb) {
+                    AsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } else {
+                            Color.secondary.opacity(0.12)
+                                .overlay(Image(systemName: "cube.box.fill").foregroundColor(.secondary))
+                        }
+                    }
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
+                }
+
+                Button(action: {
+                    appState.isDetailSheetPresented = false
+                }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title2)
                         .foregroundColor(.secondary)
@@ -59,101 +128,110 @@ public struct ModDetailSheet: View {
 
             Divider()
 
-            // Main Content
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Badges row
-                    HStack(spacing: 12) {
-                        if !authorText.isEmpty {
+            // Fixed Top Metadata & Gallery Area (so tab switching doesn't jump scroll)
+            VStack(alignment: .leading, spacing: 14) {
+                // Badges row
+                HStack(spacing: 12) {
+                    if !authorText.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "person")
+                                .foregroundColor(.secondary)
+                            Text(authorText)
+                                .fontWeight(.medium)
+                        }
+                        .font(.caption)
+                    }
+
+                    if let info = modInfo {
+                        if !info.category.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "person")
+                                Image(systemName: "tag")
                                     .foregroundColor(.secondary)
-                                Text(authorText)
-                                    .fontWeight(.medium)
+                                Text(info.category)
                             }
                             .font(.caption)
                         }
 
-                        if let info = modInfo {
-                            if !info.category.isEmpty {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "tag")
-                                        .foregroundColor(.secondary)
-                                    Text(info.category)
-                                }
-                                .font(.caption)
+                        if info.downloadsCount > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.down.circle")
+                                Text(String(format: loc("downloads_count_badge"), Formatters.formatDownloads(info.downloadsCount)))
                             }
-
-                            if info.downloadsCount > 0 {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "arrow.down.circle")
-                                    Text(String(format: loc("downloads_count_badge"), Formatters.formatDownloads(info.downloadsCount)))
-                                }
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            }
-                        }
-
-                        if let local = localMod {
-                            StatusBadge(local.enabled ? loc("enabled_status") : loc("disabled_status"), icon: local.enabled ? "checkmark.circle" : "xmark.circle")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                         }
                     }
 
-                    // Screenshots Gallery
-                    if let info = modInfo, !info.screenshots.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(loc("screenshots_title"))
-                                .font(.headline)
+                    if let local = localMod {
+                        StatusBadge(local.enabled ? loc("enabled_status") : loc("disabled_status"), icon: local.enabled ? "checkmark.circle" : "xmark.circle")
+                    }
+                }
 
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(Array(info.screenshots.enumerated()), id: \.element.id) { index, shot in
-                                        AsyncImage(url: URL(string: shot.thumbnail)) { phase in
-                                            switch phase {
-                                            case .success(let image):
-                                                image
-                                                    .resizable()
-                                                    .aspectRatio(contentMode: .fill)
-                                            case .failure:
-                                                Color.secondary.opacity(0.1)
-                                                    .overlay(Image(systemName: "photo").foregroundColor(.secondary))
-                                            case .empty:
-                                                ProgressView()
-                                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                            @unknown default:
-                                                EmptyView()
-                                            }
+                // Screenshots Gallery
+                if let info = modInfo, !info.screenshots.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(loc("screenshots_title"))
+                            .font(.headline)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(Array(info.screenshots.enumerated()), id: \.element.id) { index, shot in
+                                    AsyncImage(url: URL(string: shot.thumbnail)) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                        case .failure:
+                                            Color.secondary.opacity(0.1)
+                                                .overlay(Image(systemName: "photo").foregroundColor(.secondary))
+                                        case .empty:
+                                            ProgressView()
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        @unknown default:
+                                            EmptyView()
                                         }
-                                        .frame(width: 220, height: 130)
-                                        .background(Color.secondary.opacity(0.08))
-                                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
-                                        .contentShape(Rectangle())
-                                        .onTapGesture {
-                                            withAnimation(.easeInOut(duration: 0.18)) {
-                                                previewScreenshotIndex = index
-                                            }
+                                    }
+                                    .frame(width: 200, height: 115)
+                                    .background(Color.secondary.opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        withAnimation(.easeInOut(duration: 0.18)) {
+                                            previewScreenshotIndex = index
                                         }
                                     }
                                 }
-                                .padding(.vertical, 2)
                             }
+                            .padding(.vertical, 2)
                         }
                     }
+                }
 
-                    // Section tabs: Description, Changelog, Releases
-                    Picker("", selection: $activeTab) {
-                        Text(loc("description_tab")).tag(0)
-                        Text(loc("changelog_tab")).tag(1)
-                        Text(loc("releases_tab")).tag(2)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 380)
-                    .padding(.top, 4)
+                // Fixed Section tabs: Description, Changelog, Releases
+                Picker("", selection: $activeTab) {
+                    Text(loc("description_tab")).tag(0)
+                    Text(loc("changelog_tab")).tag(1)
+                    Text(loc("releases_tab")).tag(2)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 440)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 12)
 
-                    // Tab Content
+            Divider()
+
+            // Scrollable Tab Content
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    ScrollControllerView(scrollAction: $scrollAction)
+                        .frame(width: 0, height: 0)
+
                     if activeTab == 0 {
-                        // Description
+                        // Description (MarkdownUI)
                         VStack(alignment: .leading, spacing: 10) {
                             if let info = modInfo, !info.description.isEmpty {
                                 Markdown(MarkdownSanitizer.sanitize(info.description))
@@ -174,22 +252,55 @@ public struct ModDetailSheet: View {
                         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     } else if activeTab == 1 {
-                        // Changelog
-                        VStack(alignment: .leading, spacing: 8) {
-                            if let info = modInfo, !info.changelog.isEmpty {
-                                Text(info.changelog)
-                                    .font(.system(size: 12, design: .monospaced))
-                                    .textSelection(.enabled)
-                            } else {
-                                Text(loc("no_changelog"))
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                        // Changelog: Structured Version Cards
+                        let changelogText = modInfo?.changelog ?? ""
+                        let entries = ChangelogParser.parse(changelogText)
+
+                        if !entries.isEmpty {
+                            LazyVStack(alignment: .leading, spacing: 12) {
+                                ForEach(entries) { entry in
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack(spacing: 8) {
+                                            VersionBadge(entry.version)
+                                            if !entry.date.isEmpty {
+                                                Text(entry.date)
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            ForEach(Array(entry.lines.enumerated()), id: \.offset) { _, line in
+                                                let isSectionHeader = line.trimmingCharacters(in: .whitespaces).hasSuffix(":")
+                                                Text(line)
+                                                    .font(.system(size: isSectionHeader ? 12 : 11, weight: isSectionHeader ? .bold : .regular, design: .monospaced))
+                                                    .foregroundColor(isSectionHeader ? .primary : .secondary)
+                                            }
+                                        }
+                                    }
+                                    .padding(12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                }
                             }
+                        } else if !changelogText.isEmpty {
+                            Text(changelogText)
+                                .font(.system(size: 11, design: .monospaced))
+                                .textSelection(.enabled)
+                                .padding(14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        } else {
+                            Text(loc("no_changelog"))
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .padding(14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     } else {
                         // Releases & Dependencies
                         VStack(alignment: .leading, spacing: 14) {
@@ -269,10 +380,10 @@ public struct ModDetailSheet: View {
 
             Divider()
 
-            // Footer Actions
+            // Footer Actions (Fixed at bottom)
             HStack {
                 Button(loc("close_button")) {
-                    dismiss()
+                    appState.isDetailSheetPresented = false
                 }
 
                 if let url = URL(string: "https://mods.factorio.com/mod/\(nameText)") {
@@ -306,7 +417,7 @@ public struct ModDetailSheet: View {
                     .disabled(true)
                 } else {
                     Button(action: {
-                        dismiss()
+                        appState.isDetailSheetPresented = false
                         Task { await appState.resolveAndInstall(targets: [nameText]) }
                     }) {
                         HStack(spacing: 5) {
@@ -321,7 +432,67 @@ public struct ModDetailSheet: View {
             .padding(16)
             .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(minWidth: 640, minHeight: 520)
+        .frame(minWidth: 620, maxWidth: 740, minHeight: 480, maxHeight: 660)
+        .onAppear {
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                if previewScreenshotIndex != nil {
+                    if event.keyCode == 53 {
+                        previewScreenshotIndex = nil
+                        return nil
+                    }
+                    return event
+                }
+
+                // Esc: dismiss modal
+                if event.keyCode == 53 {
+                    appState.isDetailSheetPresented = false
+                    return nil
+                }
+
+                // Scroll Down: J (keyCode 38) or Down Arrow (keyCode 125)
+                if event.keyCode == 38 || event.keyCode == 125 {
+                    scrollAction = .down
+                    return nil
+                }
+
+                // Scroll Up: K (keyCode 40) or Up Arrow (keyCode 126)
+                if event.keyCode == 40 || event.keyCode == 126 {
+                    scrollAction = .up
+                    return nil
+                }
+
+                let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
+                let descKey = loc("tab_shortcut_desc").lowercased()
+                let changeKey = loc("tab_shortcut_change").lowercased()
+                let relKey = loc("tab_shortcut_rel").lowercased()
+
+                // Description: 'd' (keyCode 2) or localized shortcut ('о')
+                if event.keyCode == 2 || chars == "d" || chars == descKey {
+                    activeTab = 0
+                    return nil
+                }
+
+                // Changelog: 'c' (keyCode 8) or localized shortcut ('ч')
+                if event.keyCode == 8 || chars == "c" || chars == changeKey {
+                    activeTab = 1
+                    return nil
+                }
+
+                // Releases: 'r' (keyCode 15) or localized shortcut ('р')
+                if event.keyCode == 15 || chars == "r" || chars == relKey {
+                    activeTab = 2
+                    return nil
+                }
+
+                return event
+            }
+        }
+        .onDisappear {
+            if let monitor = keyMonitor {
+                NSEvent.removeMonitor(monitor)
+                keyMonitor = nil
+            }
+        }
         .overlay {
             if let idx = previewScreenshotIndex, let info = modInfo, info.screenshots.indices.contains(idx) {
                 let currentShot = info.screenshots[idx]
