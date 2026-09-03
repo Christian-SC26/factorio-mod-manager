@@ -32,13 +32,50 @@ public struct UnifiedModCardRow: View {
         onInstall: @escaping () -> Void,
         onOpenDetails: @escaping () -> Void
     ) {
-        self.name = name
-        self.title = title.isEmpty ? name : title
-        self.owner = owner
-        self.factorioVersions = factorioVersions
-        self.lastUpdated = lastUpdated
+        self.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Sanitize title: strip out any leading/trailing newlines or excessive inner spaces
+        let rawT = title.isEmpty ? name : title
+        let cleanT = rawT.replacingOccurrences(of: "[\\t\\n\\r]+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: " {2,}", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        self.title = cleanT.isEmpty ? name : cleanT
+
+        if let o = owner {
+            let cleanO = o.replacingOccurrences(of: "[\\t\\n\\r]+", with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            self.owner = cleanO.isEmpty ? nil : cleanO
+        } else {
+            self.owner = nil
+        }
+
+        if let v = factorioVersions {
+            let cleanV = v.replacingOccurrences(of: "[\\t\\n\\r]+", with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            self.factorioVersions = cleanV.isEmpty ? nil : cleanV
+        } else {
+            self.factorioVersions = nil
+        }
+
+        if let u = lastUpdated {
+            let cleanU = u.replacingOccurrences(of: "[\\t\\n\\r]+", with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            self.lastUpdated = cleanU.isEmpty ? nil : cleanU
+        } else {
+            self.lastUpdated = nil
+        }
+
         self.downloadsCount = downloadsCount
-        self.summary = summary
+
+        if let s = summary {
+            let cleanS = s.replacingOccurrences(of: "[\\t\\n\\r]+", with: " ", options: .regularExpression)
+                .replacingOccurrences(of: " {2,}", with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            self.summary = cleanS.isEmpty ? nil : cleanS
+        } else {
+            self.summary = nil
+        }
+
         self.isDeprecated = isDeprecated
         self.isInstalled = isInstalled
         self.suggestedBy = suggestedBy
@@ -124,7 +161,8 @@ public struct UnifiedModCardRow: View {
                     if let suggested = suggestedBy, !suggested.isEmpty {
                         HStack(spacing: 4) {
                             Image(systemName: "puzzlepiece")
-                            Text(loc("suggested_by") + ": " + suggested.joined(separator: ", "))
+                            let prefix = loc("suggested_by").hasSuffix(":") ? loc("suggested_by") : "\(loc("suggested_by")):"
+                            Text("\(prefix) \(suggested.joined(separator: ", "))")
                         }
                         .font(.caption)
                         .foregroundColor(.secondary)

@@ -34,10 +34,28 @@ public struct ModUpdateItem: Identifiable, Hashable, Sendable {
 public struct OptionalModItem: Identifiable, Hashable, Sendable {
     public var id: String { name }
     public let name: String
+    public var title: String
+    public var owner: String
+    public var summary: String
+    public var factorioVersions: String
+    public var downloadsCount: Int
     public let suggestedBy: [String]
 
-    public init(name: String, suggestedBy: [String]) {
+    public init(
+        name: String,
+        title: String? = nil,
+        owner: String = "",
+        summary: String = "",
+        factorioVersions: String = "",
+        downloadsCount: Int = 0,
+        suggestedBy: [String]
+    ) {
         self.name = name
+        self.title = (title != nil && !title!.isEmpty) ? title! : Formatters.formatModNameAsTitle(name)
+        self.owner = owner
+        self.summary = summary
+        self.factorioVersions = factorioVersions
+        self.downloadsCount = downloadsCount
         self.suggestedBy = suggestedBy
     }
 }

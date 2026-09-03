@@ -70,18 +70,8 @@ public enum RegexHelper {
         return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
     }()
 
-    public static let portalCardSummary1: NSRegularExpression = {
-        let pattern = #"<p\s+class="[^"<>]*result-field[^"<>]*"[^>]*>(.*?)(?:</p>|</div>)"#
-        return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
-    }()
-
-    public static let portalCardSummary2: NSRegularExpression = {
-        let pattern = #"<p[^>]*class="[^"<>]*line-clamp[^"<>]*"[^>]*>(.*?)(?:</p>|</div>)"#
-        return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
-    }()
-
-    public static let portalCardSummary3: NSRegularExpression = {
-        let pattern = #"<div class="mod-card-summary[^"]*"[^>]*>(.*?)</div>"#
+    public static let portalCardSummary: NSRegularExpression = {
+        let pattern = #"<p[^>]*class="[^"]*(?:pre-line|line-clamp|result-field)[^"]*"[^>]*>(.*?)(?:</p>|</div>)"#
         return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
     }()
 

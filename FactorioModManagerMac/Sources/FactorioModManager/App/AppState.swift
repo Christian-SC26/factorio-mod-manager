@@ -73,6 +73,7 @@ public final class AppState: ObservableObject {
     // MARK: - Optional Mods State
     @Published public var optionalMods: [OptionalModItem] = []
     @Published public var isScanningOptional: Bool = false
+    public var cachedModInfo: [String: ModInfo] = [:]
 
     // MARK: - Modpacks State
     @Published public var savedModpacks: [(name: String, url: URL)] = []

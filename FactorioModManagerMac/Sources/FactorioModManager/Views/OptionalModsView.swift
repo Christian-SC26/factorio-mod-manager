@@ -96,16 +96,15 @@ public struct OptionalModsView: View {
                     List(appState.optionalMods) { item in
                         let isInstalled = appState.installedModsMap[item.name] != nil
                         let local = appState.installedModsMap[item.name]?.first
-                        let friendlyTitle = local?.displayTitle ?? item.name
 
                         UnifiedModCardRow(
                             name: item.name,
-                            title: friendlyTitle,
-                            owner: local?.author,
-                            factorioVersions: local?.factorioVersion ?? appState.effectiveFactorioBranch,
+                            title: local?.displayTitle ?? item.title,
+                            owner: local?.author ?? (item.owner.isEmpty ? nil : item.owner),
+                            factorioVersions: item.factorioVersions.isEmpty ? (local?.factorioVersion ?? appState.effectiveFactorioBranch) : item.factorioVersions,
                             lastUpdated: nil,
-                            downloadsCount: 0,
-                            summary: local?.summary,
+                            downloadsCount: item.downloadsCount,
+                            summary: local?.summary ?? (item.summary.isEmpty ? nil : item.summary),
                             isDeprecated: false,
                             isInstalled: isInstalled,
                             suggestedBy: item.suggestedBy,

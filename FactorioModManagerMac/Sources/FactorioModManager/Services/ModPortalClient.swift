@@ -468,38 +468,40 @@ public actor ModPortalClient: ModPortalClientProtocol {
 
         for chunk in chunks.dropFirst() {
             guard let nameMatch = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardLink) else { continue }
-            let name = nameMatch.trimmingCharacters(in: .whitespaces)
+            let name = nameMatch.trimmingCharacters(in: .whitespacesAndNewlines)
 
             // Title
             let rawTitle = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardTitle) ?? name
-            let title = HTMLEntityDecoder.unescape(stripHtmlTags(rawTitle)).trimmingCharacters(in: .whitespaces)
+            let title = cleanHtmlText(rawTitle)
 
             // Owner
-            let owner = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardOwner) ?? "Unknown"
+            let rawOwner = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardOwner) ?? "Unknown"
+            let owner = cleanHtmlText(rawOwner)
 
             // Summary
-            let rawSummary = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardSummary1)
-                ?? RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardSummary2)
-                ?? RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardSummary3)
-                ?? ""
-            let summary = HTMLEntityDecoder.unescape(stripHtmlTags(rawSummary)).trimmingCharacters(in: .whitespaces)
+            let rawSummary = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardSummary) ?? ""
+            let summary = cleanHtmlText(rawSummary)
 
             // Factorio versions
-            let fVer = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardVersions) ?? ""
+            let rawFVer = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardVersions) ?? ""
+            let fVer = cleanHtmlText(rawFVer)
 
             // Downloads count
             let dlStr = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardDownloads) ?? "0"
-            let downloads = Int(dlStr) ?? 0
+            let downloads = Int(dlStr.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
 
             // Deprecated
             let isDepr = chunk.contains("class=\"deprecated\"") || (chunk.lowercased().contains("deprecated") && chunk.contains("<span"))
 
             // Last updated: prefer clean ISO date e.g. 2026-07-05
             var lastUpdated = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardLastUpdatedIso)?
-                .components(separatedBy: "T").first?.trimmingCharacters(in: .whitespaces)
+                .components(separatedBy: "T").first?.trimmingCharacters(in: .whitespacesAndNewlines)
             if lastUpdated == nil || lastUpdated!.isEmpty {
                 lastUpdated = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardLastUpdated)?
-                    .trimmingCharacters(in: .whitespaces)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            if let updated = lastUpdated {
+                lastUpdated = cleanHtmlText(updated)
             }
 
             cards.append(SearchModItem(
@@ -507,7 +509,7 @@ public actor ModPortalClient: ModPortalClientProtocol {
                 title: title.isEmpty ? name : title,
                 owner: owner,
                 summary: summary,
-                factorioVersions: fVer.trimmingCharacters(in: .whitespaces),
+                factorioVersions: fVer,
                 downloadsCount: downloads,
                 isDeprecated: isDepr,
                 lastUpdated: lastUpdated
@@ -515,6 +517,15 @@ public actor ModPortalClient: ModPortalClientProtocol {
         }
 
         return cards
+    }
+
+    private nonisolated func cleanHtmlText(_ str: String) -> String {
+        let stripped = stripHtmlTags(str)
+        let unescaped = HTMLEntityDecoder.unescape(stripped)
+        let collapsed = unescaped
+            .replacingOccurrences(of: "[\\t\\n\\r]+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: " {2,}", with: " ", options: .regularExpression)
+        return collapsed.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private nonisolated func stripHtmlTags(_ str: String) -> String {

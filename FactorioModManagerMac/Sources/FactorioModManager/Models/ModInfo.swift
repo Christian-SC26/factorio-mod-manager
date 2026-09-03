@@ -119,6 +119,10 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
     public let screenshots: [ModScreenshot]
     public let thumbnail: String?
 
+    public var factorioVersion: String {
+        releases.last?.factorioVersion ?? ""
+    }
+
     public init(
         name: String,
         title: String = "",

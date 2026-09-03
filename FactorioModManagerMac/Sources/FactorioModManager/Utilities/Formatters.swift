@@ -38,6 +38,16 @@ public enum Formatters {
     public static func formatDate(_ date: Date) -> String {
         shortDateFormatter.string(from: date)
     }
+
+    /// Format raw mod identifiers (e.g. "additional-cargo-landing-pads") into clean capitalized title
+    public static func formatModNameAsTitle(_ name: String) -> String {
+        let cleaned = name.replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+        return cleaned.split(separator: " ").map { word in
+            let str = String(word)
+            return str.prefix(1).uppercased() + str.dropFirst()
+        }.joined(separator: " ")
+    }
 }
 
 /// Global convenience forwarder for existing code

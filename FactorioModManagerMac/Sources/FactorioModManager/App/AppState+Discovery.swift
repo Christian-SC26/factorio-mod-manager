@@ -121,11 +121,51 @@ extension AppState {
 
         var list: [OptionalModItem] = []
         for (name, parents) in suggestionsMap {
-            list.append(OptionalModItem(name: name, suggestedBy: parents))
+            let cached = cachedModInfo[name]
+            list.append(OptionalModItem(
+                name: name,
+                title: cached?.title,
+                owner: cached?.owner ?? "",
+                summary: cached?.summary ?? "",
+                factorioVersions: cached?.factorioVersion ?? effectiveFactorioBranch,
+                downloadsCount: cached?.downloadsCount ?? 0,
+                suggestedBy: parents
+            ))
         }
-        list.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        list.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
 
         self.optionalMods = list
         self.isScanningOptional = false
+
+        Task {
+            await enrichOptionalMods()
+        }
+    }
+
+    private func enrichOptionalMods() async {
+        let targets = optionalMods.filter { $0.summary.isEmpty || $0.owner.isEmpty }
+        guard !targets.isEmpty else { return }
+
+        await withTaskGroup(of: (String, ModInfo?).self) { group in
+            for item in targets {
+                let name = item.name
+                group.addTask {
+                    let info = try? await ModPortalClient.shared.fetchModInfo(name)
+                    return (name, info)
+                }
+            }
+
+            for await (name, info) in group {
+                guard let info = info else { continue }
+                self.cachedModInfo[name] = info
+                if let idx = self.optionalMods.firstIndex(where: { $0.name == name }) {
+                    self.optionalMods[idx].title = info.title
+                    self.optionalMods[idx].owner = info.owner
+                    self.optionalMods[idx].summary = info.summary
+                    self.optionalMods[idx].factorioVersions = info.factorioVersion
+                    self.optionalMods[idx].downloadsCount = info.downloadsCount
+                }
+            }
+        }
     }
 }
