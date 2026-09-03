@@ -443,9 +443,12 @@ public actor ModPortalClient: ModPortalClientProtocol {
                     mods.append(AuthorModItem(
                         name: c.name,
                         title: c.title,
+                        owner: c.owner.isEmpty ? authorName : c.owner,
+                        summary: c.summary,
                         factorioVersions: c.factorioVersions,
                         downloadsCount: c.downloadsCount,
-                        isDeprecated: c.isDeprecated
+                        isDeprecated: c.isDeprecated,
+                        lastUpdated: c.lastUpdated
                     ))
                 }
             }
@@ -491,8 +494,13 @@ public actor ModPortalClient: ModPortalClientProtocol {
             // Deprecated
             let isDepr = chunk.contains("class=\"deprecated\"") || (chunk.lowercased().contains("deprecated") && chunk.contains("<span"))
 
-            // Last updated
-            let lastUpdated = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardLastUpdated)?.trimmingCharacters(in: .whitespaces)
+            // Last updated: prefer clean ISO date e.g. 2026-07-05
+            var lastUpdated = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardLastUpdatedIso)?
+                .components(separatedBy: "T").first?.trimmingCharacters(in: .whitespaces)
+            if lastUpdated == nil || lastUpdated!.isEmpty {
+                lastUpdated = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardLastUpdated)?
+                    .trimmingCharacters(in: .whitespaces)
+            }
 
             cards.append(SearchModItem(
                 name: name,

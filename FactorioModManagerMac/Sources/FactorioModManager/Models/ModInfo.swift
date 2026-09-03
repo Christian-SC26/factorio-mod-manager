@@ -4,22 +4,31 @@ public struct AuthorModItem: Identifiable, Hashable, Codable, Sendable {
     public var id: String { name }
     public let name: String
     public let title: String
+    public let owner: String
+    public let summary: String
     public let factorioVersions: String
     public let downloadsCount: Int
     public let isDeprecated: Bool
+    public let lastUpdated: String?
 
     public init(
         name: String,
         title: String,
-        factorioVersions: String,
-        downloadsCount: Int,
-        isDeprecated: Bool
+        owner: String = "",
+        summary: String = "",
+        factorioVersions: String = "",
+        downloadsCount: Int = 0,
+        isDeprecated: Bool = false,
+        lastUpdated: String? = nil
     ) {
         self.name = name
-        self.title = title
+        self.title = title.isEmpty ? name : title
+        self.owner = owner
+        self.summary = summary
         self.factorioVersions = factorioVersions
         self.downloadsCount = downloadsCount
         self.isDeprecated = isDeprecated
+        self.lastUpdated = lastUpdated
     }
 }
 

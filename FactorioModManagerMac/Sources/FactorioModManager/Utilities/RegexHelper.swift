@@ -95,6 +95,11 @@ public enum RegexHelper {
         return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
     }()
 
+    public static let portalCardLastUpdatedIso: NSRegularExpression = {
+        let pattern = #"title="Last updated"[^>]*>.*?<span[^>]*title="([^"]+)""#
+        return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
+    }()
+
     public static let portalCardLastUpdated: NSRegularExpression = {
         let pattern = #"title="Last updated"[^>]*>.*?<span[^>]*>([^<]+)</span>"#
         return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])

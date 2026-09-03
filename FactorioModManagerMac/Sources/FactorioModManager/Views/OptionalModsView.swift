@@ -94,56 +94,28 @@ public struct OptionalModsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                     List(appState.optionalMods) { item in
-                        HStack(alignment: .top, spacing: 14) {
-                            Image(systemName: "cube.box")
-                                .font(.system(size: 22))
-                                .foregroundColor(.secondary)
-                                .frame(width: 28, height: 28)
+                        let isInstalled = appState.installedModsMap[item.name] != nil
+                        let local = appState.installedModsMap[item.name]?.first
+                        let friendlyTitle = local?.displayTitle ?? item.name
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(item.name)
-                                    .font(.system(size: 13, weight: .bold))
-
-                                HStack(spacing: 4) {
-                                    Text(loc("suggested_by"))
-                                        .foregroundColor(.secondary)
-                                    Text(item.suggestedBy.joined(separator: ", "))
-                                        .fontWeight(.medium)
-                                }
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        UnifiedModCardRow(
+                            name: item.name,
+                            title: friendlyTitle,
+                            owner: local?.author,
+                            factorioVersions: local?.factorioVersion ?? appState.effectiveFactorioBranch,
+                            lastUpdated: nil,
+                            downloadsCount: 0,
+                            summary: local?.summary,
+                            isDeprecated: false,
+                            isInstalled: isInstalled,
+                            suggestedBy: item.suggestedBy,
+                            onInstall: {
+                                Task { await appState.resolveAndInstall(targets: [item.name]) }
+                            },
+                            onOpenDetails: {
+                                appState.openModDetails(for: item.name)
                             }
-
-                            Spacer()
-
-                            VStack(spacing: 6) {
-                                Button(action: {
-                                    Task { await appState.resolveAndInstall(targets: [item.name]) }
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "arrow.down.circle")
-                                        Text(loc("install_button"))
-                                            .fontWeight(.semibold)
-                                    }
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.regular)
-
-                                Button(action: {
-                                    appState.openModDetails(for: item.name)
-                                }) {
-                                    Text(loc("details_button"))
-                                        .font(.caption)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 6)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            appState.openModDetails(for: item.name)
-                        }
+                        )
                     }
                     .listStyle(.inset(alternatesRowBackgrounds: true))
             }

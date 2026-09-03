@@ -164,103 +164,31 @@ public struct AuthorBrowseView: View {
                         let isInstalled = appState.installedModsMap[item.name] != nil
                         let isSelected = selectedModNames.contains(item.name)
 
-                        HStack(alignment: .top, spacing: 14) {
-                            Button(action: {
+                        UnifiedModCardRow(
+                            name: item.name,
+                            title: item.title,
+                            owner: item.owner.isEmpty ? appState.currentAuthorName : item.owner,
+                            factorioVersions: item.factorioVersions,
+                            lastUpdated: item.lastUpdated,
+                            downloadsCount: item.downloadsCount,
+                            summary: item.summary,
+                            isDeprecated: item.isDeprecated,
+                            isInstalled: isInstalled,
+                            isSelected: isSelected,
+                            onToggleSelect: {
                                 if isSelected {
                                     selectedModNames.remove(item.name)
                                 } else {
                                     selectedModNames.insert(item.name)
                                 }
-                            }) {
-                                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(isSelected ? .accentColor : .secondary)
+                            },
+                            onInstall: {
+                                Task { await appState.resolveAndInstall(targets: [item.name]) }
+                            },
+                            onOpenDetails: {
+                                appState.openModDetails(for: item.name)
                             }
-                            .buttonStyle(.plain)
-                            .padding(.top, 2)
-
-                            Image(systemName: "cube.box")
-                                .font(.system(size: 22))
-                                .foregroundColor(.secondary)
-                                .frame(width: 28, height: 28)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 8) {
-                                    Text(item.title)
-                                        .font(.system(size: 13, weight: .bold))
-
-                                    if isInstalled {
-                                        StatusBadge(loc("installed_status"), icon: "checkmark.circle")
-                                    }
-
-                                    if item.isDeprecated {
-                                        StatusBadge(loc("deprecated_badge"), icon: "exclamationmark.triangle")
-                                    }
-                                }
-
-                                HStack(spacing: 12) {
-                                    if !item.factorioVersions.isEmpty {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "tag")
-                                            Text(item.factorioVersions)
-                                        }
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    }
-
-                                    if item.downloadsCount > 0 {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "arrow.down.circle")
-                                            Text(String(format: loc("downloads_count_badge"), Formatters.formatDownloads(item.downloadsCount)))
-                                        }
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-
-                            Spacer()
-
-                            VStack(spacing: 6) {
-                                if isInstalled {
-                                    Button(action: {}) {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "checkmark")
-                                            Text(loc("installed_button"))
-                                        }
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.regular)
-                                    .disabled(true)
-                                } else {
-                                    Button(action: {
-                                        Task { await appState.resolveAndInstall(targets: [item.name]) }
-                                    }) {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "arrow.down.circle")
-                                            Text(loc("install_button"))
-                                                .fontWeight(.semibold)
-                                        }
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .controlSize(.regular)
-                                }
-
-                                Button(action: {
-                                    appState.openModDetails(for: item.name)
-                                }) {
-                                    Text(loc("details_button"))
-                                        .font(.caption)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 6)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            appState.openModDetails(for: item.name)
-                        }
+                        )
                     }
                     .listStyle(.inset(alternatesRowBackgrounds: true))
                 }
