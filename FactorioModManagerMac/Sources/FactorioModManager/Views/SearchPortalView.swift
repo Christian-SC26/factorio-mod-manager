@@ -61,9 +61,9 @@ public struct SearchPortalView: View {
                 // Version Filter: 2.1 Recent, 2.1 All, 2.0
                 HStack {
                     Picker("", selection: $selectedVersion) {
-                        Text("2.1 (Свежие)").tag("2.1-recent")
-                        Text("2.1 (Все)").tag("2.1")
-                        Text("Factorio 2.0").tag("2.0")
+                        Text(loc("filter_2_1_recent")).tag("2.1-recent")
+                        Text(loc("filter_2_1_all")).tag("2.1")
+                        Text(loc("filter_2_0")).tag("2.0")
                     }
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 320)
@@ -76,7 +76,7 @@ public struct SearchPortalView: View {
                     Spacer()
 
                     if !appState.searchResults.isEmpty {
-                        Text("\(appState.searchResults.count) mods (по дате обновления)")
+                        Text(loc("search_results_by_date", appState.searchResults.count))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -93,7 +93,7 @@ public struct SearchPortalView: View {
                     Spacer()
                     ProgressView()
                         .scaleEffect(1.2)
-                    Text(queryText.isEmpty ? "Loading Factorio \(selectedVersion) mods catalog..." : loc("searching"))
+                    Text(queryText.isEmpty ? loc("loading_catalog", selectedVersion) : loc("searching"))
                         .font(.headline)
                         .foregroundColor(.secondary)
                     Spacer()
@@ -213,7 +213,7 @@ public struct SearchPortalView: View {
                                 Button(action: {}) {
                                     HStack(spacing: 4) {
                                         Image(systemName: "checkmark")
-                                        Text("Installed")
+                                        Text(loc("installed_button"))
                                     }
                                 }
                                 .buttonStyle(.bordered)
@@ -236,7 +236,7 @@ public struct SearchPortalView: View {
                             Button(action: {
                                 appState.openModDetails(for: item.name)
                             }) {
-                                Text("Details")
+                                Text(loc("details_button"))
                                     .font(.caption)
                             }
                             .buttonStyle(.plain)

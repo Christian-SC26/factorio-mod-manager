@@ -248,7 +248,7 @@ public struct InstalledModsView: View {
                                 HStack(spacing: 6) {
                                     ProgressView()
                                         .controlSize(.small)
-                                    Text("Checking \(appState.updatesCheckedCount)/\(appState.updatesTotalCount)...")
+                                    Text(loc("checking_updates_count", appState.updatesCheckedCount, appState.updatesTotalCount))
                                         .font(.system(size: 12))
                                 }
                             }
@@ -258,7 +258,7 @@ public struct InstalledModsView: View {
                                 HStack(spacing: 6) {
                                     ProgressView()
                                         .controlSize(.small)
-                                    Text("Updating \(appState.directUpdateCurrentCount)/\(appState.directUpdateTotalCount)...")
+                                    Text(loc("updating_count_inplace", appState.directUpdateCurrentCount, appState.directUpdateTotalCount))
                                         .font(.system(size: 12))
                                 }
                             }
@@ -269,7 +269,7 @@ public struct InstalledModsView: View {
                             }) {
                                 HStack(spacing: 5) {
                                     Image(systemName: "arrow.down.circle.fill")
-                                    Text("Update All (\(appState.updatesAvailable.count))")
+                                    Text(loc("update_all", appState.updatesAvailable.count))
                                         .fontWeight(.semibold)
                                 }
                             }

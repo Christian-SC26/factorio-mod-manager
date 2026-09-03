@@ -57,7 +57,7 @@ public struct ProfilesView: View {
                         .disabled(newProfileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
 
-                    Text("Saves all currently active mods (\(currentActiveModNames.count)) into a new profile.")
+                    Text(loc("save_profile_caption", currentActiveModNames.count))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -68,7 +68,7 @@ public struct ProfilesView: View {
                 // Profiles List
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("Saved Profiles (\(filteredProfiles.count))")
+                        Text(loc("saved_profiles_count", filteredProfiles.count))
                             .font(.headline)
 
                         Spacer()
@@ -77,7 +77,7 @@ public struct ProfilesView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "magnifyingglass")
                                     .foregroundColor(.secondary)
-                                TextField("Filter profiles...", text: $profileFilterText)
+                                TextField(loc("filter_profiles_placeholder"), text: $profileFilterText)
                                     .textFieldStyle(.plain)
                                     .focused($isFilterFocused)
                                     .frame(maxWidth: 180)
@@ -112,10 +112,10 @@ public struct ProfilesView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     } else if filteredProfiles.isEmpty {
                         VStack(spacing: 8) {
-                            Text("No profiles match '\(profileFilterText)'")
+                            Text(loc("no_profiles_match", profileFilterText))
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            Button("Clear Filter") { profileFilterText = "" }
+                            Button(loc("clear_filter")) { profileFilterText = "" }
                                 .buttonStyle(.bordered)
                         }
                         .frame(maxWidth: .infinity)
@@ -158,7 +158,7 @@ public struct ProfilesView: View {
             isFilterFocused = true
         }
         .confirmationDialog(
-            "Delete Profile?",
+            loc("delete_profile_title"),
             isPresented: $showDeleteConfirmation,
             presenting: profileToDelete
         ) { prof in

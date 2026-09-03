@@ -4,6 +4,12 @@ public struct ResolutionSheetView: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) var dismiss
 
+    private var isDownloadFinished: Bool {
+        !appState.downloadProgressList.isEmpty &&
+        !appState.isDownloading &&
+        appState.downloadProgressList.allSatisfy { $0.isCompleted }
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -12,7 +18,7 @@ public struct ResolutionSheetView: View {
                     Text(loc("resolution_plan_title"))
                         .font(.title3.bold())
                     if let res = appState.currentResolutionResult {
-                        Text("\(res.modsToDownload.count) to download, \(res.modsUpToDate.count) up to date")
+                        Text(loc("installation_plan_summary", res.modsToDownload.count, res.modsUpToDate.count))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -126,7 +132,7 @@ public struct ResolutionSheetView: View {
                                         VersionBadge(mod.release.version.raw)
 
                                         if let old = mod.installedVersion {
-                                            Text("(current: v\(old.raw))")
+                                            Text(loc("current_version_label", old.raw))
                                                 .font(.system(size: 11))
                                                 .foregroundColor(.secondary)
                                         }
@@ -134,7 +140,7 @@ public struct ResolutionSheetView: View {
                                         Spacer()
 
                                         StatusBadge(
-                                            mod.action == .update ? "Update" : "New"
+                                            mod.action == .update ? loc("status_update") : loc("status_new")
                                         )
                                     }
                                     .padding(8)
@@ -194,26 +200,44 @@ public struct ResolutionSheetView: View {
 
                 if let res = appState.currentResolutionResult {
                     if !res.modsToDownload.isEmpty {
-                        Button(action: {
-                            Task {
-                                await appState.executeDownload(for: res.modsToDownload)
-                            }
-                        }) {
-                            HStack(spacing: 6) {
-                                if appState.isDownloading {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                } else {
-                                    Image(systemName: "arrow.down.circle")
+                        if isDownloadFinished {
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                    Text(loc("download_completed_installed"))
+                                        .fontWeight(.semibold)
                                 }
-                                Text(loc("start_download"))
-                                    .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(Color.green)
+                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                             }
-                            .padding(.horizontal, 12)
+                            .buttonStyle(.plain)
+                        } else {
+                            Button(action: {
+                                Task {
+                                    await appState.executeDownload(for: res.modsToDownload)
+                                }
+                            }) {
+                                HStack(spacing: 6) {
+                                    if appState.isDownloading {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Image(systemName: "arrow.down.circle")
+                                    }
+                                    Text(loc("start_download"))
+                                        .fontWeight(.semibold)
+                                }
+                                .padding(.horizontal, 12)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                            .disabled(appState.isDownloading)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .disabled(appState.isDownloading)
                     } else if !res.modsUpToDate.isEmpty {
                         Button(action: {
                             Task {
@@ -223,7 +247,7 @@ public struct ResolutionSheetView: View {
                         }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.circle.fill")
-                                Text("Enable All (\(res.modsUpToDate.count)) Mods")
+                                Text(loc("enable_all_mods", res.modsUpToDate.count))
                                     .fontWeight(.semibold)
                             }
                             .padding(.horizontal, 12)

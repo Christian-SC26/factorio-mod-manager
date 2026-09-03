@@ -6,7 +6,7 @@ public struct SidebarView: View {
 
     public var body: some View {
         List(selection: $appState.selectedTab) {
-            Section(header: Text("MOD MANAGEMENT")) {
+            Section(header: Text(loc("sidebar_section_management"))) {
                 NavigationLink(value: SidebarTab.installed) {
                     Label {
                         HStack {
@@ -59,7 +59,7 @@ public struct SidebarView: View {
                 }
             }
 
-            Section(header: Text("PROFILES & EXPORT")) {
+            Section(header: Text(loc("sidebar_section_profiles"))) {
                 NavigationLink(value: SidebarTab.profiles) {
                     Label {
                         HStack {
@@ -91,7 +91,7 @@ public struct SidebarView: View {
                 }
             }
 
-            Section(header: Text("DISCOVERY")) {
+            Section(header: Text(loc("sidebar_section_discovery"))) {
                 NavigationLink(value: SidebarTab.search) {
                     Label {
                         Text(loc("sidebar_search"))
@@ -120,7 +120,7 @@ public struct SidebarView: View {
                 }
             }
 
-            Section(header: Text("PREFERENCES")) {
+            Section(header: Text(loc("sidebar_section_preferences"))) {
                 NavigationLink(value: SidebarTab.settings) {
                     Label {
                         Text(loc("sidebar_settings"))

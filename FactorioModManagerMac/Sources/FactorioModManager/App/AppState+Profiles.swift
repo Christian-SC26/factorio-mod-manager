@@ -21,7 +21,7 @@ extension AppState {
         do {
             _ = try modListMgr.saveProfile(name: profile.name, states: self.modStates)
             loadProfiles()
-            showNotification(title: loc("profiles_title"), message: "Profile '\(profile.name)' updated with current mod configuration.")
+            showNotification(title: loc("profiles_title"), message: loc("profile_updated", profile.name))
             objectWillChange.send()
         } catch {
             showNotification(title: loc("profiles_title"), message: error.localizedDescription, isError: true)
@@ -34,9 +34,9 @@ extension AppState {
             loadInstalledMods()
             objectWillChange.send()
             if missing.isEmpty {
-                showNotification(title: loc("profiles_title"), message: "Profile '\(profile.name)' activated successfully!")
+                showNotification(title: loc("profiles_title"), message: loc("profile_activated", profile.name))
             } else {
-                showNotification(title: loc("profiles_title"), message: "\(missing.count) mods from profile missing on disk. Resolving...")
+                showNotification(title: loc("profiles_title"), message: loc("profile_missing_mods_resolving", missing.count))
                 await resolveDependencies(
                     targets: missing,
                     includeRecommended: true,
@@ -45,7 +45,7 @@ extension AppState {
                 )
             }
         } else {
-            showNotification(title: loc("profiles_title"), message: "Failed to activate profile '\(profile.name)'.", isError: true)
+            showNotification(title: loc("profiles_title"), message: loc("profile_activate_failed", profile.name), isError: true)
         }
     }
 
@@ -53,7 +53,7 @@ extension AppState {
         let deleted = modListMgr.deleteProfile(name: profile.name, filename: profile.filename)
         if deleted {
             loadProfiles()
-            showNotification(title: loc("profiles_title"), message: "Profile '\(profile.name)' deleted.")
+            showNotification(title: loc("profiles_title"), message: loc("profile_deleted", profile.name))
             objectWillChange.send()
         }
     }

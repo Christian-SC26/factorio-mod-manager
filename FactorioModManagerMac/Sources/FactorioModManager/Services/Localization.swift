@@ -244,6 +244,62 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "dep_conflict": "Incompatible (!)",
             "close_button": "Close",
             "open_on_portal": "Open on Factorio Portal",
+
+            // Search Portal View additions
+            "filter_2_1_recent": "2.1 (Recent)",
+            "filter_2_1_all": "2.1 (All)",
+            "filter_2_0": "Factorio 2.0",
+            "search_results_by_date": "%d mods (by update date)",
+            "loading_catalog": "Loading Factorio %@ mods catalog...",
+            "details_button": "Details",
+            "installed_button": "Installed",
+
+            // Installation Plan & Resolution additions
+            "installation_plan_summary": "%d to download, %d up to date",
+            "download_completed_installed": "Installed",
+            "enable_all_mods": "Enable All (%d) Mods",
+            "current_version_label": "(current: v%@)",
+            "status_update": "Update",
+            "status_new": "New",
+
+            // Profiles additions
+            "filter_profiles_placeholder": "Filter profiles...",
+            "saved_profiles_count": "Saved Profiles (%d)",
+            "save_profile_caption": "Saves all currently active mods (%d) into a new profile.",
+            "no_profiles_match": "No profiles match '%@'",
+            "clear_filter": "Clear Filter",
+            "delete_profile_title": "Delete Profile?",
+
+            // Updates additions
+            "updates_subtitle_checked": "All installed mods are checked against latest releases.",
+            "updates_subtitle_count": "%d updates available for installed mods.",
+            "filter_updates_placeholder": "Filter updates...",
+            "target_factorio_branch": "Target Factorio branch: %@",
+            "updating_count_inplace": "Updating %d/%d...",
+            "checking_updates_count": "Checking %d/%d...",
+
+            // Install Mods additions
+            "install_desc": "Install mods directly from mirror with full automatic recursive dependency resolution.",
+            "mod_urls_or_names": "Mod URLs or Names:",
+            "popular_presets": "Popular:",
+            "clear_button": "Clear",
+            "dependency_options_title": "Dependency & Download Options",
+
+            // Sidebar additions
+            "sidebar_section_management": "MOD MANAGEMENT",
+            "sidebar_section_profiles": "PROFILES & EXPORT",
+            "sidebar_section_discovery": "DISCOVERY",
+            "sidebar_section_preferences": "PREFERENCES",
+
+            // Notifications & actions additions
+            "mod_removed": "Mod '%@' removed.",
+            "mods_removed_count": "%d mods removed.",
+            "mods_removed_and_dependents_disabled": "Removed %d mod(s) and disabled %d dependent mod(s).",
+            "profile_updated": "Profile '%@' updated with current mod configuration.",
+            "profile_activated": "Profile '%@' activated successfully!",
+            "profile_missing_mods_resolving": "%d mods from profile missing on disk. Resolving...",
+            "profile_activate_failed": "Failed to activate profile '%@'.",
+            "profile_deleted": "Profile '%@' deleted.",
         ],
         .ru: [
             "app_name": "Factorio Mod Manager",
@@ -418,6 +474,62 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "dep_conflict": "Несовместим (!)",
             "close_button": "Закрыть",
             "open_on_portal": "Открыть на Factorio Portal",
+
+            // Search Portal View additions
+            "filter_2_1_recent": "2.1 (Свежие)",
+            "filter_2_1_all": "2.1 (Все)",
+            "filter_2_0": "Factorio 2.0",
+            "search_results_by_date": "%d модов (по дате обновления)",
+            "loading_catalog": "Загрузка каталога модов Factorio %@...",
+            "details_button": "Подробнее",
+            "installed_button": "Установлен",
+
+            // Installation Plan & Resolution additions
+            "installation_plan_summary": "%d для скачивания, %d актуально",
+            "download_completed_installed": "Установлено",
+            "enable_all_mods": "Включить все (%d) модов",
+            "current_version_label": "(текущая: v%@)",
+            "status_update": "Обновление",
+            "status_new": "Новый",
+
+            // Profiles additions
+            "filter_profiles_placeholder": "Фильтр профилей...",
+            "saved_profiles_count": "Сохраненные профили (%d)",
+            "save_profile_caption": "Сохраняет все активные моды (%d) в новый профиль.",
+            "no_profiles_match": "Нет профилей, совпадающих с '%@'",
+            "clear_filter": "Сбросить фильтр",
+            "delete_profile_title": "Удалить профиль?",
+
+            // Updates additions
+            "updates_subtitle_checked": "Все установленные моды проверены на актуальность.",
+            "updates_subtitle_count": "Доступно обновлений для %d модов.",
+            "filter_updates_placeholder": "Фильтр обновлений...",
+            "target_factorio_branch": "Целевая ветка Factorio: %@",
+            "updating_count_inplace": "Обновление %d/%d...",
+            "checking_updates_count": "Проверка %d/%d...",
+
+            // Install Mods additions
+            "install_desc": "Установка модов напрямую с зеркала с автоматическим рекурсивным разрешением зависимостей.",
+            "mod_urls_or_names": "Ссылки или названия модов:",
+            "popular_presets": "Популярные:",
+            "clear_button": "Очистить",
+            "dependency_options_title": "Параметры зависимостей и загрузки",
+
+            // Sidebar additions
+            "sidebar_section_management": "УПРАВЛЕНИЕ МОДАМИ",
+            "sidebar_section_profiles": "ПРОФИЛИ И ЭКСПОРТ",
+            "sidebar_section_discovery": "ПОИСК И КАТАЛОГ",
+            "sidebar_section_preferences": "НАСТРОЙКИ",
+
+            // Notifications & actions additions
+            "mod_removed": "Мод '%@' удален.",
+            "mods_removed_count": "Удалено модов: %d.",
+            "mods_removed_and_dependents_disabled": "Удалено %d мод(ов) и отключено %d зависимых мод(ов).",
+            "profile_updated": "Профиль '%@' обновлен текущей конфигурацией модов.",
+            "profile_activated": "Профиль '%@' успешно активирован!",
+            "profile_missing_mods_resolving": "%d модов из профиля отсутствуют на диске. Поиск зависимостей...",
+            "profile_activate_failed": "Не удалось активировать профиль '%@'.",
+            "profile_deleted": "Профиль '%@' удален.",
         ]
     ]
 }

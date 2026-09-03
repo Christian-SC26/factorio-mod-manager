@@ -18,7 +18,7 @@ public struct UpdatesView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(loc("updates_title"))
                         .font(.title2.bold())
-                    Text(appState.updatesAvailable.isEmpty ? "All installed mods are checked against latest releases." : "\(appState.updatesAvailable.count) updates available for installed mods.")
+                    Text(appState.updatesAvailable.isEmpty ? loc("updates_subtitle_checked") : loc("updates_subtitle_count", appState.updatesAvailable.count))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -30,7 +30,7 @@ public struct UpdatesView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(.secondary)
-                            TextField("Filter updates...", text: $filterText)
+                            TextField(loc("filter_updates_placeholder"), text: $filterText)
                                 .textFieldStyle(.plain)
                                 .focused($isSearchFocused)
                                 .frame(maxWidth: 160)
@@ -108,7 +108,7 @@ public struct UpdatesView: View {
                         .foregroundColor(.secondary)
                     Text(loc("no_updates_available"))
                         .font(.headline)
-                    Text("Target Factorio branch: \(appState.effectiveFactorioVersion)")
+                    Text(loc("target_factorio_branch", appState.effectiveFactorioVersion))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Spacer()

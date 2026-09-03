@@ -256,7 +256,7 @@ extension AppState {
     public func deleteMod(_ mod: LocalMod) {
         _ = modListMgr.removeMod(mod.name, deleteFiles: true)
         loadInstalledMods()
-        showNotification(title: loc("installed_title"), message: "Mod '\(mod.name)' removed.")
+        showNotification(title: loc("installed_title"), message: loc("mod_removed", mod.name))
     }
 
     public func deleteMods(_ mods: [LocalMod]) {
@@ -264,7 +264,7 @@ extension AppState {
             _ = modListMgr.removeMod(m.name, deleteFiles: true)
         }
         loadInstalledMods()
-        showNotification(title: loc("installed_title"), message: "\(mods.count) mods removed.")
+        showNotification(title: loc("installed_title"), message: loc("mods_removed_count", mods.count))
     }
 
     public func deleteModsAndDisableDependents(mods: [LocalMod], dependentMods: [LocalMod]) {
@@ -278,7 +278,7 @@ extension AppState {
         loadInstalledMods()
         showNotification(
             title: loc("installed_title"),
-            message: "Removed \(mods.count) mod(s) and disabled \(depNames.count) dependent mod(s)."
+            message: loc("mods_removed_and_dependents_disabled", mods.count, depNames.count)
         )
     }
 

@@ -25,14 +25,14 @@ public struct InstallModsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(loc("install_title"))
                         .font(.title2.bold())
-                    Text("Install mods directly from mirror with full automatic recursive dependency resolution.")
+                    Text(loc("install_desc"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
 
                 // Input Area
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Mod URLs or Names:")
+                    Text(loc("mod_urls_or_names"))
                         .font(.headline)
 
                     ZStack(alignment: .topLeading) {
@@ -59,7 +59,7 @@ public struct InstallModsView: View {
 
                     // Quick example presets
                     HStack(spacing: 8) {
-                        Text("Popular:")
+                        Text(loc("popular_presets"))
                             .font(.caption)
                             .foregroundColor(.secondary)
 
@@ -90,7 +90,7 @@ public struct InstallModsView: View {
                         Spacer()
 
                         if !inputText.isEmpty {
-                            Button("Clear") {
+                            Button(loc("clear_button")) {
                                 inputText = ""
                             }
                             .buttonStyle(.link)
@@ -102,7 +102,7 @@ public struct InstallModsView: View {
 
                 // Options Section
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Dependency & Download Options")
+                    Text(loc("dependency_options_title"))
                         .font(.headline)
 
                     VStack(alignment: .leading, spacing: 10) {
