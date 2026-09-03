@@ -13,11 +13,15 @@ let package = Package(
             targets: ["FactorioModManagerMac"]
         ),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.1.0")
+    ],
     targets: [
         .executableTarget(
             name: "FactorioModManagerMac",
-            dependencies: [],
+            dependencies: [
+                .product(name: "MarkdownUI", package: "swift-markdown-ui")
+            ],
             path: "Sources/FactorioModManager"
         ),
         .testTarget(

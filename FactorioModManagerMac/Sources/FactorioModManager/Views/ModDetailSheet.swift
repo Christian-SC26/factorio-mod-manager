@@ -1,11 +1,13 @@
 import SwiftUI
 import AppKit
+import MarkdownUI
 
 public struct ModDetailSheet: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) var dismiss
 
     @State private var activeTab: Int = 0
+    @State private var previewScreenshotIndex: Int? = nil
 
     private var localMod: LocalMod? {
         appState.selectedModDetail
@@ -105,7 +107,7 @@ public struct ModDetailSheet: View {
 
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 12) {
-                                    ForEach(info.screenshots) { shot in
+                                    ForEach(Array(info.screenshots.enumerated()), id: \.element.id) { index, shot in
                                         AsyncImage(url: URL(string: shot.thumbnail)) { phase in
                                             switch phase {
                                             case .success(let image):
@@ -126,9 +128,10 @@ public struct ModDetailSheet: View {
                                         .background(Color.secondary.opacity(0.08))
                                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                                         .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
+                                        .contentShape(Rectangle())
                                         .onTapGesture {
-                                            if let u = URL(string: shot.url) {
-                                                NSWorkspace.shared.open(u)
+                                            withAnimation(.easeInOut(duration: 0.18)) {
+                                                previewScreenshotIndex = index
                                             }
                                         }
                                     }
@@ -153,12 +156,12 @@ public struct ModDetailSheet: View {
                         // Description
                         VStack(alignment: .leading, spacing: 10) {
                             if let info = modInfo, !info.description.isEmpty {
-                                Text(info.description)
-                                    .font(.system(size: 13))
+                                Markdown(MarkdownSanitizer.sanitize(info.description))
+                                    .markdownTheme(.gitHub)
                                     .textSelection(.enabled)
                             } else if !summaryText.isEmpty {
-                                Text(summaryText)
-                                    .font(.system(size: 13))
+                                Markdown(MarkdownSanitizer.sanitize(summaryText))
+                                    .markdownTheme(.gitHub)
                                     .textSelection(.enabled)
                             } else {
                                 Text(loc("no_full_description"))
@@ -319,5 +322,122 @@ public struct ModDetailSheet: View {
             .background(Color(NSColor.windowBackgroundColor))
         }
         .frame(minWidth: 640, minHeight: 520)
+        .overlay {
+            if let idx = previewScreenshotIndex, let info = modInfo, info.screenshots.indices.contains(idx) {
+                let currentShot = info.screenshots[idx]
+                ZStack {
+                    Color.black.opacity(0.88)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                previewScreenshotIndex = nil
+                            }
+                        }
+
+                    VStack(spacing: 8) {
+                        // Top bar
+                        HStack {
+                            if info.screenshots.count > 1 {
+                                Text("\(idx + 1) / \(info.screenshots.count)")
+                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Color.white.opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
+
+                            Spacer()
+
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.18)) {
+                                    previewScreenshotIndex = nil
+                                }
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.white.opacity(0.9))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 14)
+
+                        // Center image + Arrows
+                        HStack(spacing: 12) {
+                            if info.screenshots.count > 1 {
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        previewScreenshotIndex = (idx - 1 + info.screenshots.count) % info.screenshots.count
+                                    }
+                                }) {
+                                    Image(systemName: "chevron.left.circle.fill")
+                                        .font(.system(size: 32))
+                                        .foregroundColor(.white.opacity(0.85))
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.leading, 12)
+                            }
+
+                            Spacer()
+
+                            AsyncImage(url: URL(string: currentShot.url)) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                        .shadow(color: .black.opacity(0.6), radius: 16, x: 0, y: 6)
+                                case .failure:
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 36))
+                                            .foregroundColor(.white.opacity(0.6))
+                                        Text("Failed to load image")
+                                            .font(.caption)
+                                            .foregroundColor(.white.opacity(0.6))
+                                    }
+                                case .empty:
+                                    ProgressView()
+                                        .controlSize(.large)
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                            .padding(8)
+
+                            Spacer()
+
+                            if info.screenshots.count > 1 {
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        previewScreenshotIndex = (idx + 1) % info.screenshots.count
+                                    }
+                                }) {
+                                    Image(systemName: "chevron.right.circle.fill")
+                                        .font(.system(size: 32))
+                                        .foregroundColor(.white.opacity(0.85))
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.trailing, 12)
+                            }
+                        }
+
+                        // Bottom bar
+                        if let u = URL(string: currentShot.url) {
+                            Button(action: { NSWorkspace.shared.open(u) }) {
+                                Label(loc("open_on_portal"), systemImage: "arrow.up.right.square")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.75))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.bottom, 12)
+                        }
+                    }
+                }
+                .transition(.opacity)
+            }
+        }
     }
 }
