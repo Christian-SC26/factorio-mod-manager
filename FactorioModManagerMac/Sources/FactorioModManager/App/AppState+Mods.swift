@@ -260,9 +260,7 @@ extension AppState {
     }
 
     public func deleteMods(_ mods: [LocalMod]) {
-        for m in mods {
-            _ = modListMgr.removeMod(m.name, deleteFiles: true)
-        }
+        _ = modListMgr.removeMods(mods.map(\.name), deleteFiles: true)
         loadInstalledMods()
         showNotification(title: loc("installed_title"), message: loc("mods_removed_count", mods.count))
     }
@@ -272,9 +270,7 @@ extension AppState {
         if !depNames.isEmpty {
             modListMgr.disableMods(depNames)
         }
-        for m in mods {
-            _ = modListMgr.removeMod(m.name, deleteFiles: true)
-        }
+        _ = modListMgr.removeMods(mods.map(\.name), deleteFiles: true)
         loadInstalledMods()
         showNotification(
             title: loc("installed_title"),
@@ -284,19 +280,16 @@ extension AppState {
 
     // MARK: - Mod Details Sheet
     public func openModDetails(for mod: LocalMod) {
-        self.selectedModDetail = mod
-        self.selectedModInfoDetail = nil
-        self.isDetailSheetPresented = true
-        Task {
-            if let info = try? await ModPortalClient.shared.fetchModInfo(mod.name) {
-                self.selectedModInfoDetail = info
-            }
-        }
+        openModDetailsInternal(mod: mod, modName: mod.name)
     }
 
     public func openModDetails(for modName: String) {
         let local = installedMods.first(where: { $0.name == modName })
-        self.selectedModDetail = local
+        openModDetailsInternal(mod: local, modName: modName)
+    }
+
+    private func openModDetailsInternal(mod: LocalMod?, modName: String) {
+        self.selectedModDetail = mod
         self.selectedModInfoDetail = nil
         self.isDetailSheetPresented = true
         Task {

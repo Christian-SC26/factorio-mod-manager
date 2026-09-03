@@ -35,5 +35,8 @@ final class FormattersTests: XCTestCase {
         XCTAssertEqual(Formatters.formatModNameAsTitle("maraxsis"), "Maraxsis")
         XCTAssertEqual(Formatters.formatModNameAsTitle("factorissimo-2-notnotmelon"), "Factorissimo 2 Notnotmelon")
         XCTAssertEqual(Formatters.formatModNameAsTitle("space_exploration"), "Space Exploration")
+        XCTAssertEqual(Formatters.formatModNameAsTitle("se-space-exploration"), "SE Space Exploration")
+        XCTAssertEqual(Formatters.formatModNameAsTitle("custom_gui_hud"), "Custom GUI HUD")
+        XCTAssertEqual(Formatters.formatModNameAsTitle("hd-textures-2d"), "HD Textures 2D")
     }
 }

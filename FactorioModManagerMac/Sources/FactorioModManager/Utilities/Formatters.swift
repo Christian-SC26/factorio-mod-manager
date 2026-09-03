@@ -43,7 +43,15 @@ public enum Formatters {
     public static func formatModNameAsTitle(_ name: String) -> String {
         let cleaned = name.replacingOccurrences(of: "_", with: " ")
             .replacingOccurrences(of: "-", with: " ")
-        return cleaned.split(separator: " ").map { word in
+        let words = cleaned.split(separator: " ").filter { !$0.isEmpty }
+        return words.map { word -> String in
+            let lower = word.lowercased()
+            if ["se", "cr", "rpg", "t4", "gui", "hud", "ui", "hd", "2d", "3d"].contains(lower) {
+                return lower.uppercased()
+            }
+            if word.count <= 2 {
+                return word.uppercased()
+            }
             let str = String(word)
             return str.prefix(1).uppercased() + str.dropFirst()
         }.joined(separator: " ")

@@ -57,16 +57,6 @@ extension AppState {
         loadPortalModpacks()
     }
 
-    public func installCuratedModpack(_ pack: ModListManager.ModpackDefinition, exclusive: Bool = false) async {
-        self.isExclusiveModpackResolution = exclusive
-        await resolveDependencies(
-            targets: pack.targetMods,
-            includeRecommended: true,
-            includeOptional: false,
-            forceReinstall: false
-        )
-    }
-
     public func installPortalModpack(_ pack: PortalModpackItem, exclusive: Bool = false) async {
         self.isExclusiveModpackResolution = exclusive
         await resolveDependencies(
@@ -126,16 +116,18 @@ extension AppState {
         }
     }
 
-    public func exportModpack() {
+    public func exportModpack(format: String = "json") {
+        let isJson = format.lowercased() == "json"
         let savePanel = NSSavePanel()
-        savePanel.allowedContentTypes = [.json]
+        savePanel.allowedContentTypes = isJson ? [.json] : [.plainText]
         savePanel.canCreateDirectories = true
-        savePanel.nameFieldStringValue = "factorio-modpack.json"
+        savePanel.nameFieldStringValue = isJson ? "modpack.json" : "modpack.txt"
         savePanel.title = loc("export_modpack_title")
 
         if savePanel.runModal() == .OK, let url = savePanel.url {
             do {
-                let count = try modListMgr.exportModpack(to: url)
+                let versions = Dictionary(uniqueKeysWithValues: self.installedMods.map { ($0.name, $0.version.raw) })
+                let count = try modListMgr.exportModpack(to: url, knownVersions: versions)
                 loadSavedModpacks()
                 showNotification(
                     title: loc("export_import_title"),
@@ -165,7 +157,7 @@ extension AppState {
                 guard !targets.isEmpty else {
                     showNotification(
                         title: loc("export_import_title"),
-                        message: "No valid mods found in file.",
+                        message: loc("no_mods_in_import_file"),
                         isError: true
                     )
                     return
@@ -173,7 +165,7 @@ extension AppState {
 
                 showNotification(
                     title: loc("export_import_title"),
-                    message: "Importing \(targets.count) mods from \(url.lastPathComponent)..."
+                    message: String(format: loc("imported_success"), targets.count, url.lastPathComponent)
                 )
 
                 Task {

@@ -5,64 +5,11 @@ public struct ExportImportView: View {
     @ObservedObject var appState: AppState
 
     private func handleExport(format: String) {
-        let savePanel = NSSavePanel()
-        savePanel.allowedContentTypes = format == "json" ? [.json] : [.plainText]
-        savePanel.nameFieldStringValue = format == "json" ? "modpack.json" : "modpack.txt"
-        savePanel.canCreateDirectories = true
-        savePanel.isExtensionHidden = false
-
-        if savePanel.runModal() == .OK, let url = savePanel.url {
-            do {
-                let count = try appState.modListMgr.exportModpack(to: url)
-                appState.showNotification(
-                    title: loc("export_import_title"),
-                    message: String(format: loc("exported_success"), count, url.lastPathComponent)
-                )
-            } catch {
-                appState.showNotification(
-                    title: loc("export_import_title"),
-                    message: error.localizedDescription,
-                    isError: true
-                )
-            }
-        }
+        appState.exportModpack(format: format)
     }
 
     private func handleImport() {
-        let openPanel = NSOpenPanel()
-        openPanel.allowedContentTypes = [.json, .plainText]
-        openPanel.allowsMultipleSelection = false
-        openPanel.canChooseDirectories = false
-        openPanel.canChooseFiles = true
-
-        if openPanel.runModal() == .OK, let url = openPanel.url {
-            do {
-                let targets = try appState.modListMgr.importModpack(from: url)
-                guard !targets.isEmpty else {
-                    appState.showNotification(
-                        title: loc("export_import_title"),
-                        message: loc("no_mods_in_import_file"),
-                        isError: true
-                    )
-                    return
-                }
-
-                appState.showNotification(
-                    title: loc("export_import_title"),
-                    message: String(format: loc("imported_success"), targets.count, url.lastPathComponent)
-                )
-
-                Task {
-                    await appState.resolveAndInstall(targets: targets)
-                }
-            } catch {
-                appState.showNotification(
-                    title: loc("export_import_title"),
-                    message: error.localizedDescription,
-                    isError: true
-                )
-            }
-        }
+        appState.importModpack()
     }
 
     public var body: some View {

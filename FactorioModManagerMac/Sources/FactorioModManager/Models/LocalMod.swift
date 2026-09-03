@@ -128,19 +128,7 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
     }
 
     public static func cleanHumanTitle(from rawName: String) -> String {
-        var result = rawName.replacingOccurrences(of: "_", with: " ")
-        result = result.replacingOccurrences(of: "-", with: " ")
-
-        let words = result.components(separatedBy: " ").filter { !$0.isEmpty }
-        let capitalized = words.map { word -> String in
-            let lower = word.lowercased()
-            if ["se", "cr", "rpg", "t4", "gui", "hud", "ui", "hd", "2d", "3d"].contains(lower) {
-                return lower.uppercased()
-            }
-            if word.count <= 2 { return word.uppercased() }
-            return word.prefix(1).uppercased() + word.dropFirst()
-        }
-        return capitalized.joined(separator: " ")
+        Formatters.formatModNameAsTitle(rawName)
     }
 
     public func portalAuthorURL(portalOwner: String?) -> URL? {

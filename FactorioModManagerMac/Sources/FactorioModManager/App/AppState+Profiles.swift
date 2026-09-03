@@ -8,7 +8,8 @@ extension AppState {
 
     public func saveCurrentProfile(name: String) {
         do {
-            _ = try modListMgr.saveProfile(name: name, states: self.modStates)
+            let versions = Dictionary(uniqueKeysWithValues: self.installedMods.map { ($0.name, $0.version.raw) })
+            _ = try modListMgr.saveProfile(name: name, states: self.modStates, knownVersions: versions)
             loadProfiles()
             showNotification(title: loc("profiles_title"), message: loc("profile_saved", name))
             objectWillChange.send()
@@ -19,7 +20,8 @@ extension AppState {
 
     public func updateProfileWithCurrentMods(_ profile: Profile) {
         do {
-            _ = try modListMgr.saveProfile(name: profile.name, states: self.modStates)
+            let versions = Dictionary(uniqueKeysWithValues: self.installedMods.map { ($0.name, $0.version.raw) })
+            _ = try modListMgr.saveProfile(name: profile.name, states: self.modStates, knownVersions: versions)
             loadProfiles()
             showNotification(title: loc("profiles_title"), message: loc("profile_updated", profile.name))
             objectWillChange.send()

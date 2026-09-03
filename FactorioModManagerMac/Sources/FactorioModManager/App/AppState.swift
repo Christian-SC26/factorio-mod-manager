@@ -35,9 +35,7 @@ public final class AppState: ObservableObject {
         return full
     }
 
-    public var modListMgr: ModListManager {
-        ModListManager(modsDirectory: modsDirectory)
-    }
+    public private(set) var modListMgr: ModListManager = ModListManager()
 
     // MARK: - Installed Mods State
     @Published public var installedMods: [LocalMod] = []
@@ -99,8 +97,11 @@ public final class AppState: ObservableObject {
         if !customModsDirPath.isEmpty {
             let url = URL(fileURLWithPath: (customModsDirPath as NSString).expandingTildeInPath)
             self.modsDirectory = url
+            self.modListMgr = ModListManager(modsDirectory: url)
         } else {
-            self.modsDirectory = ModListManager.defaultFactorioModsDir()
+            let defaultDir = ModListManager.defaultFactorioModsDir()
+            self.modsDirectory = defaultDir
+            self.modListMgr = ModListManager(modsDirectory: defaultDir)
         }
         refreshAll()
         setupDiskSyncWatcher()
@@ -126,13 +127,16 @@ public final class AppState: ObservableObject {
     public func setModsDirectory(_ url: URL) {
         self.modsDirectory = url
         self.customModsDirPath = url.path
+        self.modListMgr = ModListManager(modsDirectory: url)
         refreshAll()
         startDirectoryWatcher()
     }
 
     public func resetModsDirectory() {
         self.customModsDirPath = ""
-        self.modsDirectory = ModListManager.defaultFactorioModsDir()
+        let defaultDir = ModListManager.defaultFactorioModsDir()
+        self.modsDirectory = defaultDir
+        self.modListMgr = ModListManager(modsDirectory: defaultDir)
         refreshAll()
         startDirectoryWatcher()
     }

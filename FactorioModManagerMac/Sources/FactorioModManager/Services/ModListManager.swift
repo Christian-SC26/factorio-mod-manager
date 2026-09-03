@@ -14,12 +14,27 @@ public protocol ModListManaging: Sendable {
     func setModState(_ name: String, enabled: Bool)
     func toggleMod(_ name: String) -> Bool
     func removeMod(_ name: String, deleteFiles: Bool) -> Int
+    func removeMods(_ names: [String], deleteFiles: Bool) -> Int
     func listProfiles() -> [Profile]
-    func saveProfile(name: String, states: [String: Bool]?) throws -> URL
+    func saveProfile(name: String, states: [String: Bool]?, knownVersions: [String: String]?) throws -> URL
     func loadProfile(name: String) -> (success: Bool, activated: [String], missing: [String])
     func deleteProfile(name: String, filename: String?) -> Bool
-    func exportModpack(to destinationURL: URL) throws -> Int
+    func exportModpack(to destinationURL: URL, knownVersions: [String: String]?) throws -> Int
     func importModpack(from sourceURL: URL) throws -> [String]
+}
+
+public extension ModListManaging {
+    func removeMod(_ name: String, deleteFiles: Bool = true) -> Int {
+        removeMods([name], deleteFiles: deleteFiles)
+    }
+
+    func saveProfile(name: String, states: [String: Bool]? = nil) throws -> URL {
+        try saveProfile(name: name, states: states, knownVersions: nil)
+    }
+
+    func exportModpack(to destinationURL: URL) throws -> Int {
+        try exportModpack(to: destinationURL, knownVersions: nil)
+    }
 }
 
 public final class ModListManager: ModListManaging, @unchecked Sendable {
@@ -180,6 +195,29 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
         return result
     }
 
+    /// Parse mod name and optional version from a file or folder entry name
+    public static func parseModNameAndVersion(from url: URL, isDirectory: Bool) -> (name: String, version: String?) {
+        let filename = url.lastPathComponent
+        if !isDirectory {
+            let range = NSRange(location: 0, length: filename.utf16.count)
+            if let match = RegexHelper.zipFilename.firstMatch(in: filename, options: [], range: range),
+               let nRange = Range(match.range(at: 1), in: filename) {
+                let vRange = Range(match.range(at: 2), in: filename)
+                return (String(filename[nRange]), vRange.map { String(filename[$0]) })
+            }
+        }
+
+        let baseName = isDirectory ? filename : url.deletingPathExtension().lastPathComponent
+        let range = NSRange(location: 0, length: baseName.utf16.count)
+        if let match = RegexHelper.dirModName.firstMatch(in: baseName, options: [], range: range),
+           let nRange = Range(match.range(at: 1), in: baseName) {
+            let vRange = Range(match.range(at: 2), in: baseName)
+            return (String(baseName[nRange]), vRange.map { String(baseName[$0]) })
+        }
+
+        return (baseName, nil)
+    }
+
     /// Quick scan of all mod names present in the directory
     public func scanInstalledModNames() -> Set<String> {
         let fileManager = FileManager.default
@@ -200,24 +238,8 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
             }
 
             let isDir = (try? entry.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-            if !isDir {
-                let range = NSRange(location: 0, length: filename.utf16.count)
-                if let match = RegexHelper.zipFilename.firstMatch(in: filename, options: [], range: range),
-                   let nRange = Range(match.range(at: 1), in: filename) {
-                    names.insert(String(filename[nRange]))
-                    continue
-                }
-            }
-
-            let baseName = isDir ? filename : entry.deletingPathExtension().lastPathComponent
-            let range = NSRange(location: 0, length: baseName.utf16.count)
-            if let match = RegexHelper.dirModName.firstMatch(in: baseName, options: [], range: range),
-               let nRange = Range(match.range(at: 1), in: baseName) {
-                names.insert(String(baseName[nRange]))
-                continue
-            }
-
-            names.insert(baseName)
+            let parsed = Self.parseModNameAndVersion(from: entry, isDirectory: isDir)
+            names.insert(parsed.name)
         }
         return names
     }
@@ -324,26 +346,9 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
 
             // Fast fallback to filename if needed
             if modName == nil || versionStr == nil {
-                if !isDir {
-                    let range = NSRange(location: 0, length: filename.utf16.count)
-                    if let match = RegexHelper.zipFilename.firstMatch(in: filename, options: [], range: range),
-                       let nRange = Range(match.range(at: 1), in: filename),
-                       let vRange = Range(match.range(at: 2), in: filename) {
-                        modName = String(filename[nRange])
-                        versionStr = String(filename[vRange])
-                    }
-                }
-            }
-
-            if modName == nil || versionStr == nil {
-                let baseName = isDir ? filename : entry.deletingPathExtension().lastPathComponent
-                let range = NSRange(location: 0, length: baseName.utf16.count)
-                if let match = RegexHelper.dirModName.firstMatch(in: baseName, options: [], range: range),
-                   let nRange = Range(match.range(at: 1), in: baseName),
-                   let vRange = Range(match.range(at: 2), in: baseName) {
-                    modName = String(baseName[nRange])
-                    versionStr = String(baseName[vRange])
-                }
+                let parsed = Self.parseModNameAndVersion(from: entry, isDirectory: isDir)
+                if modName == nil { modName = parsed.name }
+                if versionStr == nil { versionStr = parsed.version }
             }
 
             if let name = modName, let ver = versionStr {
@@ -406,24 +411,35 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
         return newState
     }
 
-    public func removeMod(_ name: String, deleteFiles: Bool = true) -> Int {
+    public func removeMods(_ names: [String], deleteFiles: Bool = true) -> Int {
         var removedCount = 0
+        let targetSet = Set(names)
+        guard !targetSet.isEmpty else { return 0 }
+
         if deleteFiles {
             let installed = scanInstalledMods()
-            if let list = installed[name] {
-                for m in list {
-                    do {
-                        try FileManager.default.removeItem(at: m.fileURL)
-                        removedCount += 1
-                    } catch {}
+            for name in targetSet {
+                if let list = installed[name] {
+                    for m in list {
+                        do {
+                            try FileManager.default.removeItem(at: m.fileURL)
+                            removedCount += 1
+                        } catch {}
+                    }
                 }
             }
         }
 
         var states = readModListJson()
-        states.removeValue(forKey: name)
+        for name in targetSet {
+            states.removeValue(forKey: name)
+        }
         try? writeModListJson(states)
         return removedCount
+    }
+
+    public func removeMod(_ name: String, deleteFiles: Bool = true) -> Int {
+        removeMods([name], deleteFiles: deleteFiles)
     }
 
     // MARK: - Profiles
@@ -461,18 +477,20 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
         return profiles.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    public func saveProfile(name: String, states: [String: Bool]? = nil) throws -> URL {
+    public func saveProfile(name: String, states: [String: Bool]? = nil, knownVersions: [String: String]? = nil) throws -> URL {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanName.isEmpty else {
             throw FMMError.emptyProfileName
         }
 
         let finalStates = states ?? readModListJson()
-        let installed = scanInstalledMods()
+        let installed = knownVersions == nil ? scanInstalledMods() : [:]
 
         var activeMods: [String: String] = [:]
         for (mName, isEnabled) in finalStates where isEnabled && mName != "base" {
-            if let local = installed[mName]?.first {
+            if let kv = knownVersions?[mName] {
+                activeMods[mName] = kv
+            } else if let local = installed[mName]?.first {
                 activeMods[mName] = local.version.raw
             } else {
                 activeMods[mName] = "latest"
@@ -608,70 +626,6 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
 
     // MARK: - Modpack Export & Import
 
-    public struct ModpackDefinition: Identifiable, Hashable, Sendable {
-        public var id: String { name }
-        public let name: String
-        public let targetMods: [String]
-        public let minFactorioVersion: String
-        public let description: String
-
-        public init(name: String, targetMods: [String], minFactorioVersion: String = "1.1", description: String = "") {
-            self.name = name
-            self.targetMods = targetMods
-            self.minFactorioVersion = minFactorioVersion
-            self.description = description
-        }
-
-        public var primaryMod: String {
-            targetMods.first ?? ""
-        }
-    }
-
-    public static let curatedModpacks: [ModpackDefinition] = [
-        ModpackDefinition(
-            name: "AzzTweaks Overhaul",
-            targetMods: ["AzzTweaks", "AzzTeleport", "AncientDrill", "TaskList", "VehicleSnap", "BottleneckLite", "squeak-through-2", "RateCalculator", "textplates", "PipeVisualizer-2-1-Support", "AutoDeconstruct", "even-distribution", "FactorySearch", "factoryplanner"],
-            minFactorioVersion: "2.0",
-            description: "Teleports, advanced mining drills, and essential quality-of-life tools"
-        ),
-        ModpackDefinition(
-            name: "Pyanodons Complete Suite",
-            targetMods: ["pycoalprocessing", "pyalienlife", "pyalternativeenergy", "pyfusionenergy", "pyhightech", "pyindustry", "pypetroleumhandling", "pypostprocessing", "pyrawores"],
-            minFactorioVersion: "2.0",
-            description: "The ultimate complex chemistry, biological processing, and hardcore technology overhaul"
-        ),
-        ModpackDefinition(
-            name: "Krastorio 2",
-            targetMods: ["Krastorio2"],
-            minFactorioVersion: "2.0",
-            description: "Full technology tree rebalance, antimatter power, advanced creep & endgame science"
-        ),
-        ModpackDefinition(
-            name: "Ultracube: Age of Cube",
-            targetMods: ["Ultracube"],
-            minFactorioVersion: "2.0",
-            description: "Logistics puzzle revolving around a single dense cube of concentrated power"
-        ),
-        ModpackDefinition(
-            name: "248k Mod Suite",
-            targetMods: ["248k"],
-            minFactorioVersion: "2.0",
-            description: "Nuclear fission, fusion, laser optics, and element 248 exotic physics"
-        ),
-        ModpackDefinition(
-            name: "Factorio 2.0 Extra Planets Pack",
-            targetMods: ["planet-muluna", "planetaris-hyarion", "planetaris-arig", "planetaris-tellus", "carna", "Velora", "skewer_planet_vesta", "Muria", "Paracelsin", "maraxsis", "obsidiax", "secretas"],
-            minFactorioVersion: "2.0",
-            description: "Massive constellation of 12+ new discoverable Space Age planets"
-        ),
-        ModpackDefinition(
-            name: "Essential QoL Toolkit",
-            targetMods: ["RateCalculator", "FactorySearch", "factoryplanner", "BottleneckLite", "squeak-through-2", "even-distribution", "AutoDeconstruct", "VehicleSnap", "TaskList"],
-            minFactorioVersion: "2.0",
-            description: "Top essential non-intrusive helper tools for planning, building, and logistics"
-        )
-    ]
-
     public var modpacksDirectory: URL {
         let p = modsDirectory.appendingPathComponent("modpacks", isDirectory: true)
         try? FileManager.default.createDirectory(at: p, withIntermediateDirectories: true)
@@ -689,13 +643,18 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    public func exportModpack(to destinationURL: URL) throws -> Int {
+    public func exportModpack(to destinationURL: URL, knownVersions: [String: String]? = nil) throws -> Int {
         let states = readModListJson()
-        let installed = scanInstalledMods()
+        let installed = knownVersions == nil ? scanInstalledMods() : [:]
 
         var entries: [[String: String]] = []
         for (name, enabled) in states where enabled && name != "base" {
-            let ver = installed[name]?.first?.version.raw ?? "latest"
+            let ver: String
+            if let kv = knownVersions?[name] {
+                ver = kv
+            } else {
+                ver = installed[name]?.first?.version.raw ?? "latest"
+            }
             entries.append([
                 "name": name,
                 "version": ver,

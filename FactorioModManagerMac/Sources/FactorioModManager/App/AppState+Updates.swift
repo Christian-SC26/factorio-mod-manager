@@ -19,7 +19,6 @@ extension AppState {
         }
 
         let targetBranch = effectiveFactorioBranch
-        var foundUpdates: [ModUpdateItem] = []
 
         await withTaskGroup(of: ModUpdateItem?.self) { group in
             var iterator = community.makeIterator()
@@ -47,8 +46,7 @@ extension AppState {
             while let res = await group.next() {
                 self.updatesCheckedCount += 1
                 if let item = res {
-                    foundUpdates.append(item)
-                    self.updatesAvailable = foundUpdates.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+                    self.updatesAvailable.append(item)
                 }
                 if let nextMod = iterator.next() {
                     group.addTask {
@@ -69,7 +67,7 @@ extension AppState {
             }
         }
 
-        self.updatesAvailable = foundUpdates.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        self.updatesAvailable.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         self.isCheckingUpdates = false
     }
 

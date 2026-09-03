@@ -22,7 +22,7 @@ public struct InstalledModsView: View {
     }
 
     private var disabledCount: Int {
-        appState.installedMods.filter { !appState.isModEnabled($0.name) }.count
+        max(0, appState.installedMods.count - enabledCount)
     }
 
     private var currentActiveModNames: Set<String> {
@@ -31,10 +31,6 @@ public struct InstalledModsView: View {
 
     private func isProfileActive(_ profile: Profile) -> Bool {
         profile.isMatchingActiveMods(currentActiveModNames)
-    }
-
-    private func formatDownloadsCount(_ count: Int) -> String {
-        Formatters.formatDownloads(count)
     }
 
     private var activeProfile: Profile? {
