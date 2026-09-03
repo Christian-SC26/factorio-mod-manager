@@ -56,7 +56,7 @@ public enum RegexHelper {
 
     // MARK: - Portal HTML Card Scraping
     public static let portalCardLink: NSRegularExpression = {
-        let pattern = #"href="/mod/([^"/?#]+)"#
+        let pattern = #"href="/mod/([^"/?#\s]+)"#
         return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
     }()
 
@@ -66,7 +66,7 @@ public enum RegexHelper {
     }()
 
     public static let portalCardOwner: NSRegularExpression = {
-        let pattern = #"href="/user/([^"/?#]+)""#
+        let pattern = #"href="/user/([^"/?#\s]+)"#
         return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
     }()
 
@@ -92,6 +92,11 @@ public enum RegexHelper {
 
     public static let portalCardDownloads: NSRegularExpression = {
         let pattern = #"title="Downloads[^"]*"[^>]*>.*?<span title="(\d+)""#
+        return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
+    }()
+
+    public static let portalCardLastUpdated: NSRegularExpression = {
+        let pattern = #"title="Last updated"[^>]*>.*?<span[^>]*>([^<]+)</span>"#
         return try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
     }()
 

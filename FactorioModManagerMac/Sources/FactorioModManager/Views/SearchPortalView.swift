@@ -3,7 +3,8 @@ import SwiftUI
 public struct SearchPortalView: View {
     @ObservedObject var appState: AppState
     @State private var queryText: String = ""
-    @State private var selectedVersion: String = "2.1"
+    @State private var selectedVersion: String = "2.1-recent"
+    @FocusState private var isSearchFocused: Bool
 
     private func performSearch() {
         Task {
@@ -21,6 +22,7 @@ public struct SearchPortalView: View {
                             .foregroundColor(.secondary)
                         TextField(loc("search_input_placeholder"), text: $queryText)
                             .textFieldStyle(.plain)
+                            .focused($isSearchFocused)
                             .onSubmit { performSearch() }
 
                         if !queryText.isEmpty {
@@ -56,14 +58,15 @@ public struct SearchPortalView: View {
                     .disabled(appState.isSearching)
                 }
 
-                // Version Filter: 2.1 and 2.0 only
+                // Version Filter: 2.1 Recent, 2.1 All, 2.0
                 HStack {
                     Picker("", selection: $selectedVersion) {
-                        Text("Factorio 2.1").tag("2.1")
+                        Text("2.1 (Свежие)").tag("2.1-recent")
+                        Text("2.1 (Все)").tag("2.1")
                         Text("Factorio 2.0").tag("2.0")
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 240)
+                    .frame(maxWidth: 320)
                     .onChange(of: selectedVersion) { newVer in
                         Task {
                             await appState.searchPortal(query: queryText, version: newVer)
@@ -73,7 +76,7 @@ public struct SearchPortalView: View {
                     Spacer()
 
                     if !appState.searchResults.isEmpty {
-                        Text("\(appState.searchResults.count) mods (by update date)")
+                        Text("\(appState.searchResults.count) mods (по дате обновления)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -175,6 +178,15 @@ public struct SearchPortalView: View {
                                     .foregroundColor(.secondary)
                                 }
 
+                                if let updated = item.lastUpdated, !updated.isEmpty {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "clock")
+                                        Text(updated)
+                                    }
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                }
+
                                 if item.downloadsCount > 0 {
                                     HStack(spacing: 4) {
                                         Image(systemName: "arrow.down.circle")
@@ -242,6 +254,9 @@ public struct SearchPortalView: View {
                     await appState.loadPortalCatalog(version: selectedVersion)
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .focusModSearch)) { _ in
+            isSearchFocused = true
         }
     }
 }

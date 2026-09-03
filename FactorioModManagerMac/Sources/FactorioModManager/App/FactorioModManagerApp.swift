@@ -85,8 +85,7 @@ struct FactorioModManagerApp: App {
             }
 
             CommandGroup(after: .textEditing) {
-                Button("Find Mods...") {
-                    appState.selectedTab = .installed
+                Button("Find...") {
                     NotificationCenter.default.post(name: .focusModSearch, object: nil)
                 }
                 .keyboardShortcut("f", modifiers: .command)

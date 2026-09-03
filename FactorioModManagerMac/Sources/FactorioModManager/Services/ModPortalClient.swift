@@ -5,6 +5,7 @@ public protocol ModPortalClientProtocol: Actor {
     func searchPortalMods(query: String, onlyV2: Bool, maxPages: Int) async throws -> [SearchModItem]
     func searchPortalMods(query: String, version: String, maxPages: Int) async throws -> [SearchModItem]
     func fetchCatalog(version: String, pageSize: Int) async throws -> [SearchModItem]
+    func fetchRecentlyUpdated(version: String, pages: Int) async throws -> [SearchModItem]
     func fetchAuthorMods(authorOrUrl: String) async throws -> (author: String, mods: [AuthorModItem])
     func fetchPortalModpacks(targetFactorioBranch: String?) async throws -> [PortalModpackItem]
 }
@@ -14,6 +15,9 @@ public extension ModPortalClientProtocol {
         return []
     }
     func fetchCatalog(version: String = "2.1", pageSize: Int = 100) async throws -> [SearchModItem] {
+        return []
+    }
+    func fetchRecentlyUpdated(version: String = "2.1", pages: Int = 3) async throws -> [SearchModItem] {
         return []
     }
 }
@@ -183,8 +187,45 @@ public actor ModPortalClient: ModPortalClientProtocol {
         return modInfo
     }
 
+    /// Fetch mods that recently updated for a Factorio version (e.g. "2.1" or "2.0") sorted by update date
+    public func fetchRecentlyUpdated(version: String = "2.1", pages: Int = 3) async throws -> [SearchModItem] {
+        let v = (version == "2.0" || version == "2.1") ? version : "2.1"
+        var results: [SearchModItem] = []
+        var seenNames = Set<String>()
+
+        for page in 1...pages {
+            let urlStr = "https://mods.factorio.com/browse?factorio_version=\(v)&sort_attribute=last_updated_at&page=\(page)"
+            guard let url = URL(string: urlStr) else { break }
+            var req = URLRequest(url: url, timeoutInterval: 12)
+            req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+
+            guard let (data, response) = try? await URLSession.shared.data(for: req),
+                  let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200,
+                  let html = String(data: data, encoding: .utf8) else {
+                break
+            }
+
+            let cards = parseHtmlModCards(html)
+            var foundOnPage = 0
+            for c in cards {
+                if !seenNames.contains(c.name) {
+                    seenNames.insert(c.name)
+                    foundOnPage += 1
+                    results.append(c)
+                }
+            }
+            if foundOnPage == 0 { break }
+        }
+        return results
+    }
+
     /// Fetch full catalog of mods for a Factorio version (e.g. "2.1" or "2.0") sorted by update date
     public func fetchCatalog(version: String, pageSize: Int = 100) async throws -> [SearchModItem] {
+        if version.contains("recent") {
+            let cleanV = version.replacingOccurrences(of: "-recent", with: "")
+            return try await fetchRecentlyUpdated(version: cleanV, pages: 3)
+        }
+
         let v = (version == "2.0" || version == "2.1") ? version : "2.1"
         let urlStr = "https://mods.factorio.com/api/mods?version=\(v)&sort=updated_at&order=desc&page_size=\(pageSize)"
         guard let url = URL(string: urlStr) else { return [] }
@@ -211,6 +252,7 @@ public actor ModPortalClient: ModPortalClientProtocol {
                         let factorio_version: String?
                     }
                     let info_json: Info?
+                    let released_at: String?
                 }
                 let latest_release: Release?
             }
@@ -224,6 +266,7 @@ public actor ModPortalClient: ModPortalClientProtocol {
 
         return list.map { m in
             let fVer = m.latest_release?.info_json?.factorio_version ?? v
+            let relDate = m.latest_release?.released_at?.components(separatedBy: "T").first
             return SearchModItem(
                 name: m.name,
                 title: m.title,
@@ -231,7 +274,8 @@ public actor ModPortalClient: ModPortalClientProtocol {
                 summary: m.summary ?? "",
                 factorioVersions: fVer,
                 downloadsCount: m.downloads_count ?? 0,
-                isDeprecated: m.category == "deprecated"
+                isDeprecated: m.category == "deprecated",
+                lastUpdated: relDate
             )
         }
     }
@@ -245,7 +289,7 @@ public actor ModPortalClient: ModPortalClientProtocol {
 
         var results: [SearchModItem] = []
         var seenNames = Set<String>()
-        let v = (version == "2.0" || version == "2.1") ? version : "2.1"
+        let v = (version == "2.0" || version == "2.1") ? version : version.replacingOccurrences(of: "-recent", with: "")
 
         for page in 1...maxPages {
             var urlStr = "https://mods.factorio.com/search?query=\(cleanQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cleanQuery)&version=\(v)"
@@ -413,6 +457,9 @@ public actor ModPortalClient: ModPortalClientProtocol {
             // Deprecated
             let isDepr = chunk.contains("class=\"deprecated\"") || (chunk.lowercased().contains("deprecated") && chunk.contains("<span"))
 
+            // Last updated
+            let lastUpdated = RegexHelper.firstCapturedGroup(in: chunk, regex: RegexHelper.portalCardLastUpdated)?.trimmingCharacters(in: .whitespaces)
+
             cards.append(SearchModItem(
                 name: name,
                 title: title.isEmpty ? name : title,
@@ -420,7 +467,8 @@ public actor ModPortalClient: ModPortalClientProtocol {
                 summary: summary,
                 factorioVersions: fVer.trimmingCharacters(in: .whitespaces),
                 downloadsCount: downloads,
-                isDeprecated: isDepr
+                isDeprecated: isDepr,
+                lastUpdated: lastUpdated
             ))
         }
 

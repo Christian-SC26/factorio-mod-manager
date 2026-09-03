@@ -32,6 +32,7 @@ public struct SearchModItem: Identifiable, Hashable, Codable, Sendable {
     public let factorioVersions: String
     public let downloadsCount: Int
     public let isDeprecated: Bool
+    public let lastUpdated: String?
 
     public init(
         name: String,
@@ -40,7 +41,8 @@ public struct SearchModItem: Identifiable, Hashable, Codable, Sendable {
         summary: String,
         factorioVersions: String,
         downloadsCount: Int,
-        isDeprecated: Bool
+        isDeprecated: Bool,
+        lastUpdated: String? = nil
     ) {
         self.name = name
         self.title = title
@@ -49,6 +51,7 @@ public struct SearchModItem: Identifiable, Hashable, Codable, Sendable {
         self.factorioVersions = factorioVersions
         self.downloadsCount = downloadsCount
         self.isDeprecated = isDeprecated
+        self.lastUpdated = lastUpdated
     }
 }
 

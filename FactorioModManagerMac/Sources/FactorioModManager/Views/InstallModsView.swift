@@ -6,6 +6,7 @@ public struct InstallModsView: View {
     @State private var includeRecommended: Bool = true
     @State private var includeOptional: Bool = false
     @State private var forceReinstall: Bool = false
+    @FocusState private var isInputFocused: Bool
 
     private func parseTargets() -> [String] {
         let cleaned = inputText
@@ -37,6 +38,7 @@ public struct InstallModsView: View {
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: $inputText)
                             .font(.system(.body, design: .monospaced))
+                            .focused($isInputFocused)
                             .frame(minHeight: 120)
                             .padding(8)
                             .background(Color(NSColor.controlBackgroundColor))
@@ -150,6 +152,9 @@ public struct InstallModsView: View {
                 Spacer()
             }
             .padding(24)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .focusModSearch)) { _ in
+            isInputFocused = true
         }
     }
 }

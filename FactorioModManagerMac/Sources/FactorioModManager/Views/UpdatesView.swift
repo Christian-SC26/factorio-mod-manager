@@ -2,6 +2,14 @@ import SwiftUI
 
 public struct UpdatesView: View {
     @ObservedObject var appState: AppState
+    @State private var filterText: String = ""
+    @FocusState private var isSearchFocused: Bool
+
+    private var filteredUpdates: [ModUpdateItem] {
+        let clean = filterText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if clean.isEmpty { return appState.updatesAvailable }
+        return appState.updatesAvailable.filter { $0.name.lowercased().contains(clean) || $0.title.lowercased().contains(clean) }
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -18,6 +26,29 @@ public struct UpdatesView: View {
                 Spacer()
 
                 HStack(spacing: 10) {
+                    if !appState.updatesAvailable.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                            TextField("Filter updates...", text: $filterText)
+                                .textFieldStyle(.plain)
+                                .focused($isSearchFocused)
+                                .frame(maxWidth: 160)
+
+                            if !filterText.isEmpty {
+                                Button(action: { filterText = "" }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+
                     Button(action: {
                         Task { await appState.checkForUpdates() }
                     }) {
@@ -84,7 +115,7 @@ public struct UpdatesView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(appState.updatesAvailable) { update in
+                List(filteredUpdates) { update in
                     HStack(spacing: 12) {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .font(.system(size: 20))
@@ -137,6 +168,9 @@ public struct UpdatesView: View {
                 }
                 .listStyle(.inset(alternatesRowBackgrounds: true))
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .focusModSearch)) { _ in
+            isSearchFocused = true
         }
     }
 }

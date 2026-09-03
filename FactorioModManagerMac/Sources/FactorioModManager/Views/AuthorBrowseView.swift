@@ -4,6 +4,7 @@ public struct AuthorBrowseView: View {
     @ObservedObject var appState: AppState
     @State private var authorInput: String = ""
     @State private var selectedModNames: Set<String> = []
+    @FocusState private var isInputFocused: Bool
 
     private func performFetch() {
         guard !authorInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -31,6 +32,7 @@ public struct AuthorBrowseView: View {
                             .foregroundColor(.secondary)
                         TextField(loc("author_input_placeholder"), text: $authorInput)
                             .textFieldStyle(.plain)
+                            .focused($isInputFocused)
                             .onSubmit { performFetch() }
 
                         if !authorInput.isEmpty {
@@ -226,6 +228,9 @@ public struct AuthorBrowseView: View {
                     .listStyle(.inset(alternatesRowBackgrounds: true))
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .focusModSearch)) { _ in
+            isInputFocused = true
         }
     }
 }

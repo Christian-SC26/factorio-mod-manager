@@ -3,8 +3,10 @@ import SwiftUI
 public struct ProfilesView: View {
     @ObservedObject var appState: AppState
     @State private var newProfileName: String = ""
+    @State private var profileFilterText: String = ""
     @State private var profileToDelete: Profile? = nil
     @State private var showDeleteConfirmation: Bool = false
+    @FocusState private var isFilterFocused: Bool
 
     private var currentActiveModNames: Set<String> {
         Set(appState.installedMods.filter { appState.isModEnabled($0.name) && $0.name != FactorioConstants.baseModName }.map(\.name))
@@ -12,6 +14,14 @@ public struct ProfilesView: View {
 
     private func isProfileActive(_ profile: Profile) -> Bool {
         profile.isMatchingActiveMods(currentActiveModNames)
+    }
+
+    private var filteredProfiles: [Profile] {
+        let clean = profileFilterText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if clean.isEmpty {
+            return appState.profiles
+        }
+        return appState.profiles.filter { $0.name.lowercased().contains(clean) }
     }
 
     public var body: some View {
@@ -57,8 +67,35 @@ public struct ProfilesView: View {
 
                 // Profiles List
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Saved Profiles (\(appState.profiles.count))")
-                        .font(.headline)
+                    HStack {
+                        Text("Saved Profiles (\(filteredProfiles.count))")
+                            .font(.headline)
+
+                        Spacer()
+
+                        if !appState.profiles.isEmpty {
+                            HStack(spacing: 6) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.secondary)
+                                TextField("Filter profiles...", text: $profileFilterText)
+                                    .textFieldStyle(.plain)
+                                    .focused($isFilterFocused)
+                                    .frame(maxWidth: 180)
+
+                                if !profileFilterText.isEmpty {
+                                    Button(action: { profileFilterText = "" }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        }
+                    }
 
                     if appState.profiles.isEmpty {
                         VStack(spacing: 10) {
@@ -73,9 +110,19 @@ public struct ProfilesView: View {
                         .padding(32)
                         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    } else if filteredProfiles.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("No profiles match '\(profileFilterText)'")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Button("Clear Filter") { profileFilterText = "" }
+                                .buttonStyle(.bordered)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(24)
                     } else {
                         LazyVStack(alignment: .leading, spacing: 12) {
-                            ForEach(appState.profiles) { profile in
+                            ForEach(filteredProfiles) { profile in
                                 ProfileCardView(
                                     profile: profile,
                                     isActive: isProfileActive(profile),
@@ -106,6 +153,9 @@ public struct ProfilesView: View {
         }
         .onAppear {
             appState.loadProfiles()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .focusModSearch)) { _ in
+            isFilterFocused = true
         }
         .confirmationDialog(
             "Delete Profile?",
