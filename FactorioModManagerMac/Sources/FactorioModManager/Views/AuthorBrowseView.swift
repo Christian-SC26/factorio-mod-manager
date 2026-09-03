@@ -65,7 +65,7 @@ public struct AuthorBrowseView: View {
 
                 // Author Presets
                 HStack(spacing: 8) {
-                    Text("Popular Authors:")
+                    Text(loc("popular_authors"))
                         .font(.caption)
                         .foregroundColor(.secondary)
 
@@ -102,7 +102,7 @@ public struct AuthorBrowseView: View {
                     Image(systemName: "person.crop.circle.badge.xmark")
                         .font(.system(size: 42))
                         .foregroundColor(.secondary.opacity(0.6))
-                    Text("Author '\(appState.currentAuthorName)' not found or has no published mods.")
+                    Text(loc("author_not_found", appState.currentAuthorName))
                         .font(.headline)
                     Spacer()
                 }
@@ -115,7 +115,7 @@ public struct AuthorBrowseView: View {
                         .foregroundColor(.secondary)
                     Text(loc("author_title"))
                         .font(.title3.bold())
-                    Text("Enter a mod author's username or portal URL to explore and install their mods.")
+                    Text(loc("author_browse_desc"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Spacer()
@@ -146,7 +146,7 @@ public struct AuthorBrowseView: View {
                             .buttonStyle(.borderedProminent)
                         }
 
-                        Button(selectedModNames.count == appState.authorResults.count ? "Deselect All" : "Select All") {
+                        Button(selectedModNames.count == appState.authorResults.count ? loc("deselect_all") : loc("select_all")) {
                             if selectedModNames.count == appState.authorResults.count {
                                 selectedModNames.removeAll()
                             } else {

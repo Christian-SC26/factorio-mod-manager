@@ -141,7 +141,7 @@ public struct InstalledModsView: View {
                     HStack(spacing: 8) {
                         // Profiles Dropdown Menu
                         Menu {
-                            Section("Saved Profiles (\(appState.profiles.count))") {
+                            Section(loc("saved_profiles_count", appState.profiles.count)) {
                                 if appState.profiles.isEmpty {
                                     Text(loc("no_profiles_saved"))
                                 } else {
@@ -150,7 +150,7 @@ public struct InstalledModsView: View {
                                             Task { await appState.activateProfile(profile) }
                                         }) {
                                             if isProfileActive(profile) {
-                                                Label("\(profile.name) (Active)", systemImage: "checkmark")
+                                                Label(loc("profile_active_item", profile.name), systemImage: "checkmark")
                                             } else {
                                                 Text(profile.name)
                                             }
@@ -163,18 +163,18 @@ public struct InstalledModsView: View {
                                 newProfileName = ""
                                 showSaveProfileSheet = true
                             }) {
-                                Label("Save Current as Profile...", systemImage: "plus")
+                                Label(loc("save_current_as_profile_menu"), systemImage: "plus")
                             }
                             Button(action: {
                                 appState.selectedTab = .profiles
                             }) {
-                                Label("Manage Profiles...", systemImage: "folder")
+                                Label(loc("manage_profiles_menu"), systemImage: "folder")
                             }
                         } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: activeProfile != nil ? "folder.fill" : "folder")
                                     .foregroundColor(activeProfile != nil ? .green : .secondary)
-                                Text(activeProfile?.name ?? "Profiles")
+                                Text(activeProfile?.name ?? loc("profiles_title"))
                                     .font(.system(size: 12, weight: .medium))
                                     .lineLimit(1)
                             }
@@ -182,12 +182,12 @@ public struct InstalledModsView: View {
 
                         // Modpacks Dropdown Menu
                         Menu {
-                            Section("Portal Modpacks (\(appState.portalModpacks.count))") {
+                            Section(loc("portal_modpacks_count", appState.portalModpacks.count)) {
                                 if appState.portalModpacks.isEmpty {
                                     if appState.isLoadingPortalModpacks {
-                                        Text("Loading modpacks catalog...")
+                                        Text(loc("loading_modpacks_catalog"))
                                     } else {
-                                        Text("No modpacks found for Factorio \(appState.effectiveFactorioVersion)")
+                                        Text(loc("no_modpacks_found_for_version", appState.effectiveFactorioVersion))
                                     }
                                 } else {
                                     ForEach(appState.portalModpacks) { pack in
@@ -198,7 +198,7 @@ public struct InstalledModsView: View {
 
                             if !appState.savedModpacks.isEmpty {
                                 Divider()
-                                Section("My Saved Modpacks") {
+                                Section(loc("my_saved_modpacks")) {
                                     ForEach(appState.savedModpacks, id: \.url) { item in
                                         Button(action: {
                                             Task { await appState.applyModpack(from: item.url) }
@@ -210,33 +210,33 @@ public struct InstalledModsView: View {
                             }
 
                             Divider()
-                            Section("Modpack Actions") {
+                            Section(loc("modpack_actions")) {
                                 Button(action: {
                                     appState.fetchPortalModpacks()
                                 }) {
-                                    Label("Refresh Modpacks Catalog", systemImage: "arrow.triangle.2.circlepath")
+                                    Label(loc("refresh_modpacks_catalog"), systemImage: "arrow.triangle.2.circlepath")
                                 }
                                 Button(action: {
                                     appState.importModpackFromFile()
                                 }) {
-                                    Label("Import Modpack File...", systemImage: "square.and.arrow.down")
+                                    Label(loc("import_modpack_file_menu"), systemImage: "square.and.arrow.down")
                                 }
                                 Button(action: {
                                     appState.exportCurrentModpackToFile()
                                 }) {
-                                    Label("Export Current Modpack...", systemImage: "square.and.arrow.up")
+                                    Label(loc("export_current_modpack_menu"), systemImage: "square.and.arrow.up")
                                 }
                                 Button(action: {
                                     appState.selectedTab = .exportImport
                                 }) {
-                                    Label("Manage Modpacks...", systemImage: "shippingbox")
+                                    Label(loc("manage_modpacks_menu"), systemImage: "shippingbox")
                                 }
                             }
                         } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: "shippingbox")
                                     .foregroundColor(.secondary)
-                                Text(appState.portalModpacks.isEmpty ? "Modpacks" : "Modpacks (\(appState.portalModpacks.count))")
+                                Text(appState.portalModpacks.isEmpty ? loc("modpacks_button") : loc("modpacks_button_count", appState.portalModpacks.count))
                                     .font(.system(size: 12, weight: .medium))
                             }
                         }
@@ -281,7 +281,7 @@ public struct InstalledModsView: View {
                             }) {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                             }
-                            .help("Re-check for updates")
+                            .help(loc("recheck_updates_tooltip"))
                         } else {
                             Button(action: {
                                 Task { await appState.checkForUpdates() }
@@ -430,10 +430,10 @@ public struct InstalledModsView: View {
         .sheet(isPresented: $showSaveProfileSheet) {
             VStack(spacing: 16) {
                 HStack {
-                    Text("Save Current Profile")
+                    Text(loc("save_current_profile_title"))
                         .font(.headline)
                     Spacer()
-                    Button("Cancel") { showSaveProfileSheet = false }
+                    Button(loc("cancel")) { showSaveProfileSheet = false }
                 }
 
                 TextField(loc("profile_name_placeholder"), text: $newProfileName)
@@ -441,7 +441,7 @@ public struct InstalledModsView: View {
 
                 HStack {
                     Spacer()
-                    Button("Save Profile") {
+                    Button(loc("save_button")) {
                         let trimmed = newProfileName.trimmingCharacters(in: .whitespacesAndNewlines)
                         if !trimmed.isEmpty {
                             appState.saveCurrentProfile(name: trimmed)
@@ -480,9 +480,9 @@ public struct InstalledModsView: View {
                         .foregroundColor(.red)
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Dependency Conflict Detected")
+                        Text(loc("dep_conflict_detected"))
                             .font(.title3.bold())
-                        Text("Deleting \(modsPendingDeletion.count) mod(s) will break \(brokenDependenciesForPendingDeletion.count) dependent mod(s).")
+                        Text(loc("dep_conflict_desc", modsPendingDeletion.count, brokenDependenciesForPendingDeletion.count))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -504,7 +504,7 @@ public struct InstalledModsView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Mods to be deleted:")
+                            Text(loc("mods_to_be_deleted"))
                                 .font(.headline)
                             ForEach(modsPendingDeletion) { mod in
                                 Text("• \(mod.displayTitle) (\(mod.name))")
@@ -518,7 +518,7 @@ public struct InstalledModsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
 
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Active mods that depend on them and will fail to load:")
+                            Text(loc("active_mods_fail_to_load"))
                                 .font(.headline)
                                 .foregroundColor(.red)
 
@@ -527,7 +527,7 @@ public struct InstalledModsView: View {
                                     Text("• \(info.dependentMod.displayTitle)")
                                         .fontWeight(.semibold)
                                     Spacer()
-                                    Text("requires \(info.brokenDependencyName)")
+                                    Text(loc("requires_mod", info.brokenDependencyName))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -539,7 +539,7 @@ public struct InstalledModsView: View {
                         .background(Color.red.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 6))
 
-                        Text("Recommended Action: Delete the mod(s) and automatically disable dependent mods so Factorio can launch safely without crashing.")
+                        Text(loc("dep_conflict_recommendation"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -555,12 +555,12 @@ public struct InstalledModsView: View {
 
                     Spacer()
 
-                    Button("Delete Anyway", role: .destructive) {
+                    Button(loc("delete_anyway"), role: .destructive) {
                         showDependencyDeleteConfirmation = false
                         appState.deleteMods(modsPendingDeletion)
                     }
 
-                    Button("Delete & Disable Dependent Mods") {
+                    Button(loc("delete_and_disable_dependents")) {
                         showDependencyDeleteConfirmation = false
                         let dependentList = Array(Set(brokenDependenciesForPendingDeletion.map(\.dependentMod)))
                         appState.deleteModsAndDisableDependents(mods: modsPendingDeletion, dependentMods: dependentList)

@@ -41,7 +41,7 @@ public struct ExportImportView: View {
                 guard !targets.isEmpty else {
                     appState.showNotification(
                         title: loc("export_import_title"),
-                        message: "No mod entries found in selected file.",
+                        message: loc("no_mods_in_import_file"),
                         isError: true
                     )
                     return
@@ -72,7 +72,7 @@ public struct ExportImportView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(loc("export_import_title"))
                         .font(.title2.bold())
-                    Text("Share your mod setups with friends or restore saved modpacks across machines.")
+                    Text(loc("export_import_desc"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -96,7 +96,7 @@ public struct ExportImportView: View {
                     Divider()
 
                     let activeCount = appState.installedMods.filter { appState.isModEnabled($0.name) && $0.name != "base" }.count
-                    Text("Current active mods ready for export: \(activeCount)")
+                    Text(loc("active_mods_ready_for_export", activeCount))
                         .font(.subheadline.bold())
 
                     HStack(spacing: 12) {

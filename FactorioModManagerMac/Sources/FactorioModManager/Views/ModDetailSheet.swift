@@ -14,7 +14,7 @@ public struct ModDetailSheet: View {
     }
 
     private var titleText: String {
-        modInfo?.title ?? localMod?.title ?? "Mod Details"
+        modInfo?.title ?? localMod?.title ?? loc("mod_details_title")
     }
 
     private var nameText: String {
@@ -22,7 +22,7 @@ public struct ModDetailSheet: View {
     }
 
     private var authorText: String {
-        modInfo?.owner ?? localMod?.author ?? "Unknown"
+        modInfo?.owner ?? localMod?.author ?? loc("unknown_author")
     }
 
     private var summaryText: String {
@@ -33,7 +33,7 @@ public struct ModDetailSheet: View {
         VStack(spacing: 0) {
             // Header (Clean, no box icon)
             HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(titleText)
                         .font(.title2.bold())
                     Text(nameText)
@@ -50,41 +50,44 @@ public struct ModDetailSheet: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(18)
+            .padding(16)
             .background(Color(NSColor.windowBackgroundColor))
 
             Divider()
 
-            // Details Content
+            // Content Scroll
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    // Quick Meta Tags
+                VStack(alignment: .leading, spacing: 16) {
+                    // Meta badges row
                     HStack(spacing: 12) {
                         if !authorText.isEmpty {
                             HStack(spacing: 4) {
                                 Image(systemName: "person")
+                                    .foregroundColor(.secondary)
                                 Text(authorText)
+                                    .fontWeight(.medium)
                             }
                             .font(.caption)
-                            .foregroundColor(.secondary)
                         }
 
-                        if let info = modInfo, !info.category.isEmpty {
-                            HStack(spacing: 4) {
-                                Image(systemName: "tag")
-                                Text(info.category)
+                        if let info = modInfo {
+                            if !info.category.isEmpty {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "tag")
+                                        .foregroundColor(.secondary)
+                                    Text(info.category)
+                                }
+                                .font(.caption)
                             }
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        }
 
-                        if let info = modInfo, info.downloadsCount > 0 {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.down.circle")
-                                Text(String(format: loc("downloads_count_badge"), Formatters.formatDownloads(info.downloadsCount)))
+                            if info.downloadsCount > 0 {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.down.circle")
+                                    Text(String(format: loc("downloads_count_badge"), Formatters.formatDownloads(info.downloadsCount)))
+                                }
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                         }
 
                         if let local = localMod {
@@ -92,15 +95,14 @@ public struct ModDetailSheet: View {
                         }
                     }
 
-                    // Summary / Description
+                    // Summary
                     if !summaryText.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(loc("description_label"))
                                 .font(.headline)
                             Text(summaryText)
                                 .font(.body)
-                                .foregroundColor(.primary)
-                                .fixedSize(horizontal: false, vertical: true)
+                                .foregroundColor(.secondary)
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -116,12 +118,12 @@ public struct ModDetailSheet: View {
 
                             HStack(spacing: 10) {
                                 VersionBadge(latest.version.raw)
-                                Text("Factorio: \(latest.factorioVersion)")
+                                Text(loc("factorio_version_prefix", latest.factorioVersion))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
 
                                 if !latest.releasedAt.isEmpty {
-                                    Text("Released: \(latest.releasedAt)")
+                                    Text(loc("released_date_prefix", latest.releasedAt))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -159,7 +161,7 @@ public struct ModDetailSheet: View {
                     // Local File info if installed
                     if let local = localMod {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Local File")
+                            Text(loc("local_file_section"))
                                 .font(.headline)
 
                             HStack {
@@ -180,23 +182,31 @@ public struct ModDetailSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
                 }
-                .padding(18)
+                .padding(16)
             }
 
             Divider()
 
             // Footer Actions
-            HStack(spacing: 12) {
+            HStack {
+                Button(loc("close_button")) {
+                    dismiss()
+                }
+
                 if let url = URL(string: "https://mods.factorio.com/mod/\(nameText)") {
                     Button(action: { NSWorkspace.shared.open(url) }) {
                         Label(loc("open_on_portal"), systemImage: "arrow.up.right.square")
                     }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
                 }
 
                 if let local = localMod {
                     Button(action: { NSWorkspace.shared.activateFileViewerSelecting([local.fileURL]) }) {
                         Label(loc("reveal_in_finder"), systemImage: "folder")
                     }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.secondary)
                 }
 
                 Spacer()
@@ -206,7 +216,7 @@ public struct ModDetailSheet: View {
                     Button(action: {}) {
                         HStack(spacing: 5) {
                             Image(systemName: "checkmark")
-                            Text("Installed")
+                            Text(loc("installed_status"))
                                 .fontWeight(.semibold)
                         }
                     }

@@ -25,7 +25,7 @@ public struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(loc("settings_title"))
                         .font(.title2.bold())
-                    Text("Configure mods storage directory, target Factorio branch, and manager behavior.")
+                    Text(loc("settings_desc"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -48,12 +48,14 @@ public struct SettingsView: View {
                             Button(action: chooseCustomModsDir) {
                                 Label(loc("select_folder"), systemImage: "folder")
                             }
+                            .fixedSize(horizontal: true, vertical: false)
 
                             Button(action: {
                                 NSWorkspace.shared.open(appState.modsDirectory)
                             }) {
                                 Label(loc("open_mods_folder"), systemImage: "arrow.up.forward.square")
                             }
+                            .fixedSize(horizontal: true, vertical: false)
 
                             Spacer()
 
@@ -62,6 +64,7 @@ public struct SettingsView: View {
                             }
                             .buttonStyle(.link)
                             .font(.caption)
+                            .fixedSize(horizontal: true, vertical: false)
                         }
                     }
                     .padding(14)
@@ -75,15 +78,14 @@ public struct SettingsView: View {
                         .font(.headline)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Picker("Branch / Version", selection: $selectedVersionOption) {
+                        Picker(loc("branch_version_picker_label"), selection: $selectedVersionOption) {
                             Text(String(format: loc("auto_detect_label"), appState.detectedFactorioVersion)).tag("auto")
-                            Text("2.1 (Current Latest)").tag("2.1")
-                            Text("2.0 (Space Age)").tag("2.0")
-                            Text("1.1 (Legacy)").tag("1.1")
-                            Text("Custom").tag("custom")
+                            Text(loc("factorio_2_1_label")).tag("2.1")
+                            Text(loc("factorio_2_0_label")).tag("2.0")
+                            Text(loc("custom_version_label")).tag("custom")
                         }
                         .pickerStyle(.menu)
-                        .frame(maxWidth: 320)
+                        .fixedSize(horizontal: true, vertical: false)
                         .onChange(of: selectedVersionOption) { val in
                             if val == "auto" {
                                 appState.customFactorioVersion = ""
@@ -94,7 +96,7 @@ public struct SettingsView: View {
 
                         if selectedVersionOption == "custom" {
                             HStack {
-                                Text("Custom Version:")
+                                Text(loc("custom_version_field_label"))
                                     .font(.subheadline)
                                 TextField("e.g. 2.1.17", text: $appState.customFactorioVersion)
                                     .textFieldStyle(.roundedBorder)
@@ -110,7 +112,7 @@ public struct SettingsView: View {
 
                 // Download & Storage Behavior
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Download & Management Rules")
+                    Text(loc("download_management_rules_title"))
                         .font(.headline)
 
                     VStack(alignment: .leading, spacing: 12) {
@@ -164,11 +166,8 @@ public struct SettingsView: View {
                         .font(.headline)
 
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Factorio Mod Manager (FMM)")
-                                .font(.system(size: 14, weight: .bold))
-                            StatusBadge("macOS Native")
-                        }
+                        Text("Factorio Mod Manager (FMM)")
+                            .font(.system(size: 14, weight: .bold))
                         Text(loc("version_label"))
                             .font(.caption)
                             .foregroundColor(.secondary)

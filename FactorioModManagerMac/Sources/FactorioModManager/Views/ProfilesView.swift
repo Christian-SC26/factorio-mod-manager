@@ -167,7 +167,7 @@ public struct ProfilesView: View {
             }
             Button(loc("cancel"), role: .cancel) {}
         } message: { prof in
-            Text("Are you sure you want to delete profile '\(prof.name)'?")
+            Text(loc("delete_profile_confirm_message", prof.name))
         }
     }
 }
@@ -186,7 +186,8 @@ struct ProfileCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            // Header Row
+            HStack(alignment: .center) {
                 HStack(spacing: 8) {
                     Button(action: onRevealInFinder) {
                         Image(systemName: isActive ? "folder.fill" : "folder")
@@ -245,11 +246,11 @@ struct ProfileCardView: View {
                         .clipShape(Capsule())
 
                         Button(action: onUpdate) {
-                            Label("Update", systemImage: "arrow.triangle.2.circlepath")
+                            Label(loc("update_single"), systemImage: "arrow.triangle.2.circlepath")
                                 .font(.system(size: 11))
                         }
                         .buttonStyle(.bordered)
-                        .help("Update this profile with current active mods")
+                        .help(loc("update_profile_help"))
                     }
 
                     Button(action: onDelete) {
@@ -286,7 +287,7 @@ struct ProfileCardView: View {
 
                 if activeMods.count > 18 {
                     Button(action: { isExpanded.toggle() }) {
-                        Text(isExpanded ? "Show less" : "Show all \(activeMods.count) mods (\(activeMods.count - 18) more)...")
+                        Text(isExpanded ? loc("show_less") : loc("show_all_mods_count", activeMods.count, activeMods.count - 18))
                             .font(.caption)
                             .foregroundColor(.accentColor)
                     }

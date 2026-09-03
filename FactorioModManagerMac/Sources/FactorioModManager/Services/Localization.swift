@@ -226,8 +226,8 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "auto_enable_desc": "Immediately activates newly downloaded mods in mod-list.json.",
             "language_title": "Interface Language",
             "about_title": "About Factorio Mod Manager",
-            "version_label": "Version 2.1 Native Swift",
-            "mirror_info": "Downloads are fetched from the fast re146.dev cloud mirror.",
+            "version_label": "Version 2.1",
+            "mirror_info": "Downloads and resolves mods using mirror-factorio.eu (no Steam login required).",
 
             // Mod Details
             "mod_details_title": "Mod Details",
@@ -300,6 +300,95 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "profile_missing_mods_resolving": "%d mods from profile missing on disk. Resolving...",
             "profile_activate_failed": "Failed to activate profile '%@'.",
             "profile_deleted": "Profile '%@' deleted.",
+
+            // Profiles View additions
+            "show_less": "Show less",
+            "show_all_mods_count": "Show all %d mods (%d more)...",
+            "update_profile_help": "Update this profile with current active mods",
+            "delete_profile_confirm_message": "Are you sure you want to delete profile '%@'?",
+
+            // Export / Import additions
+            "export_import_desc": "Share your mod setups with friends or restore saved modpacks across machines.",
+            "active_mods_ready_for_export": "Current active mods ready for export: %d",
+            "no_mods_in_import_file": "No mod entries found in selected file.",
+
+            // Author Browse additions
+            "popular_authors": "Popular Authors:",
+            "author_browse_desc": "Enter a mod author's username or portal URL to explore and install their mods.",
+            "author_not_found": "Author '%@' not found or has no published mods.",
+            "select_all": "Select All",
+            "deselect_all": "Deselect All",
+
+            // Optional Mods additions
+            "install_all_count": "Install All (%d)",
+            "optional_mods_empty_desc": "Click the button below to scan your installed mods for suggested and optional companion mods.",
+
+            // Settings additions
+            "settings_desc": "Configure mods storage directory, target Factorio branch, and manager behavior.",
+            "branch_version_picker_label": "Target Branch / Version",
+            "factorio_2_1_label": "2.1 (Current Latest)",
+            "factorio_2_0_label": "2.0 (Space Age)",
+            "custom_version_label": "Custom Version...",
+            "custom_version_field_label": "Custom Version:",
+            "download_management_rules_title": "Download & Management Rules",
+
+            // Native Table View & Installed Mods additions
+            "col_active": "Active",
+            "col_name": "Mod Name",
+            "col_author": "Author",
+            "col_date": "Date Added",
+            "col_game_ver": "Game Ver",
+            "col_version": "Version",
+            "col_size": "Size",
+            "col_actions": "Actions",
+            "official_content_header": "OFFICIAL FACTORIO CONTENT & EXPANSIONS",
+            "community_mods_header": "INSTALLED COMMUNITY MODS (%d)",
+            "built_in_label": "Built-in",
+            "context_mod_details": "Mod Details...",
+            "context_open_portal": "Open on Portal",
+            "context_toggle_selected": "Toggle Selected Mods",
+            "context_disable_mod": "Disable Mod",
+            "context_enable_mod": "Enable Mod",
+            "context_reveal_finder": "Reveal in Finder",
+            "context_delete_multiple": "Delete %d Mods...",
+            "context_delete_single": "Delete Mod...",
+            "tooltip_open_portal": "Open on Factorio Portal (⌘L)",
+            "tooltip_mod_details": "Mod Details (⌘I)",
+            "tooltip_reveal_finder": "Reveal in Finder (⌘O)",
+            "tooltip_delete_mod": "Delete Mod (⌫)",
+            "recheck_updates_tooltip": "Re-check for updates",
+            "launch_factorio_tooltip": "Launch Factorio (⌥O)",
+
+            // Installed Mods Menu & Sheets additions
+            "profile_active_item": "%@ (Active)",
+            "save_current_as_profile_menu": "Save Current as Profile...",
+            "manage_profiles_menu": "Manage Profiles...",
+            "portal_modpacks_count": "Portal Modpacks (%d)",
+            "loading_modpacks_catalog": "Loading modpacks catalog...",
+            "no_modpacks_found_for_version": "No modpacks found for Factorio %@",
+            "my_saved_modpacks": "My Saved Modpacks",
+            "modpack_actions": "Modpack Actions",
+            "refresh_modpacks_catalog": "Refresh Modpacks Catalog",
+            "import_modpack_file_menu": "Import Modpack File...",
+            "export_current_modpack_menu": "Export Current Modpack...",
+            "manage_modpacks_menu": "Manage Modpacks...",
+            "modpacks_button": "Modpacks",
+            "modpacks_button_count": "Modpacks (%d)",
+            "save_current_profile_title": "Save Current Profile",
+            "dep_conflict_detected": "Dependency Conflict Detected",
+            "dep_conflict_desc": "Deleting %d mod(s) will break %d dependent mod(s).",
+            "mods_to_be_deleted": "Mods to be deleted:",
+            "active_mods_fail_to_load": "Active mods that depend on them and will fail to load:",
+            "requires_mod": "requires %@",
+            "dep_conflict_recommendation": "Recommended Action: Delete the mod(s) and automatically disable dependent mods so Factorio can launch safely without crashing.",
+            "delete_anyway": "Delete Anyway",
+            "delete_and_disable_dependents": "Delete & Disable Dependent Mods",
+
+            // Mod Details additions
+            "unknown_author": "Unknown",
+            "factorio_version_prefix": "Factorio: %@",
+            "released_date_prefix": "Released: %@",
+            "local_file_section": "Local File",
         ],
         .ru: [
             "app_name": "Factorio Mod Manager",
@@ -456,9 +545,9 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "auto_enable_title": "Автоматически включать новые моды",
             "auto_enable_desc": "Сразу активирует скачанные моды в mod-list.json.",
             "language_title": "Язык интерфейса",
-            "about_title": "О программе Factorio Mod Manager",
-            "version_label": "Версия 2.1 Нативный Swift",
-            "mirror_info": "Загрузка модов осуществляется с быстрого облачного зеркала re146.dev.",
+            "about_title": "О программе",
+            "version_label": "Версия 2.1",
+            "mirror_info": "Загружает и разрешает моды через mirror-factorio.eu (без необходимости аккаунта Steam).",
 
             // Mod Details
             "mod_details_title": "Информация о моде",
@@ -530,6 +619,95 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "profile_missing_mods_resolving": "%d модов из профиля отсутствуют на диске. Поиск зависимостей...",
             "profile_activate_failed": "Не удалось активировать профиль '%@'.",
             "profile_deleted": "Профиль '%@' удален.",
+
+            // Profiles View additions
+            "show_less": "Свернуть",
+            "show_all_mods_count": "Показать все %d модов (еще %d)...",
+            "update_profile_help": "Обновить этот профиль текущими активными модами",
+            "delete_profile_confirm_message": "Вы уверены, что хотите удалить профиль '%@'?",
+
+            // Export / Import additions
+            "export_import_desc": "Делитесь наборами модов с друзьями или переносите сохраненные модпаки между устройствами.",
+            "active_mods_ready_for_export": "Активные моды, готовые к экспорту: %d",
+            "no_mods_in_import_file": "В выбранном файле не найдено записей модов.",
+
+            // Author Browse additions
+            "popular_authors": "Популярные авторы:",
+            "author_browse_desc": "Введите имя автора или ссылку на портал для поиска и установки его модов.",
+            "author_not_found": "Автор '%@' не найден или не имеет опубликованных модов.",
+            "select_all": "Выделить все",
+            "deselect_all": "Снять выделение",
+
+            // Optional Mods additions
+            "install_all_count": "Установить все (%d)",
+            "optional_mods_empty_desc": "Нажмите кнопку ниже для поиска рекомендованных и опциональных дополнений к вашим модам.",
+
+            // Settings additions
+            "settings_desc": "Настройка папки хранения модов, целевой ветки Factorio и поведения менеджера.",
+            "branch_version_picker_label": "Целевая ветка / Версия",
+            "factorio_2_1_label": "2.1 (Актуальная)",
+            "factorio_2_0_label": "2.0 (Space Age)",
+            "custom_version_label": "Своя версия...",
+            "custom_version_field_label": "Укажите версию:",
+            "download_management_rules_title": "Правила загрузки и управления",
+
+            // Native Table View & Installed Mods additions
+            "col_active": "Вкл",
+            "col_name": "Название мода",
+            "col_author": "Автор",
+            "col_date": "Дата",
+            "col_game_ver": "Игра",
+            "col_version": "Версия",
+            "col_size": "Размер",
+            "col_actions": "Действия",
+            "official_content_header": "ОФИЦИАЛЬНЫЙ КОНТЕНТ FACTORIO И ДОПОЛНЕНИЯ",
+            "community_mods_header": "УСТАНОВЛЕННЫЕ МОДЫ СООБЩЕСТВА (%d)",
+            "built_in_label": "Встроенный",
+            "context_mod_details": "Подробнее о моде...",
+            "context_open_portal": "Открыть на Factorio Portal",
+            "context_toggle_selected": "Переключить выбранные моды",
+            "context_disable_mod": "Отключить мод",
+            "context_enable_mod": "Включить мод",
+            "context_reveal_finder": "Показать в Finder",
+            "context_delete_multiple": "Удалить %d модов...",
+            "context_delete_single": "Удалить мод...",
+            "tooltip_open_portal": "Открыть на Factorio Portal (⌘L)",
+            "tooltip_mod_details": "Подробнее о моде (⌘I)",
+            "tooltip_reveal_finder": "Показать в Finder (⌘O)",
+            "tooltip_delete_mod": "Удалить мод (⌫)",
+            "recheck_updates_tooltip": "Проверить обновления заново",
+            "launch_factorio_tooltip": "Запустить Factorio (⌥O)",
+
+            // Installed Mods Menu & Sheets additions
+            "profile_active_item": "%@ (Активен)",
+            "save_current_as_profile_menu": "Сохранить текущие как профиль...",
+            "manage_profiles_menu": "Управление профилями...",
+            "portal_modpacks_count": "Модпаки с портала (%d)",
+            "loading_modpacks_catalog": "Загрузка каталога модпаков...",
+            "no_modpacks_found_for_version": "Не найдено модпаков для Factorio %@",
+            "my_saved_modpacks": "Мои сохраненные модпаки",
+            "modpack_actions": "Действия с модпаками",
+            "refresh_modpacks_catalog": "Обновить каталог модпаков",
+            "import_modpack_file_menu": "Импортировать файл модпака...",
+            "export_current_modpack_menu": "Экспортировать текущий модпак...",
+            "manage_modpacks_menu": "Управление модпаками...",
+            "modpacks_button": "Модпаки",
+            "modpacks_button_count": "Модпаки (%d)",
+            "save_current_profile_title": "Сохранить текущий профиль",
+            "dep_conflict_detected": "Обнаружен конфликт зависимостей",
+            "dep_conflict_desc": "Удаление %d мод(ов) нарушит работу %d зависимых мод(ов).",
+            "mods_to_be_deleted": "Моды, которые будут удалены:",
+            "active_mods_fail_to_load": "Активные моды, которые от них зависят и не смогут загрузиться:",
+            "requires_mod": "требуется %@",
+            "dep_conflict_recommendation": "Рекомендуемое действие: удалить выбранные моды и автоматически отключить зависимые, чтобы Factorio мог запуститься без ошибок.",
+            "delete_anyway": "Удалить в любом случае",
+            "delete_and_disable_dependents": "Удалить и отключить зависимые моды",
+
+            // Mod Details additions
+            "unknown_author": "Неизвестно",
+            "factorio_version_prefix": "Версия игры: %@",
+            "released_date_prefix": "Дата выпуска: %@",
+            "local_file_section": "Локальный файл",
         ]
     ]
 }

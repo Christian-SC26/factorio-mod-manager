@@ -38,7 +38,7 @@ public struct OptionalModsView: View {
                         }) {
                             HStack(spacing: 5) {
                                 Image(systemName: "arrow.down.circle")
-                                Text("Install All (\(appState.optionalMods.count))")
+                                Text(loc("install_all_count", appState.optionalMods.count))
                             }
                         }
                         .buttonStyle(.borderedProminent)
@@ -72,7 +72,7 @@ public struct OptionalModsView: View {
                         .foregroundColor(.secondary)
                     Text(loc("optional_title"))
                         .font(.title3.bold())
-                    Text("Click the button below to scan your installed mods for suggested and optional companion mods.")
+                    Text(loc("optional_mods_empty_desc"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)

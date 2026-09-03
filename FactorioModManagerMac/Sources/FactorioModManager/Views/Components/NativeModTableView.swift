@@ -304,10 +304,10 @@ final class ModActionsCellView: NSTableCellView {
 
     private func setup() {
         let buttons = [
-            (bSafari, ModTableImages.safari, "Open on Factorio Portal (⌘L)"),
-            (bInfo, ModTableImages.info, "Mod Details (⌘I)"),
-            (bFolder, ModTableImages.folder, "Reveal in Finder (⌘O)"),
-            (bTrash, ModTableImages.trash, "Delete Mod (⌫)")
+            (bSafari, ModTableImages.safari, loc("tooltip_open_portal")),
+            (bInfo, ModTableImages.info, loc("tooltip_mod_details")),
+            (bFolder, ModTableImages.folder, loc("tooltip_reveal_finder")),
+            (bTrash, ModTableImages.trash, loc("tooltip_delete_mod"))
         ]
         for (btn, img, tip) in buttons {
             btn.image = img
@@ -619,14 +619,14 @@ public final class CustomTableView: NSTableView {
         let menu = NSMenu()
 
         // Details
-        let itemDetails = NSMenuItem(title: "Mod Details...", action: #selector(contextOpenDetails(_:)), keyEquivalent: "i")
+        let itemDetails = NSMenuItem(title: loc("context_mod_details"), action: #selector(contextOpenDetails(_:)), keyEquivalent: "i")
         itemDetails.target = self
         itemDetails.representedObject = mod
         menu.addItem(itemDetails)
 
         // Portal link
         if !isOfficial {
-            let itemPortal = NSMenuItem(title: "Open on Portal", action: #selector(contextOpenPortal(_:)), keyEquivalent: "l")
+            let itemPortal = NSMenuItem(title: loc("context_open_portal"), action: #selector(contextOpenPortal(_:)), keyEquivalent: "l")
             itemPortal.target = self
             itemPortal.representedObject = mod
             menu.addItem(itemPortal)
@@ -636,7 +636,7 @@ public final class CustomTableView: NSTableView {
 
         // Toggle state
         let itemToggle = NSMenuItem(
-            title: selected.count > 1 ? "Toggle Selected Mods" : (mod.enabled ? "Disable Mod" : "Enable Mod"),
+            title: selected.count > 1 ? loc("context_toggle_selected") : (mod.enabled ? loc("context_disable_mod") : loc("context_enable_mod")),
             action: #selector(contextToggleMods(_:)),
             keyEquivalent: " "
         )
@@ -646,7 +646,7 @@ public final class CustomTableView: NSTableView {
 
         // Reveal in Finder
         if !isOfficial {
-            let itemFinder = NSMenuItem(title: "Reveal in Finder", action: #selector(contextRevealInFinder(_:)), keyEquivalent: "o")
+            let itemFinder = NSMenuItem(title: loc("context_reveal_finder"), action: #selector(contextRevealInFinder(_:)), keyEquivalent: "o")
             itemFinder.target = self
             itemFinder.representedObject = selected.filter { !self.isOfficialMod($0.name) }
             menu.addItem(itemFinder)
@@ -655,7 +655,7 @@ public final class CustomTableView: NSTableView {
 
             // Delete
             let itemDelete = NSMenuItem(
-                title: selected.count > 1 ? "Delete \(selected.count) Mods..." : "Delete Mod...",
+                title: selected.count > 1 ? loc("context_delete_multiple", selected.count) : loc("context_delete_single"),
                 action: #selector(contextDeleteMods(_:)),
                 keyEquivalent: "\u{08}"
             )
@@ -819,7 +819,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         var items: [ModTableRowItem] = []
 
         if !officialMods.isEmpty {
-            items.append(.groupHeader("OFFICIAL FACTORIO CONTENT & EXPANSIONS"))
+            items.append(.groupHeader(loc("official_content_header")))
             for m in officialMods {
                 items.append(.mod(m))
             }
@@ -827,7 +827,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
 
         if !communityMods.isEmpty {
             if !officialMods.isEmpty {
-                items.append(.groupHeader("INSTALLED COMMUNITY MODS (\(communityMods.count))"))
+                items.append(.groupHeader(loc("community_mods_header", communityMods.count)))
             }
             for m in communityMods {
                 items.append(.mod(m))
@@ -867,7 +867,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
 
         // Columns setup
         let colActive = NSTableColumn(identifier: idActive)
-        colActive.title = "Active"
+        colActive.title = loc("col_active")
         colActive.width = 46
         colActive.minWidth = 46
         colActive.maxWidth = 46
@@ -875,14 +875,14 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         tableView.addTableColumn(colActive)
 
         let colName = NSTableColumn(identifier: idName)
-        colName.title = "Mod Name"
+        colName.title = loc("col_name")
         colName.width = 240
         colName.minWidth = 180
         colName.sortDescriptorPrototype = NSSortDescriptor(key: "displayTitle", ascending: true)
         tableView.addTableColumn(colName)
 
         let colAuthor = NSTableColumn(identifier: idAuthor)
-        colAuthor.title = "Author"
+        colAuthor.title = loc("col_author")
         colAuthor.width = 120
         colAuthor.minWidth = 80
         colAuthor.maxWidth = 180
@@ -890,7 +890,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         tableView.addTableColumn(colAuthor)
 
         let colDate = NSTableColumn(identifier: idDate)
-        colDate.title = "Date Added"
+        colDate.title = loc("col_date")
         colDate.width = 95
         colDate.minWidth = 80
         colDate.maxWidth = 130
@@ -898,7 +898,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         tableView.addTableColumn(colDate)
 
         let colGameVer = NSTableColumn(identifier: idGameVer)
-        colGameVer.title = "Game Ver"
+        colGameVer.title = loc("col_game_ver")
         colGameVer.width = 68
         colGameVer.minWidth = 58
         colGameVer.maxWidth = 85
@@ -906,7 +906,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         tableView.addTableColumn(colGameVer)
 
         let colVersion = NSTableColumn(identifier: idVersion)
-        colVersion.title = "Version"
+        colVersion.title = loc("col_version")
         colVersion.width = 110
         colVersion.minWidth = 85
         colVersion.maxWidth = 145
@@ -914,7 +914,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         tableView.addTableColumn(colVersion)
 
         let colSize = NSTableColumn(identifier: idSize)
-        colSize.title = "Size"
+        colSize.title = loc("col_size")
         colSize.width = 70
         colSize.minWidth = 55
         colSize.maxWidth = 90
@@ -922,7 +922,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
         tableView.addTableColumn(colSize)
 
         let colActions = NSTableColumn(identifier: idActions)
-        colActions.title = "Actions"
+        colActions.title = loc("col_actions")
         colActions.width = 115
         colActions.minWidth = 105
         colActions.maxWidth = 130
@@ -933,10 +933,21 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
 
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor)
+            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor)
         ])
+    }
+
+    func updateColumnTitles() {
+        tableView.tableColumn(withIdentifier: idActive)?.title = loc("col_active")
+        tableView.tableColumn(withIdentifier: idName)?.title = loc("col_name")
+        tableView.tableColumn(withIdentifier: idAuthor)?.title = loc("col_author")
+        tableView.tableColumn(withIdentifier: idDate)?.title = loc("col_date")
+        tableView.tableColumn(withIdentifier: idGameVer)?.title = loc("col_game_ver")
+        tableView.tableColumn(withIdentifier: idVersion)?.title = loc("col_version")
+        tableView.tableColumn(withIdentifier: idSize)?.title = loc("col_size")
+        tableView.tableColumn(withIdentifier: idActions)?.title = loc("col_actions")
     }
 
     // MARK: - NSTableViewDataSource & Delegate
@@ -1022,7 +1033,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
             let cell = (tableView.makeView(withIdentifier: idDate, owner: self) as? ModTextCellView)
                 ?? ModTextCellView(frame: NSRect(x: 0, y: 0, width: col.width, height: 28))
             cell.identifier = idDate
-            let dateString = isOfficial ? "Built-in" : mod.formattedDate
+            let dateString = isOfficial ? loc("built_in_label") : mod.formattedDate
             cell.configure(
                 text: dateString,
                 font: .systemFont(ofSize: 12),
@@ -1055,7 +1066,7 @@ public final class NativeModTableViewNSView: NSView, NSTableViewDataSource, NSTa
             let cell = (tableView.makeView(withIdentifier: idSize, owner: self) as? ModTextCellView)
                 ?? ModTextCellView(frame: NSRect(x: 0, y: 0, width: col.width, height: 28))
             cell.identifier = idSize
-            let sizeString = isOfficial ? "Built-in" : (mod.fileSize > 0 ? Formatters.formatBytes(mod.fileSize) : "—")
+            let sizeString = isOfficial ? loc("built_in_label") : (mod.fileSize > 0 ? Formatters.formatBytes(mod.fileSize) : "—")
             cell.configure(
                 text: sizeString,
                 font: .monospacedSystemFont(ofSize: 11, weight: .regular),
@@ -1271,6 +1282,7 @@ public struct NativeModTableViewRepresentable: NSViewRepresentable {
     public func updateNSView(_ nsView: NativeModTableViewNSView, context: Context) {
         context.coordinator.parent = self
         nsView.delegate = context.coordinator
+        nsView.updateColumnTitles()
         nsView.updateData(
             official: officialMods,
             community: communityMods,

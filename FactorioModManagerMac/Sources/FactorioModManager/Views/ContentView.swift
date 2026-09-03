@@ -93,7 +93,7 @@ public struct ContentView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .help("Launch Factorio (⌥O)")
+                .help(loc("launch_factorio_tooltip"))
             }
         }
         .sheet(isPresented: $appState.isResolutionModalPresented) {
