@@ -3,11 +3,12 @@ import SwiftUI
 public struct OptionalModsView: View {
     @ObservedObject var appState: AppState
     @State private var hasScanned: Bool = false
-    @State private var selectedModNames: Set<String> = []
+    @StateObject private var nav = DiscoveryNavCoordinator(targetTab: .optional)
 
     private func performScan() {
         hasScanned = true
-        selectedModNames.removeAll()
+        nav.selectedModNames.removeAll()
+        nav.focusedIndex = 0
         appState.scanOptionalMods()
     }
 
@@ -34,26 +35,18 @@ public struct OptionalModsView: View {
                     }
 
                     if !appState.optionalMods.isEmpty {
-                        Button(selectedModNames.count == appState.optionalMods.count ? loc("deselect_all") : loc("select_all")) {
-                            if selectedModNames.count == appState.optionalMods.count {
-                                selectedModNames.removeAll()
-                            } else {
-                                selectedModNames = Set(appState.optionalMods.map(\.name))
-                            }
+                        Button(nav.selectedModNames.count == appState.optionalMods.count ? loc("deselect_all") : loc("select_all")) {
+                            nav.toggleSelectAll(items: appState.optionalMods.map(\.name))
                         }
                         .buttonStyle(.bordered)
 
-                        if !selectedModNames.isEmpty {
+                        if !nav.selectedModNames.isEmpty {
                             Button(action: {
-                                let targets = Array(selectedModNames)
-                                Task {
-                                    await appState.resolveAndInstall(targets: targets)
-                                    selectedModNames.removeAll()
-                                }
+                                nav.installSelected(appState: appState)
                             }) {
                                 HStack(spacing: 5) {
                                     Image(systemName: "arrow.down.circle")
-                                    Text(String(format: loc("install_selected"), selectedModNames.count))
+                                    Text(String(format: loc("install_selected"), nav.selectedModNames.count))
                                 }
                             }
                             .buttonStyle(.borderedProminent)
@@ -132,48 +125,76 @@ public struct OptionalModsView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(appState.optionalMods) { item in
-                    let isInstalled = appState.installedModsMap[item.name] != nil
-                    let local = appState.installedModsMap[item.name]?.first
-                    let isSelected = selectedModNames.contains(item.name)
+                ScrollViewReader { proxy in
+                    List {
+                        ForEach(Array(appState.optionalMods.enumerated()), id: \.element.id) { index, item in
+                            let isInstalled = appState.installedModsMap[item.name] != nil
+                            let local = appState.installedModsMap[item.name]?.first
+                            let isSelected = nav.selectedModNames.contains(item.name)
+                            let isFocused = (index == nav.focusedIndex)
 
-                    UnifiedModCardRow(
-                        name: item.name,
-                        title: local?.displayTitle ?? item.title,
-                        owner: local?.author ?? (item.owner.isEmpty ? nil : item.owner),
-                        factorioVersions: item.factorioVersions.isEmpty ? (local?.factorioVersion ?? appState.effectiveFactorioBranch) : item.factorioVersions,
-                        lastUpdated: nil,
-                        downloadsCount: item.downloadsCount,
-                        summary: local?.summary ?? (item.summary.isEmpty ? nil : item.summary),
-                        isDeprecated: false,
-                        isInstalled: isInstalled,
-                        suggestedBy: item.suggestedBy,
-                        isSelected: isSelected,
-                        onToggleSelect: {
-                            if isSelected {
-                                selectedModNames.remove(item.name)
-                            } else {
-                                selectedModNames.insert(item.name)
-                            }
-                        },
-                        onSelectAuthor: { author in
-                            appState.navigateToAuthor(author)
-                        },
-                        onInstall: {
-                            Task { await appState.resolveAndInstall(targets: [item.name]) }
-                        },
-                        onOpenDetails: {
-                            appState.openModDetails(for: item.name)
+                            UnifiedModCardRow(
+                                name: item.name,
+                                title: local?.displayTitle ?? item.title,
+                                owner: local?.author ?? (item.owner.isEmpty ? nil : item.owner),
+                                factorioVersions: item.factorioVersions.isEmpty ? (local?.factorioVersion ?? appState.effectiveFactorioBranch) : item.factorioVersions,
+                                lastUpdated: nil,
+                                downloadsCount: item.downloadsCount,
+                                summary: local?.summary ?? (item.summary.isEmpty ? nil : item.summary),
+                                isDeprecated: false,
+                                isInstalled: isInstalled,
+                                suggestedBy: item.suggestedBy,
+                                isSelected: isSelected,
+                                isFocused: isFocused,
+                                onSelectRow: {
+                                    nav.focusedIndex = index
+                                },
+                                onToggleSelect: {
+                                    nav.focusedIndex = index
+                                    nav.toggleSelect(name: item.name)
+                                },
+                                onSelectAuthor: { author in
+                                    appState.navigateToAuthor(author)
+                                },
+                                onInstall: {
+                                    nav.focusedIndex = index
+                                    Task { await appState.resolveAndInstall(targets: [item.name]) }
+                                },
+                                onOpenDetails: {
+                                    nav.focusedIndex = index
+                                    appState.openModDetails(for: item.name)
+                                }
+                            )
+                            .id(item.name)
                         }
-                    )
+                    }
+                    .listStyle(.inset(alternatesRowBackgrounds: true))
+                    .onChange(of: nav.focusedIndex) { newIndex in
+                        let names = appState.optionalMods.map(\.name)
+                        if newIndex >= 0 && newIndex < names.count {
+                            withAnimation(.easeInOut(duration: 0.12)) {
+                                proxy.scrollTo(names[newIndex], anchor: .center)
+                            }
+                        }
+                    }
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
             }
         }
         .onAppear {
+            nav.start(
+                appState: appState,
+                getItemNames: { appState.optionalMods.map(\.name) },
+                onFocusSearch: nil
+            )
             if appState.optionalMods.isEmpty {
                 performScan()
             }
+        }
+        .onDisappear {
+            nav.stop()
+        }
+        .onChange(of: appState.optionalMods.count) { newCount in
+            nav.clampIndex(count: newCount)
         }
     }
 }

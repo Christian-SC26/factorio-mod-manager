@@ -51,9 +51,14 @@ public struct OptionalModItem: Identifiable, Hashable, Sendable {
         suggestedBy: [String]
     ) {
         self.name = name
-        self.title = (title != nil && !title!.isEmpty) ? title! : Formatters.formatModNameAsTitle(name)
+        if let t = title, Formatters.isValidHumanTitle(t) {
+            self.title = t
+        } else {
+            self.title = Formatters.formatModNameAsTitle(name)
+        }
         self.owner = owner
-        self.summary = summary
+        let cleanSumm = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.summary = (cleanSumm == "." || cleanSumm.isEmpty) ? "" : cleanSumm
         self.factorioVersions = factorioVersions
         self.downloadsCount = downloadsCount
         self.suggestedBy = suggestedBy

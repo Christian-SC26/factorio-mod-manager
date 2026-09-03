@@ -3,12 +3,14 @@ import SwiftUI
 public struct AuthorBrowseView: View {
     @ObservedObject var appState: AppState
     @State private var authorInput: String = ""
-    @State private var selectedModNames: Set<String> = []
+    @StateObject private var nav = DiscoveryNavCoordinator(targetTab: .authors)
     @FocusState private var isInputFocused: Bool
 
     private func performFetch() {
         guard !authorInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        selectedModNames.removeAll()
+        nav.selectedModNames.removeAll()
+        nav.focusedIndex = 0
+        isInputFocused = false
         Task {
             await appState.fetchAuthorMods(author: authorInput)
         }
@@ -131,27 +133,20 @@ public struct AuthorBrowseView: View {
 
                         Spacer()
 
-                        if !selectedModNames.isEmpty {
+                        if !nav.selectedModNames.isEmpty {
                             Button(action: {
-                                Task {
-                                    await appState.resolveAndInstall(targets: Array(selectedModNames))
-                                    selectedModNames.removeAll()
-                                }
+                                nav.installSelected(appState: appState)
                             }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "arrow.down.circle")
-                                    Text(String(format: loc("install_selected"), selectedModNames.count))
+                                    Text(String(format: loc("install_selected"), nav.selectedModNames.count))
                                 }
                             }
                             .buttonStyle(.borderedProminent)
                         }
 
-                        Button(selectedModNames.count == appState.authorResults.count ? loc("deselect_all") : loc("select_all")) {
-                            if selectedModNames.count == appState.authorResults.count {
-                                selectedModNames.removeAll()
-                            } else {
-                                selectedModNames = Set(appState.authorResults.map { $0.name })
-                            }
+                        Button(nav.selectedModNames.count == appState.authorResults.count ? loc("deselect_all") : loc("select_all")) {
+                            nav.toggleSelectAll(items: appState.authorResults.map(\.name))
                         }
                     }
                     .padding(.horizontal, 16)
@@ -160,44 +155,72 @@ public struct AuthorBrowseView: View {
 
                     Divider()
 
-                    List(appState.authorResults) { item in
-                        let isInstalled = appState.installedModsMap[item.name] != nil
-                        let isSelected = selectedModNames.contains(item.name)
+                    ScrollViewReader { proxy in
+                        List {
+                            ForEach(Array(appState.authorResults.enumerated()), id: \.element.id) { index, item in
+                                let isInstalled = appState.installedModsMap[item.name] != nil
+                                let isSelected = nav.selectedModNames.contains(item.name)
+                                let isFocused = (index == nav.focusedIndex)
 
-                        UnifiedModCardRow(
-                            name: item.name,
-                            title: item.title,
-                            owner: item.owner.isEmpty ? appState.currentAuthorName : item.owner,
-                            factorioVersions: item.factorioVersions,
-                            lastUpdated: item.lastUpdated,
-                            downloadsCount: item.downloadsCount,
-                            summary: item.summary,
-                            isDeprecated: item.isDeprecated,
-                            isInstalled: isInstalled,
-                            isSelected: isSelected,
-                            onToggleSelect: {
-                                if isSelected {
-                                    selectedModNames.remove(item.name)
-                                } else {
-                                    selectedModNames.insert(item.name)
-                                }
-                            },
-                            onInstall: {
-                                Task { await appState.resolveAndInstall(targets: [item.name]) }
-                            },
-                            onOpenDetails: {
-                                appState.openModDetails(for: item.name)
+                                UnifiedModCardRow(
+                                    name: item.name,
+                                    title: item.title,
+                                    owner: item.owner.isEmpty ? appState.currentAuthorName : item.owner,
+                                    factorioVersions: item.factorioVersions,
+                                    lastUpdated: item.lastUpdated,
+                                    downloadsCount: item.downloadsCount,
+                                    summary: item.summary,
+                                    isDeprecated: item.isDeprecated,
+                                    isInstalled: isInstalled,
+                                    isSelected: isSelected,
+                                    isFocused: isFocused,
+                                    onSelectRow: {
+                                        nav.focusedIndex = index
+                                    },
+                                    onToggleSelect: {
+                                        nav.focusedIndex = index
+                                        nav.toggleSelect(name: item.name)
+                                    },
+                                    onInstall: {
+                                        nav.focusedIndex = index
+                                        Task { await appState.resolveAndInstall(targets: [item.name]) }
+                                    },
+                                    onOpenDetails: {
+                                        nav.focusedIndex = index
+                                        appState.openModDetails(for: item.name)
+                                    }
+                                )
+                                .id(item.name)
                             }
-                        )
+                        }
+                        .listStyle(.inset(alternatesRowBackgrounds: true))
+                        .onChange(of: nav.focusedIndex) { newIndex in
+                            let names = appState.authorResults.map(\.name)
+                            if newIndex >= 0 && newIndex < names.count {
+                                withAnimation(.easeInOut(duration: 0.12)) {
+                                    proxy.scrollTo(names[newIndex], anchor: .center)
+                                }
+                            }
+                        }
                     }
-                    .listStyle(.inset(alternatesRowBackgrounds: true))
                 }
             }
         }
         .onAppear {
+            nav.start(
+                appState: appState,
+                getItemNames: { appState.authorResults.map(\.name) },
+                onFocusSearch: { isInputFocused = true }
+            )
             if !appState.currentAuthorName.isEmpty {
                 authorInput = appState.currentAuthorName
             }
+        }
+        .onDisappear {
+            nav.stop()
+        }
+        .onChange(of: appState.authorResults.count) { newCount in
+            nav.clampIndex(count: newCount)
         }
         .onChange(of: appState.currentAuthorName) { newAuthor in
             if !newAuthor.isEmpty {

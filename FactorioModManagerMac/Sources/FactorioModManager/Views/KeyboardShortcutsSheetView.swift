@@ -124,6 +124,43 @@ public struct KeyboardShortcutsSheetView: View {
                 keys: ["⌘", "A"],
                 description: isRu ? "Показать все моды автора (в таблице) / Выделить все" : "Filter by author / Select all",
                 category: isRu ? "Таблица модов" : "Mod Table & Navigation"
+            ),
+
+            // Discovery Navigation
+            ShortcutEntry(
+                keys: ["↓", "или", "J"],
+                description: isRu ? "Перейти к следующему моду в каталоге" : "Navigate to next mod in catalog",
+                category: isRu ? "Раздел Discovery" : "Discovery & Search"
+            ),
+            ShortcutEntry(
+                keys: ["↑", "или", "K"],
+                description: isRu ? "Перейти к предыдущему моду в каталоге" : "Navigate to previous mod in catalog",
+                category: isRu ? "Раздел Discovery" : "Discovery & Search"
+            ),
+            ShortcutEntry(
+                keys: ["X"],
+                description: isRu ? "Выбрать / снять выбор мода для массовой установки" : "Toggle selection for batch install",
+                category: isRu ? "Раздел Discovery" : "Discovery & Search"
+            ),
+            ShortcutEntry(
+                keys: ["Space"],
+                description: isRu ? "Установить выбранный мод(ы)" : "Install selected mod(s)",
+                category: isRu ? "Раздел Discovery" : "Discovery & Search"
+            ),
+            ShortcutEntry(
+                keys: ["Return", "или", "I"],
+                description: isRu ? "Открыть карточку и описание мода" : "Open mod details and description",
+                category: isRu ? "Раздел Discovery" : "Discovery & Search"
+            ),
+            ShortcutEntry(
+                keys: ["⌘", "A"],
+                description: isRu ? "Выбрать все моды в каталоге / Снять выбор" : "Select all / Deselect all in catalog",
+                category: isRu ? "Раздел Discovery" : "Discovery & Search"
+            ),
+            ShortcutEntry(
+                keys: ["/", "или", "⌘", "F"],
+                description: isRu ? "Фокус на строке поиска модов" : "Focus search / author input field",
+                category: isRu ? "Раздел Discovery" : "Discovery & Search"
             )
         ]
     }

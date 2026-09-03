@@ -454,7 +454,7 @@ public final class CustomTableView: NSTableView {
         let keyCode = event.keyCode
 
         // 1. Escape: Clear selection completely
-        if keyCode == 53 {
+        if KeyCodeHelper.isEscape(event) {
             preservedSelection.removeAll()
             deselectAll(nil)
             selectionAnchorRow = cursorRow
@@ -463,7 +463,7 @@ public final class CustomTableView: NSTableView {
         }
 
         // 2. Keyboard single-item selection toggle (Cmd+Space, Ctrl+Space, or 'x')
-        if (isCmd && (keyCode == 49 || chars == " ")) || (isCtrl && (keyCode == 49 || chars == " ")) || (!isCmd && !isCtrl && !isShift && chars == "x") {
+        if (isCmd && KeyCodeHelper.isSpace(event)) || (isCtrl && KeyCodeHelper.isSpace(event)) || (!isCmd && !isCtrl && !isShift && KeyCodeHelper.isSelectToggle(event)) {
             if cursorRow >= 0 && cursorRow < currentItems.count && !currentItems[cursorRow].isGroupHeader {
                 var current = selectedRowIndexes
                 if current.contains(cursorRow) {
@@ -480,7 +480,7 @@ public final class CustomTableView: NSTableView {
         }
 
         // 3. Space: Toggle selected mods (or current cursor mod)
-        if (keyCode == 49 || chars == " ") && !isCmd && !isCtrl {
+        if KeyCodeHelper.isSpace(event) && !isCmd && !isCtrl {
             var selected = selectedMods()
             if selected.isEmpty && cursorRow >= 0 && cursorRow < currentItems.count,
                case let .mod(m) = currentItems[cursorRow] {
@@ -497,7 +497,7 @@ public final class CustomTableView: NSTableView {
         }
 
         // 4. Delete / Backspace
-        if keyCode == 51 || keyCode == 117 {
+        if keyCode == KeyCodeHelper.kVK_Delete || keyCode == KeyCodeHelper.kVK_ForwardDelete {
             var selected = selectedMods().filter { $0.name != FactorioConstants.baseModName && !isOfficialMod($0.name) }
             if selected.isEmpty && cursorRow >= 0 && cursorRow < currentItems.count,
                case let .mod(m) = currentItems[cursorRow],
@@ -510,11 +510,12 @@ public final class CustomTableView: NSTableView {
             }
         }
 
-        // 5. Command shortcuts
+        // 5. Command shortcuts (using physical latin keycode or chars)
         if isCmd {
             let selected = selectedMods()
             let first = selected.first ?? (cursorRow >= 0 && cursorRow < currentItems.count ? currentItems[cursorRow].modValue : nil)
-            switch chars {
+            let latin = KeyCodeHelper.latinCharacter(for: keyCode) ?? chars.first
+            switch latin {
             case "l":
                 if let mod = first {
                     actionDelegate?.modTableView(enclosingView, didOpenPortal: mod)
@@ -546,13 +547,13 @@ public final class CustomTableView: NSTableView {
             }
         }
 
-        // 6. Vim j / k navigation OR Arrow Up / Down (125 = Down, 126 = Up)
+        // 6. Vim j / k navigation OR Arrow Up / Down (works in all layouts!)
         if !isCmd && !isCtrl {
-            if chars == "j" || keyCode == 125 {
+            if KeyCodeHelper.isDown(event) {
                 moveRowSelection(delta: 1, extend: isShift)
                 return
             }
-            if chars == "k" || keyCode == 126 {
+            if KeyCodeHelper.isUp(event) {
                 moveRowSelection(delta: -1, extend: isShift)
                 return
             }
@@ -560,7 +561,8 @@ public final class CustomTableView: NSTableView {
 
         // 7. Letter jump (press any character key a-z, 0-9 to jump to next matching mod)
         if !isCmd && !isCtrl && !isShift {
-            if let char = chars.first, (char.isLetter || char.isNumber) && char != "j" && char != "k" && chars != " " && char != "x" {
+            let latin = KeyCodeHelper.latinCharacter(for: keyCode)
+            if let char = latin ?? chars.first, (char.isLetter || char.isNumber) && char != "j" && char != "k" && char != " " && char != "x" {
                 jumpToNextMod(matchingChar: char)
                 return
             }

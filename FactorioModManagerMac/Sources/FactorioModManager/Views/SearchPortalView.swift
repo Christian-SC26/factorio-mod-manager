@@ -4,11 +4,13 @@ public struct SearchPortalView: View {
     @ObservedObject var appState: AppState
     @State private var queryText: String = ""
     @State private var selectedVersion: String = "2.1-recent"
-    @State private var selectedModNames: Set<String> = []
+    @StateObject private var nav = DiscoveryNavCoordinator(targetTab: .search)
     @FocusState private var isSearchFocused: Bool
 
     private func performSearch() {
-        selectedModNames.removeAll()
+        nav.selectedModNames.removeAll()
+        nav.focusedIndex = 0
+        isSearchFocused = false
         Task {
             await appState.searchPortal(query: queryText, version: selectedVersion)
         }
@@ -30,7 +32,8 @@ public struct SearchPortalView: View {
                         if !queryText.isEmpty {
                             Button(action: {
                                 queryText = ""
-                                selectedModNames.removeAll()
+                                nav.selectedModNames.removeAll()
+                                nav.focusedIndex = 0
                                 Task {
                                     await appState.loadPortalCatalog(version: selectedVersion)
                                 }
@@ -71,7 +74,8 @@ public struct SearchPortalView: View {
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 320)
                     .onChange(of: selectedVersion) { newVer in
-                        selectedModNames.removeAll()
+                        nav.selectedModNames.removeAll()
+                        nav.focusedIndex = 0
                         Task {
                             await appState.searchPortal(query: queryText, version: newVer)
                         }
@@ -80,29 +84,21 @@ public struct SearchPortalView: View {
                     Spacer()
 
                     if !appState.searchResults.isEmpty {
-                        if !selectedModNames.isEmpty {
+                        if !nav.selectedModNames.isEmpty {
                             Button(action: {
-                                let targets = Array(selectedModNames)
-                                Task {
-                                    await appState.resolveAndInstall(targets: targets)
-                                    selectedModNames.removeAll()
-                                }
+                                nav.installSelected(appState: appState)
                             }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "arrow.down.circle")
-                                    Text(String(format: loc("install_selected"), selectedModNames.count))
+                                    Text(String(format: loc("install_selected"), nav.selectedModNames.count))
                                 }
                             }
                             .buttonStyle(.borderedProminent)
                             .controlSize(.small)
                         }
 
-                        Button(selectedModNames.count == appState.searchResults.count ? loc("deselect_all") : loc("select_all")) {
-                            if selectedModNames.count == appState.searchResults.count {
-                                selectedModNames.removeAll()
-                            } else {
-                                selectedModNames = Set(appState.searchResults.map { $0.name })
-                            }
+                        Button(nav.selectedModNames.count == appState.searchResults.count ? loc("deselect_all") : loc("select_all")) {
+                            nav.toggleSelectAll(items: appState.searchResults.map(\.name))
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
@@ -163,48 +159,76 @@ public struct SearchPortalView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(appState.searchResults) { item in
-                    let isInstalled = appState.installedModsMap[item.name] != nil
-                    let isSelected = selectedModNames.contains(item.name)
+                ScrollViewReader { proxy in
+                    List {
+                        ForEach(Array(appState.searchResults.enumerated()), id: \.element.id) { index, item in
+                            let isInstalled = appState.installedModsMap[item.name] != nil
+                            let isSelected = nav.selectedModNames.contains(item.name)
+                            let isFocused = (index == nav.focusedIndex)
 
-                    UnifiedModCardRow(
-                        name: item.name,
-                        title: item.title,
-                        owner: item.owner,
-                        factorioVersions: item.factorioVersions,
-                        lastUpdated: item.lastUpdated,
-                        downloadsCount: item.downloadsCount,
-                        summary: item.summary,
-                        isDeprecated: item.isDeprecated,
-                        isInstalled: isInstalled,
-                        isSelected: isSelected,
-                        onToggleSelect: {
-                            if isSelected {
-                                selectedModNames.remove(item.name)
-                            } else {
-                                selectedModNames.insert(item.name)
-                            }
-                        },
-                        onSelectAuthor: { author in
-                            appState.navigateToAuthor(author)
-                        },
-                        onInstall: {
-                            Task { await appState.resolveAndInstall(targets: [item.name]) }
-                        },
-                        onOpenDetails: {
-                            appState.openModDetails(for: item.name)
+                            UnifiedModCardRow(
+                                name: item.name,
+                                title: item.title,
+                                owner: item.owner,
+                                factorioVersions: item.factorioVersions,
+                                lastUpdated: item.lastUpdated,
+                                downloadsCount: item.downloadsCount,
+                                summary: item.summary,
+                                isDeprecated: item.isDeprecated,
+                                isInstalled: isInstalled,
+                                isSelected: isSelected,
+                                isFocused: isFocused,
+                                onSelectRow: {
+                                    nav.focusedIndex = index
+                                },
+                                onToggleSelect: {
+                                    nav.focusedIndex = index
+                                    nav.toggleSelect(name: item.name)
+                                },
+                                onSelectAuthor: { author in
+                                    appState.navigateToAuthor(author)
+                                },
+                                onInstall: {
+                                    nav.focusedIndex = index
+                                    Task { await appState.resolveAndInstall(targets: [item.name]) }
+                                },
+                                onOpenDetails: {
+                                    nav.focusedIndex = index
+                                    appState.openModDetails(for: item.name)
+                                }
+                            )
+                            .id(item.name)
                         }
-                    )
+                    }
+                    .listStyle(.inset(alternatesRowBackgrounds: true))
+                    .onChange(of: nav.focusedIndex) { newIndex in
+                        let names = appState.searchResults.map(\.name)
+                        if newIndex >= 0 && newIndex < names.count {
+                            withAnimation(.easeInOut(duration: 0.12)) {
+                                proxy.scrollTo(names[newIndex], anchor: .center)
+                            }
+                        }
+                    }
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
             }
         }
         .onAppear {
+            nav.start(
+                appState: appState,
+                getItemNames: { appState.searchResults.map(\.name) },
+                onFocusSearch: { isSearchFocused = true }
+            )
             if appState.searchResults.isEmpty {
                 Task {
                     await appState.loadPortalCatalog(version: selectedVersion)
                 }
             }
+        }
+        .onDisappear {
+            nav.stop()
+        }
+        .onChange(of: appState.searchResults.count) { newCount in
+            nav.clampIndex(count: newCount)
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusModSearch)) { _ in
             isSearchFocused = true

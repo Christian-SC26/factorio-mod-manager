@@ -202,6 +202,7 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "optional_desc": "Browse and install optional add-on mods recommended by your currently installed mods.",
             "scan_optional_button": "Scan for Optional Mods",
             "scanning_optional": "Scanning installed mods...",
+            "optional_scan_completed": "Scan complete: %d optional mod recommendations found.",
             "no_optional_found": "No missing optional mods found. All recommendations are already installed.",
             "suggested_by": "Suggested by:",
 
@@ -535,6 +536,7 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "optional_desc": "Просмотр и установка рекомендуемых дополнений для установленных у вас модов.",
             "scan_optional_button": "Найти опциональные моды",
             "scanning_optional": "Поиск опциональных зависимостей...",
+            "optional_scan_completed": "Сканирование завершено: найдено %d рекомендаций.",
             "no_optional_found": "Недостающих опциональных модов не найдено. Все рекомендации уже установлены.",
             "suggested_by": "Рекомендован в:",
 

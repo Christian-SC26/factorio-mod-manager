@@ -48,6 +48,13 @@ public enum Formatters {
             return str.prefix(1).uppercased() + str.dropFirst()
         }.joined(separator: " ")
     }
+
+    /// Check if a title string contains actual human-readable letters rather than just dots or punctuation
+    public static func isValidHumanTitle(_ title: String) -> Bool {
+        let stripped = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: .punctuationCharacters)
+        return !stripped.isEmpty
+    }
 }
 
 /// Global convenience forwarder for existing code

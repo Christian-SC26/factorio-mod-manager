@@ -19,4 +19,21 @@ final class FormattersTests: XCTestCase {
         XCTAssertEqual(Formatters.formatDownloads(1_200_000), "1.2M")
         XCTAssertEqual(Formatters.formatDownloads(25_000_000), "25.0M")
     }
+
+    func testIsValidHumanTitle() {
+        XCTAssertFalse(Formatters.isValidHumanTitle("."))
+        XCTAssertFalse(Formatters.isValidHumanTitle("..."))
+        XCTAssertFalse(Formatters.isValidHumanTitle("   .   "))
+        XCTAssertFalse(Formatters.isValidHumanTitle(""))
+        XCTAssertFalse(Formatters.isValidHumanTitle(" - "))
+        XCTAssertTrue(Formatters.isValidHumanTitle("Maraxsis"))
+        XCTAssertTrue(Formatters.isValidHumanTitle("Factorissimo 2"))
+        XCTAssertTrue(Formatters.isValidHumanTitle("A."))
+    }
+
+    func testFormatModNameAsTitle() {
+        XCTAssertEqual(Formatters.formatModNameAsTitle("maraxsis"), "Maraxsis")
+        XCTAssertEqual(Formatters.formatModNameAsTitle("factorissimo-2-notnotmelon"), "Factorissimo 2 Notnotmelon")
+        XCTAssertEqual(Formatters.formatModNameAsTitle("space_exploration"), "Space Exploration")
+    }
 }

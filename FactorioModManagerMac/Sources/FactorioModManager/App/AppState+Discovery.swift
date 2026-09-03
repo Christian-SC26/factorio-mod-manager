@@ -101,6 +101,7 @@ extension AppState {
 
     public func scanOptionalCompanionMods() async {
         isScanningOptional = true
+        loadInstalledMods()
         let installed = installedMods.filter { $0.enabled }
         var suggestionsMap: [String: [String]] = [:]
         let installedNames = Set(installedMods.map(\.name))
@@ -136,6 +137,11 @@ extension AppState {
 
         self.optionalMods = list
         self.isScanningOptional = false
+        self.showNotification(
+            title: loc("optional_title"),
+            message: String(format: loc("optional_scan_completed"), list.count),
+            isError: false
+        )
 
         Task {
             await enrichOptionalMods()
@@ -159,9 +165,14 @@ extension AppState {
                 guard let info = info else { continue }
                 self.cachedModInfo[name] = info
                 if let idx = self.optionalMods.firstIndex(where: { $0.name == name }) {
-                    self.optionalMods[idx].title = info.title
+                    if Formatters.isValidHumanTitle(info.title) {
+                        self.optionalMods[idx].title = info.title
+                    }
                     self.optionalMods[idx].owner = info.owner
-                    self.optionalMods[idx].summary = info.summary
+                    let cleanSumm = info.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if cleanSumm != "." && !cleanSumm.isEmpty {
+                        self.optionalMods[idx].summary = cleanSumm
+                    }
                     self.optionalMods[idx].factorioVersions = info.factorioVersion
                     self.optionalMods[idx].downloadsCount = info.downloadsCount
                 }

@@ -12,6 +12,8 @@ public struct UnifiedModCardRow: View {
     public let isInstalled: Bool
     public var suggestedBy: [String]?
     public var isSelected: Bool?
+    public var isFocused: Bool = false
+    public var onSelectRow: (() -> Void)?
     public var onToggleSelect: (() -> Void)?
     public var onSelectAuthor: ((String) -> Void)?
     public let onInstall: () -> Void
@@ -31,6 +33,8 @@ public struct UnifiedModCardRow: View {
         isInstalled: Bool = false,
         suggestedBy: [String]? = nil,
         isSelected: Bool? = nil,
+        isFocused: Bool = false,
+        onSelectRow: (() -> Void)? = nil,
         onToggleSelect: (() -> Void)? = nil,
         onSelectAuthor: ((String) -> Void)? = nil,
         onInstall: @escaping () -> Void,
@@ -84,6 +88,8 @@ public struct UnifiedModCardRow: View {
         self.isInstalled = isInstalled
         self.suggestedBy = suggestedBy
         self.isSelected = isSelected
+        self.isFocused = isFocused
+        self.onSelectRow = onSelectRow
         self.onToggleSelect = onToggleSelect
         self.onSelectAuthor = onSelectAuthor
         self.onInstall = onInstall
@@ -234,8 +240,18 @@ public struct UnifiedModCardRow: View {
             }
         }
         .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isFocused ? Color.accentColor.opacity(0.12) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(isFocused ? Color.accentColor.opacity(0.65) : Color.clear, lineWidth: 1.5)
+        )
         .contentShape(Rectangle())
         .onTapGesture {
+            onSelectRow?()
             onOpenDetails()
         }
     }
