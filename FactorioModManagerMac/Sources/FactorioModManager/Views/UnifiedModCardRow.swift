@@ -13,8 +13,11 @@ public struct UnifiedModCardRow: View {
     public var suggestedBy: [String]?
     public var isSelected: Bool?
     public var onToggleSelect: (() -> Void)?
+    public var onSelectAuthor: ((String) -> Void)?
     public let onInstall: () -> Void
     public let onOpenDetails: () -> Void
+
+    @State private var isAuthorHovered: Bool = false
 
     public init(
         name: String,
@@ -29,6 +32,7 @@ public struct UnifiedModCardRow: View {
         suggestedBy: [String]? = nil,
         isSelected: Bool? = nil,
         onToggleSelect: (() -> Void)? = nil,
+        onSelectAuthor: ((String) -> Void)? = nil,
         onInstall: @escaping () -> Void,
         onOpenDetails: @escaping () -> Void
     ) {
@@ -81,6 +85,7 @@ public struct UnifiedModCardRow: View {
         self.suggestedBy = suggestedBy
         self.isSelected = isSelected
         self.onToggleSelect = onToggleSelect
+        self.onSelectAuthor = onSelectAuthor
         self.onInstall = onInstall
         self.onOpenDetails = onOpenDetails
     }
@@ -123,12 +128,27 @@ public struct UnifiedModCardRow: View {
                 // Metadata Chips: Owner, Version, Last Updated, Downloads, Suggested By
                 HStack(spacing: 12) {
                     if let owner = owner, !owner.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "person")
-                            Text(owner)
+                        if let onSelectAuthor = onSelectAuthor {
+                            Button(action: { onSelectAuthor(owner) }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "person")
+                                    Text(owner)
+                                        .underline(isAuthorHovered)
+                                }
+                                .font(.caption)
+                                .foregroundColor(isAuthorHovered ? .accentColor : .secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .onHover { isAuthorHovered = $0 }
+                            .help(String(format: loc("browse_author_tooltip"), owner))
+                        } else {
+                            HStack(spacing: 4) {
+                                Image(systemName: "person")
+                                Text(owner)
+                            }
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                         }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                     }
 
                     if let versions = factorioVersions, !versions.isEmpty {

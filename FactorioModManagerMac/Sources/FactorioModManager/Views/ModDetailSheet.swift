@@ -9,6 +9,7 @@ public struct ModDetailSheet: View {
     @State private var activeTab: Int = 0
     @State private var previewScreenshotIndex: Int? = nil
     @State private var keyMonitor: Any? = nil
+    @State private var isAuthorHovered: Bool = false
 
     private var localMod: LocalMod? {
         appState.selectedModDetail
@@ -88,13 +89,22 @@ public struct ModDetailSheet: View {
                 // Badges row
                 HStack(spacing: 12) {
                     if !authorText.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "person")
-                                .foregroundColor(.secondary)
-                            Text(authorText)
-                                .fontWeight(.medium)
+                        Button(action: {
+                            appState.navigateToAuthor(authorText)
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "person")
+                                    .foregroundColor(isAuthorHovered ? .accentColor : .secondary)
+                                Text(authorText)
+                                    .fontWeight(.medium)
+                                    .underline(isAuthorHovered)
+                            }
+                            .font(.caption)
+                            .foregroundColor(isAuthorHovered ? .accentColor : .primary)
                         }
-                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .onHover { isAuthorHovered = $0 }
+                        .help(String(format: loc("browse_author_tooltip"), authorText))
                     }
 
                     if let info = modInfo {

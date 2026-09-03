@@ -194,6 +194,16 @@ public struct AuthorBrowseView: View {
                 }
             }
         }
+        .onAppear {
+            if !appState.currentAuthorName.isEmpty {
+                authorInput = appState.currentAuthorName
+            }
+        }
+        .onChange(of: appState.currentAuthorName) { newAuthor in
+            if !newAuthor.isEmpty {
+                authorInput = newAuthor
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .focusModSearch)) { _ in
             isInputFocused = true
         }

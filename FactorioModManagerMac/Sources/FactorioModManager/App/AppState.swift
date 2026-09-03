@@ -83,6 +83,7 @@ public final class AppState: ObservableObject {
 
     // MARK: - Resolution & Downloads State
     @Published public var isResolving: Bool = false
+    @Published public var resolvingStatusText: String = ""
     @Published public var currentResolutionResult: ResolutionResult? = nil
     @Published public var isResolutionModalPresented: Bool = false
     @Published public var downloadProgressList: [DownloadProgress] = []
@@ -262,5 +263,16 @@ public final class AppState: ObservableObject {
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         proc.arguments = ["-a", "factorio"]
         try? proc.run()
+    }
+
+    /// Navigate to Browse by Author tab and load mods for the given author
+    public func navigateToAuthor(_ author: String) {
+        let clean = author.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        self.isDetailSheetPresented = false
+        self.selectedTab = .authors
+        Task {
+            await self.fetchAuthorMods(author: clean)
+        }
     }
 }

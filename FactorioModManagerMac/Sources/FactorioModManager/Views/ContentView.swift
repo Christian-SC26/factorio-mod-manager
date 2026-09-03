@@ -104,6 +104,46 @@ public struct ContentView: View {
             KeyboardShortcutsSheetView(appState: appState)
         }
         .overlay {
+            if appState.isResolving {
+                ZStack {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .controlSize(.large)
+                            .scaleEffect(1.2)
+
+                        VStack(spacing: 6) {
+                            Text(loc("resolving_dependencies_title"))
+                                .font(.headline)
+                                .foregroundColor(.primary)
+
+                            if !appState.resolvingStatusText.isEmpty {
+                                Text(appState.resolvingStatusText)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                            }
+                        }
+                    }
+                    .padding(28)
+                    .frame(minWidth: 280, maxWidth: 400)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color(NSColor.windowBackgroundColor))
+                            .shadow(color: Color.black.opacity(0.4), radius: 24, x: 0, y: 8)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+                    )
+                }
+                .transition(.opacity)
+                .zIndex(200)
+            }
+
             if appState.isDetailSheetPresented {
                 GeometryReader { proxy in
                     ZStack {

@@ -3,9 +3,11 @@ import SwiftUI
 public struct OptionalModsView: View {
     @ObservedObject var appState: AppState
     @State private var hasScanned: Bool = false
+    @State private var selectedModNames: Set<String> = []
 
     private func performScan() {
         hasScanned = true
+        selectedModNames.removeAll()
         appState.scanOptionalMods()
     }
 
@@ -32,16 +34,41 @@ public struct OptionalModsView: View {
                     }
 
                     if !appState.optionalMods.isEmpty {
-                        Button(action: {
-                            let targets = appState.optionalMods.map { $0.name }
-                            Task { await appState.resolveAndInstall(targets: targets) }
-                        }) {
-                            HStack(spacing: 5) {
-                                Image(systemName: "arrow.down.circle")
-                                Text(loc("install_all_count", appState.optionalMods.count))
+                        Button(selectedModNames.count == appState.optionalMods.count ? loc("deselect_all") : loc("select_all")) {
+                            if selectedModNames.count == appState.optionalMods.count {
+                                selectedModNames.removeAll()
+                            } else {
+                                selectedModNames = Set(appState.optionalMods.map(\.name))
                             }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.bordered)
+
+                        if !selectedModNames.isEmpty {
+                            Button(action: {
+                                let targets = Array(selectedModNames)
+                                Task {
+                                    await appState.resolveAndInstall(targets: targets)
+                                    selectedModNames.removeAll()
+                                }
+                            }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "arrow.down.circle")
+                                    Text(String(format: loc("install_selected"), selectedModNames.count))
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        } else {
+                            Button(action: {
+                                let targets = appState.optionalMods.map { $0.name }
+                                Task { await appState.resolveAndInstall(targets: targets) }
+                            }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "arrow.down.circle")
+                                    Text(loc("install_all_count", appState.optionalMods.count))
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
                     }
                 }
             }
@@ -58,9 +85,21 @@ public struct OptionalModsView: View {
                         .font(.system(size: 44))
                         .foregroundColor(.secondary)
                     Text(loc("no_optional_found"))
+                        .font(.title3.bold())
+                    Text(loc("no_optional_desc"))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if appState.isScanningOptional {
+                VStack(spacing: 12) {
+                    Spacer()
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text(loc("scanning_optional"))
                         .font(.headline)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 420)
+                        .foregroundColor(.secondary)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -93,30 +132,42 @@ public struct OptionalModsView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                    List(appState.optionalMods) { item in
-                        let isInstalled = appState.installedModsMap[item.name] != nil
-                        let local = appState.installedModsMap[item.name]?.first
+                List(appState.optionalMods) { item in
+                    let isInstalled = appState.installedModsMap[item.name] != nil
+                    let local = appState.installedModsMap[item.name]?.first
+                    let isSelected = selectedModNames.contains(item.name)
 
-                        UnifiedModCardRow(
-                            name: item.name,
-                            title: local?.displayTitle ?? item.title,
-                            owner: local?.author ?? (item.owner.isEmpty ? nil : item.owner),
-                            factorioVersions: item.factorioVersions.isEmpty ? (local?.factorioVersion ?? appState.effectiveFactorioBranch) : item.factorioVersions,
-                            lastUpdated: nil,
-                            downloadsCount: item.downloadsCount,
-                            summary: local?.summary ?? (item.summary.isEmpty ? nil : item.summary),
-                            isDeprecated: false,
-                            isInstalled: isInstalled,
-                            suggestedBy: item.suggestedBy,
-                            onInstall: {
-                                Task { await appState.resolveAndInstall(targets: [item.name]) }
-                            },
-                            onOpenDetails: {
-                                appState.openModDetails(for: item.name)
+                    UnifiedModCardRow(
+                        name: item.name,
+                        title: local?.displayTitle ?? item.title,
+                        owner: local?.author ?? (item.owner.isEmpty ? nil : item.owner),
+                        factorioVersions: item.factorioVersions.isEmpty ? (local?.factorioVersion ?? appState.effectiveFactorioBranch) : item.factorioVersions,
+                        lastUpdated: nil,
+                        downloadsCount: item.downloadsCount,
+                        summary: local?.summary ?? (item.summary.isEmpty ? nil : item.summary),
+                        isDeprecated: false,
+                        isInstalled: isInstalled,
+                        suggestedBy: item.suggestedBy,
+                        isSelected: isSelected,
+                        onToggleSelect: {
+                            if isSelected {
+                                selectedModNames.remove(item.name)
+                            } else {
+                                selectedModNames.insert(item.name)
                             }
-                        )
-                    }
-                    .listStyle(.inset(alternatesRowBackgrounds: true))
+                        },
+                        onSelectAuthor: { author in
+                            appState.navigateToAuthor(author)
+                        },
+                        onInstall: {
+                            Task { await appState.resolveAndInstall(targets: [item.name]) }
+                        },
+                        onOpenDetails: {
+                            appState.openModDetails(for: item.name)
+                        }
+                    )
+                }
+                .listStyle(.inset(alternatesRowBackgrounds: true))
             }
         }
         .onAppear {

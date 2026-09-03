@@ -9,6 +9,7 @@ extension AppState {
         forceReinstall: Bool = false
     ) async {
         isResolving = true
+        resolvingStatusText = String(format: loc("resolving_dependencies_count"), targets.count)
         downloadProgressList = []
         let resolver = DependencyResolver(
             client: ModPortalClient.shared,
@@ -19,9 +20,14 @@ extension AppState {
             forceReinstall: forceReinstall
         )
 
-        let result = await resolver.resolve(targets: targets)
+        let result = await resolver.resolve(targets: targets) { [weak self] currentMod in
+            Task { @MainActor in
+                self?.resolvingStatusText = "\(loc("resolving_mod")): \(currentMod)"
+            }
+        }
         self.currentResolutionResult = result
         self.isResolving = false
+        self.resolvingStatusText = ""
         self.isResolutionModalPresented = true
     }
 

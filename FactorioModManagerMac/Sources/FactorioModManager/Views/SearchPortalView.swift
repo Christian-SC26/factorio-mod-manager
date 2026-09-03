@@ -4,9 +4,11 @@ public struct SearchPortalView: View {
     @ObservedObject var appState: AppState
     @State private var queryText: String = ""
     @State private var selectedVersion: String = "2.1-recent"
+    @State private var selectedModNames: Set<String> = []
     @FocusState private var isSearchFocused: Bool
 
     private func performSearch() {
+        selectedModNames.removeAll()
         Task {
             await appState.searchPortal(query: queryText, version: selectedVersion)
         }
@@ -28,6 +30,7 @@ public struct SearchPortalView: View {
                         if !queryText.isEmpty {
                             Button(action: {
                                 queryText = ""
+                                selectedModNames.removeAll()
                                 Task {
                                     await appState.loadPortalCatalog(version: selectedVersion)
                                 }
@@ -59,7 +62,7 @@ public struct SearchPortalView: View {
                 }
 
                 // Version Filter: 2.1 Recent, 2.1 All, 2.0
-                HStack {
+                HStack(spacing: 10) {
                     Picker("", selection: $selectedVersion) {
                         Text(loc("filter_2_1_recent")).tag("2.1-recent")
                         Text(loc("filter_2_1_all")).tag("2.1")
@@ -68,6 +71,7 @@ public struct SearchPortalView: View {
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 320)
                     .onChange(of: selectedVersion) { newVer in
+                        selectedModNames.removeAll()
                         Task {
                             await appState.searchPortal(query: queryText, version: newVer)
                         }
@@ -76,6 +80,33 @@ public struct SearchPortalView: View {
                     Spacer()
 
                     if !appState.searchResults.isEmpty {
+                        if !selectedModNames.isEmpty {
+                            Button(action: {
+                                let targets = Array(selectedModNames)
+                                Task {
+                                    await appState.resolveAndInstall(targets: targets)
+                                    selectedModNames.removeAll()
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.down.circle")
+                                    Text(String(format: loc("install_selected"), selectedModNames.count))
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        }
+
+                        Button(selectedModNames.count == appState.searchResults.count ? loc("deselect_all") : loc("select_all")) {
+                            if selectedModNames.count == appState.searchResults.count {
+                                selectedModNames.removeAll()
+                            } else {
+                                selectedModNames = Set(appState.searchResults.map { $0.name })
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+
                         Text(loc("search_results_by_date", appState.searchResults.count))
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -134,6 +165,7 @@ public struct SearchPortalView: View {
             } else {
                 List(appState.searchResults) { item in
                     let isInstalled = appState.installedModsMap[item.name] != nil
+                    let isSelected = selectedModNames.contains(item.name)
 
                     UnifiedModCardRow(
                         name: item.name,
@@ -145,6 +177,17 @@ public struct SearchPortalView: View {
                         summary: item.summary,
                         isDeprecated: item.isDeprecated,
                         isInstalled: isInstalled,
+                        isSelected: isSelected,
+                        onToggleSelect: {
+                            if isSelected {
+                                selectedModNames.remove(item.name)
+                            } else {
+                                selectedModNames.insert(item.name)
+                            }
+                        },
+                        onSelectAuthor: { author in
+                            appState.navigateToAuthor(author)
+                        },
                         onInstall: {
                             Task { await appState.resolveAndInstall(targets: [item.name]) }
                         },

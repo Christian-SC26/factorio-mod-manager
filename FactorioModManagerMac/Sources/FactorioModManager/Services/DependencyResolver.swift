@@ -114,6 +114,7 @@ public actor DependencyResolver {
     private var missing: [MissingMod] = []
     private var warnings: [String] = []
     private var graph: [String: [String]] = [:]
+    private var onProgress: (@Sendable (String) -> Void)? = nil
 
     public init(
         client: any ModPortalClientProtocol = ModPortalClient.shared,
@@ -131,7 +132,8 @@ public actor DependencyResolver {
         self.forceReinstall = forceReinstall
     }
 
-    public func resolve(targets: [String]) async -> ResolutionResult {
+    public func resolve(targets: [String], onProgress: (@Sendable (String) -> Void)? = nil) async -> ResolutionResult {
+        self.onProgress = onProgress
         self.installedMods = modListMgr.scanInstalledMods()
         self.resolved = [:]
         self.conflicts = []
@@ -145,6 +147,7 @@ public actor DependencyResolver {
             let (name, verReq, op) = ModPortalClient.parseModInput(rawInput)
             if name.isEmpty { continue }
 
+            onProgress?(name)
             rootNames.append(name)
             await resolveModRecursive(
                 modName: name,
