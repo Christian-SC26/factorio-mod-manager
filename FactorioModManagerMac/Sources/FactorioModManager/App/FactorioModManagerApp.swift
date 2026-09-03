@@ -4,10 +4,6 @@ import AppKit
 public final class AppDelegate: NSObject, NSApplicationDelegate {
     public func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
-        for window in NSApp.windows {
-            window.makeKeyAndOrderFront(nil)
-        }
     }
 
     public func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -15,12 +11,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     public func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            for window in NSApp.windows {
-                window.makeKeyAndOrderFront(nil)
-            }
-        }
-        return true
+        true
     }
 }
 
@@ -35,10 +26,6 @@ struct FactorioModManagerApp: App {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(locMgr)
-                .onAppear {
-                    NSApp.setActivationPolicy(.regular)
-                    NSApp.activate(ignoringOtherApps: true)
-                }
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))

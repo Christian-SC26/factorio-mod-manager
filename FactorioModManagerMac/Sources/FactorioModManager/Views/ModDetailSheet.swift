@@ -2,57 +2,12 @@ import SwiftUI
 import AppKit
 import MarkdownUI
 
-enum ScrollDirection {
-    case up, down
-}
-
-struct ScrollControllerView: NSViewRepresentable {
-    @Binding var scrollAction: ScrollDirection?
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        guard let action = scrollAction else { return }
-        DispatchQueue.main.async {
-            scrollAction = nil
-            if let window = nsView.window, let scrollView = findDetailScrollView(in: window.contentView) {
-                let delta: CGFloat = (action == .down) ? 120 : -120
-                let clipView = scrollView.contentView
-                var newOrigin = clipView.bounds.origin
-                let docHeight = scrollView.documentView?.frame.height ?? 0
-                let clipHeight = clipView.bounds.height
-                let maxOriginY = max(0, docHeight - clipHeight)
-                newOrigin.y = max(0, min(maxOriginY, newOrigin.y + delta))
-                clipView.scroll(to: newOrigin)
-                scrollView.reflectScrolledClipView(clipView)
-            }
-        }
-    }
-
-    private func findDetailScrollView(in view: NSView?) -> NSScrollView? {
-        guard let view = view else { return nil }
-        if let sv = view as? NSScrollView {
-            return sv
-        }
-        for sub in view.subviews {
-            if let found = findDetailScrollView(in: sub) {
-                return found
-            }
-        }
-        return nil
-    }
-}
-
 public struct ModDetailSheet: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) var dismiss
 
     @State private var activeTab: Int = 0
     @State private var previewScreenshotIndex: Int? = nil
-    @State private var scrollAction: ScrollDirection? = nil
     @State private var keyMonitor: Any? = nil
 
     private var localMod: LocalMod? {
@@ -166,6 +121,7 @@ public struct ModDetailSheet: View {
                         StatusBadge(local.enabled ? loc("enabled_status") : loc("disabled_status"), icon: local.enabled ? "checkmark.circle" : "xmark.circle")
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Screenshots Gallery
                 if let info = modInfo, !info.screenshots.isEmpty {
@@ -207,6 +163,7 @@ public struct ModDetailSheet: View {
                             .padding(.vertical, 2)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 // Fixed Section tabs: Description, Changelog, Releases
@@ -216,8 +173,9 @@ public struct ModDetailSheet: View {
                     Text(loc("releases_tab")).tag(2)
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 440)
+                .frame(maxWidth: 440, alignment: .leading)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.top, 14)
             .padding(.bottom, 12)
@@ -227,7 +185,7 @@ public struct ModDetailSheet: View {
             // Scrollable Tab Content
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    ScrollControllerView(scrollAction: $scrollAction)
+                    DetailScrollAttacher()
                         .frame(width: 0, height: 0)
 
                     if activeTab == 0 {
@@ -432,7 +390,7 @@ public struct ModDetailSheet: View {
             .padding(16)
             .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(minWidth: 620, maxWidth: 740, minHeight: 480, maxHeight: 660)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 if previewScreenshotIndex != nil {
@@ -451,13 +409,13 @@ public struct ModDetailSheet: View {
 
                 // Scroll Down: J (keyCode 38) or Down Arrow (keyCode 125)
                 if event.keyCode == 38 || event.keyCode == 125 {
-                    scrollAction = .down
+                    DetailScrollViewCoordinator.shared.scroll(by: 120)
                     return nil
                 }
 
                 // Scroll Up: K (keyCode 40) or Up Arrow (keyCode 126)
                 if event.keyCode == 40 || event.keyCode == 126 {
-                    scrollAction = .up
+                    DetailScrollViewCoordinator.shared.scroll(by: -120)
                     return nil
                 }
 

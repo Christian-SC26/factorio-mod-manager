@@ -105,26 +105,28 @@ public struct ContentView: View {
         }
         .overlay {
             if appState.isDetailSheetPresented {
-                ZStack {
-                    Color.black.opacity(0.45)
-                        .ignoresSafeArea()
-                        .onTapGesture {
+                GeometryReader { proxy in
+                    ZStack {
+                        ModalBackdropView {
                             withAnimation(.easeOut(duration: 0.15)) {
                                 appState.isDetailSheetPresented = false
                             }
                         }
+                        .ignoresSafeArea()
 
-                    ModDetailSheet(appState: appState)
-                        .background(Color(NSColor.windowBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                        )
-                        .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 10)
-                        .padding(.horizontal, 36)
-                        .padding(.vertical, 24)
-                        .transition(.scale(scale: 0.96).combined(with: .opacity))
+                        ModDetailSheet(appState: appState)
+                            .frame(width: min(840, max(580, proxy.size.width - 64)))
+                            .frame(height: max(420, proxy.size.height * 0.95))
+                            .background(Color(NSColor.windowBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+                            )
+                            .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 10)
+                            .transition(.scale(scale: 0.97).combined(with: .opacity))
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
                 .transition(.opacity)
             }

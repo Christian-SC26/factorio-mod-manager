@@ -26,6 +26,9 @@ public enum MarkdownSanitizer {
         text = text.replacingOccurrences(of: "<code>", with: "`", options: .caseInsensitive)
         text = text.replacingOccurrences(of: "</code>", with: "`", options: .caseInsensitive)
 
+        // Fix headings missing space after # (e.g. "#Heading" -> "# Heading")
+        text = text.replacingOccurrences(of: "(?m)^(#+)([^#\\s])", with: "$1 $2", options: .regularExpression)
+
         // Fix potential excessive newlines (> 3)
         text = text.replacingOccurrences(of: "\n{4,}", with: "\n\n\n", options: .regularExpression)
 
