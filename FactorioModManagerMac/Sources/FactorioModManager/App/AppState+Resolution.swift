@@ -9,6 +9,7 @@ extension AppState {
         forceReinstall: Bool = false
     ) async {
         isResolving = true
+        downloadProgressList = []
         let resolver = DependencyResolver(
             client: ModPortalClient.shared,
             modListMgr: modListMgr,
@@ -37,6 +38,7 @@ extension AppState {
         isResolutionModalPresented = false
         isExclusiveModpackResolution = false
         currentResolutionResult = nil
+        downloadProgressList = []
     }
 
     public func executeDownload(for customMods: [ResolvedMod]? = nil) async {

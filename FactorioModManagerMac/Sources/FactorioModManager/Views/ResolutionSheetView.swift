@@ -237,5 +237,8 @@ public struct ResolutionSheetView: View {
             .background(Color(NSColor.windowBackgroundColor))
         }
         .frame(minWidth: 540, minHeight: 460)
+        .onDisappear {
+            appState.downloadProgressList = []
+        }
     }
 }
