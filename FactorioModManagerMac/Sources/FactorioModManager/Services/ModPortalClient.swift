@@ -289,10 +289,14 @@ public actor ModPortalClient: ModPortalClientProtocol {
 
         var results: [SearchModItem] = []
         var seenNames = Set<String>()
+        let isRecent = version.contains("recent")
         let v = (version == "2.0" || version == "2.1") ? version : version.replacingOccurrences(of: "-recent", with: "")
 
         for page in 1...maxPages {
             var urlStr = "https://mods.factorio.com/search?query=\(cleanQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cleanQuery)&version=\(v)"
+            if isRecent {
+                urlStr += "&sort_attribute=last_updated_at"
+            }
             if page > 1 {
                 urlStr += "&page=\(page)"
             }
