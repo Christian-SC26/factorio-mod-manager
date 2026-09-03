@@ -84,15 +84,16 @@ public struct ContentView: View {
                 Button(action: {
                     appState.launchFactorio()
                 }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 9))
-                            .foregroundColor(.secondary)
+                    HStack(spacing: 5) {
+                        Text("Run")
+                            .font(.system(size: 12, weight: .bold))
                         Text("Factorio \(appState.effectiveFactorioVersion)")
                             .font(.system(size: 12, weight: .medium))
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.bordered)
                 .help(loc("launch_factorio_tooltip"))
             }
         }

@@ -148,17 +148,22 @@ public struct SettingsView: View {
                     Text(loc("language_title"))
                         .font(.headline)
 
-                    Picker("", selection: Binding(
-                        get: { locMgr.language },
-                        set: { locMgr.setLanguage($0) }
-                    )) {
-                        ForEach(AppLanguage.allCases) { lang in
-                            Text(lang.displayName).tag(lang)
+                    HStack {
+                        Picker("", selection: Binding(
+                            get: { locMgr.language },
+                            set: { locMgr.setLanguage($0) }
+                        )) {
+                            ForEach(AppLanguage.allCases) { lang in
+                                Text(lang.displayName).tag(lang)
+                            }
                         }
+                        .pickerStyle(.segmented)
+                        .frame(width: 220)
+
+                        Spacer()
                     }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 260)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 // About Section
                 VStack(alignment: .leading, spacing: 10) {
@@ -166,14 +171,21 @@ public struct SettingsView: View {
                         .font(.headline)
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Factorio Mod Manager (FMM)")
+                        Text("Factorio Mod Manager")
                             .font(.system(size: 14, weight: .bold))
                         Text(loc("version_label"))
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text(loc("mirror_info"))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        
+                        Link(destination: URL(string: "https://github.com/Christian-SC26/factorio-mod-manager")!) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "link")
+                                    .font(.system(size: 11))
+                                Text("https://github.com/Christian-SC26/factorio-mod-manager")
+                                    .font(.caption)
+                            }
+                        }
+                        .buttonStyle(.link)
                     }
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)

@@ -31,7 +31,7 @@ struct FactorioModManagerApp: App {
     @StateObject private var locMgr = LocalizationManager.shared
 
     var body: some Scene {
-        WindowGroup("Factorio Mod Manager") {
+        WindowGroup("FMM") {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(locMgr)

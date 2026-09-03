@@ -7,14 +7,14 @@ cd "$DIR"
 echo "==> Building Factorio Mod Manager (Release)..."
 swift build -c release
 
-APP_NAME="Factorio Mod Manager.app"
+APP_NAME="FMM.app"
 APP_DIR="$DIR/$APP_NAME"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 
 echo "==> Creating macOS App Bundle ($APP_NAME)..."
-rm -rf "$APP_DIR"
+rm -rf "$APP_DIR" "$DIR/Factorio Mod Manager.app"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 cp ".build/release/FactorioModManagerMac" "$MACOS_DIR/FactorioModManagerMac"
@@ -39,7 +39,9 @@ cat <<EOF > "$CONTENTS_DIR/Info.plist"
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Factorio Mod Manager</string>
+    <string>FMM</string>
+    <key>CFBundleDisplayName</key>
+    <string>FMM</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
