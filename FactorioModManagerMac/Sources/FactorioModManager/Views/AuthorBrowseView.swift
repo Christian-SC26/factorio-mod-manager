@@ -164,7 +164,7 @@ public struct AuthorBrowseView: View {
                         let isInstalled = appState.installedModsMap[item.name] != nil
                         let isSelected = selectedModNames.contains(item.name)
 
-                        HStack(spacing: 12) {
+                        HStack(alignment: .top, spacing: 14) {
                             Button(action: {
                                 if isSelected {
                                     selectedModNames.remove(item.name)
@@ -173,57 +173,94 @@ public struct AuthorBrowseView: View {
                                 }
                             }) {
                                 Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(isSelected ? .primary : .secondary)
+                                    .font(.system(size: 16))
+                                    .foregroundColor(isSelected ? .accentColor : .secondary)
                             }
                             .buttonStyle(.plain)
+                            .padding(.top, 2)
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
+                            Image(systemName: "cube.box")
+                                .font(.system(size: 22))
+                                .foregroundColor(.secondary)
+                                .frame(width: 28, height: 28)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 8) {
                                     Text(item.title)
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .font(.system(size: 13, weight: .bold))
 
-                                    Text("(\(item.name))")
-                                        .font(.system(size: 11, design: .monospaced))
-                                        .foregroundColor(.secondary)
+                                    if isInstalled {
+                                        StatusBadge(loc("installed_status"), icon: "checkmark.circle")
+                                    }
+
+                                    if item.isDeprecated {
+                                        StatusBadge(loc("deprecated_badge"), icon: "exclamationmark.triangle")
+                                    }
                                 }
 
-                                HStack(spacing: 10) {
+                                HStack(spacing: 12) {
                                     if !item.factorioVersions.isEmpty {
-                                        Text("Factorio: \(item.factorioVersions)")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "tag")
+                                            Text(item.factorioVersions)
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                     }
 
                                     if item.downloadsCount > 0 {
-                                        Text("\(Formatters.formatDownloads(item.downloadsCount)) dl")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "arrow.down.circle")
+                                            Text(String(format: loc("downloads_count_badge"), Formatters.formatDownloads(item.downloadsCount)))
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                     }
                                 }
                             }
 
                             Spacer()
 
-                            if isInstalled {
-                                StatusBadge(loc("installed_status"), icon: "checkmark.circle")
-                            }
+                            VStack(spacing: 6) {
+                                if isInstalled {
+                                    Button(action: {}) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "checkmark")
+                                            Text(loc("installed_button"))
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.regular)
+                                    .disabled(true)
+                                } else {
+                                    Button(action: {
+                                        Task { await appState.resolveAndInstall(targets: [item.name]) }
+                                    }) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "arrow.down.circle")
+                                            Text(loc("install_button"))
+                                                .fontWeight(.semibold)
+                                        }
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.regular)
+                                }
 
-                            if item.isDeprecated {
-                                StatusBadge(loc("deprecated_badge"), icon: "exclamationmark.triangle")
+                                Button(action: {
+                                    appState.openModDetails(for: item.name)
+                                }) {
+                                    Text(loc("details_button"))
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundColor(.secondary)
                             }
-
-                            Button(action: {
-                                Task { await appState.resolveAndInstall(targets: [item.name]) }
-                            }) {
-                                Image(systemName: "arrow.down.circle")
-                                    .font(.system(size: 16))
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundColor(.secondary)
-                            .help(loc("install_button"))
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 6)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            appState.openModDetails(for: item.name)
+                        }
                     }
                     .listStyle(.inset(alternatesRowBackgrounds: true))
                 }

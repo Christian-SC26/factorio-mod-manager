@@ -19,18 +19,13 @@ public struct KeyboardShortcutsSheetView: View {
         return [
             // Global & App
             ShortcutEntry(
-                keys: ["⌥", "O"],
+                keys: ["⌘", "R"],
                 description: isRu ? "Запустить Factorio" : "Launch Factorio game",
                 category: isRu ? "Глобальные и запуск" : "Global & App"
             ),
             ShortcutEntry(
                 keys: ["⌘", ","],
                 description: isRu ? "Настройки приложения" : "Preferences / Settings",
-                category: isRu ? "Глобальные и запуск" : "Global & App"
-            ),
-            ShortcutEntry(
-                keys: ["⌘", "R"],
-                description: isRu ? "Обновить список модов" : "Refresh installed mods",
                 category: isRu ? "Глобальные и запуск" : "Global & App"
             ),
             ShortcutEntry(

@@ -93,43 +93,59 @@ public struct OptionalModsView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(appState.optionalMods) { item in
-                    HStack(spacing: 12) {
-                        Image(systemName: "puzzlepiece")
-                            .font(.system(size: 20))
-                            .foregroundColor(.secondary)
+                    List(appState.optionalMods) { item in
+                        HStack(alignment: .top, spacing: 14) {
+                            Image(systemName: "cube.box")
+                                .font(.system(size: 22))
+                                .foregroundColor(.secondary)
+                                .frame(width: 28, height: 28)
 
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(item.name)
-                                .font(.system(size: 13, weight: .semibold))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.name)
+                                    .font(.system(size: 13, weight: .bold))
 
-                            HStack(spacing: 4) {
-                                Text(loc("suggested_by"))
-                                    .foregroundColor(.secondary)
-                                Text(item.suggestedBy.joined(separator: ", "))
-                                    .fontWeight(.medium)
+                                HStack(spacing: 4) {
+                                    Text(loc("suggested_by"))
+                                        .foregroundColor(.secondary)
+                                    Text(item.suggestedBy.joined(separator: ", "))
+                                        .fontWeight(.medium)
+                                }
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        }
 
-                        Spacer()
+                            Spacer()
 
-                        Button(action: {
-                            Task { await appState.resolveAndInstall(targets: [item.name]) }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.down.circle")
-                                Text(loc("install_button"))
-                                    .fontWeight(.semibold)
+                            VStack(spacing: 6) {
+                                Button(action: {
+                                    Task { await appState.resolveAndInstall(targets: [item.name]) }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrow.down.circle")
+                                        Text(loc("install_button"))
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.regular)
+
+                                Button(action: {
+                                    appState.openModDetails(for: item.name)
+                                }) {
+                                    Text(loc("details_button"))
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundColor(.secondary)
                             }
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.regular)
+                        .padding(.vertical, 6)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            appState.openModDetails(for: item.name)
+                        }
                     }
-                    .padding(.vertical, 6)
-                }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
+                    .listStyle(.inset(alternatesRowBackgrounds: true))
             }
         }
         .onAppear {

@@ -316,7 +316,7 @@ public struct InstalledModsView: View {
                         Text("\(loc("filter_disabled")) (\(disabledCount))").tag(2)
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 320)
+                    .fixedSize(horizontal: true, vertical: false)
 
                     HStack(spacing: 6) {
                         Image(systemName: "magnifyingglass")

@@ -146,10 +146,6 @@ public struct SearchPortalView: View {
                                 Text(item.title)
                                     .font(.system(size: 13, weight: .bold))
 
-                                Text("(\(item.name))")
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundColor(.secondary)
-
                                 if isInstalled {
                                     StatusBadge(loc("installed_status"), icon: "checkmark.circle")
                                 }
@@ -244,6 +240,10 @@ public struct SearchPortalView: View {
                         }
                     }
                     .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        appState.openModDetails(for: item.name)
+                    }
                 }
                 .listStyle(.inset(alternatesRowBackgrounds: true))
             }

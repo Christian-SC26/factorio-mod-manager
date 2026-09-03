@@ -84,6 +84,18 @@ public struct ReleaseInfo: Hashable, Identifiable, Codable, Sendable {
     }
 }
 
+public struct ModScreenshot: Hashable, Identifiable, Codable, Sendable {
+    public var id: String
+    public let url: String
+    public let thumbnail: String
+
+    public init(id: String, url: String, thumbnail: String) {
+        self.id = id
+        self.url = url
+        self.thumbnail = thumbnail
+    }
+}
+
 public struct ModInfo: Identifiable, Hashable, Sendable {
     public var id: String { name }
     public let name: String
@@ -93,6 +105,9 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
     public let category: String
     public let downloadsCount: Int
     public let releases: [ReleaseInfo]
+    public let description: String
+    public let changelog: String
+    public let screenshots: [ModScreenshot]
 
     public init(
         name: String,
@@ -101,7 +116,10 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
         summary: String = "",
         category: String = "",
         downloadsCount: Int = 0,
-        releases: [ReleaseInfo] = []
+        releases: [ReleaseInfo] = [],
+        description: String = "",
+        changelog: String = "",
+        screenshots: [ModScreenshot] = []
     ) {
         self.name = name
         self.title = title.isEmpty ? name : title
@@ -110,6 +128,9 @@ public struct ModInfo: Identifiable, Hashable, Sendable {
         self.category = category
         self.downloadsCount = downloadsCount
         self.releases = releases
+        self.description = description
+        self.changelog = changelog
+        self.screenshots = screenshots
     }
 
     /// Get latest release matching Factorio branch (e.g. "2.1", "2.0", "1.1")

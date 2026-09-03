@@ -173,6 +173,20 @@ public actor ModPortalClient: ModPortalClientProtocol {
 
         releases.sort { $0.version < $1.version }
 
+        let description = data["description"] as? String ?? summary
+        let changelog = data["changelog"] as? String ?? ""
+        var screenshots: [ModScreenshot] = []
+        if let rawImages = data["images"] as? [[String: Any]] {
+            for img in rawImages {
+                let id = img["id"] as? String ?? UUID().uuidString
+                let url = img["url"] as? String ?? ""
+                let thumb = img["thumbnail"] as? String ?? url
+                if !url.isEmpty {
+                    screenshots.append(ModScreenshot(id: id, url: url, thumbnail: thumb))
+                }
+            }
+        }
+
         let modInfo = ModInfo(
             name: name,
             title: title,
@@ -180,7 +194,10 @@ public actor ModPortalClient: ModPortalClientProtocol {
             summary: summary,
             category: category,
             downloadsCount: downloadsCount,
-            releases: releases
+            releases: releases,
+            description: description,
+            changelog: changelog,
+            screenshots: screenshots
         )
 
         cache[cleaned] = modInfo

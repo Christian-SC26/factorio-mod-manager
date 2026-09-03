@@ -5,6 +5,8 @@ public struct ModDetailSheet: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) var dismiss
 
+    @State private var activeTab: Int = 0
+
     private var localMod: LocalMod? {
         appState.selectedModDetail
     }
@@ -31,13 +33,13 @@ public struct ModDetailSheet: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Header (Clean, no box icon)
+            // Header
             HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(titleText)
                         .font(.title2.bold())
                     Text(nameText)
-                        .font(.system(.subheadline, design: .monospaced))
+                        .font(.system(.caption, design: .monospaced))
                         .foregroundColor(.secondary)
                 }
 
@@ -55,10 +57,10 @@ public struct ModDetailSheet: View {
 
             Divider()
 
-            // Content Scroll
+            // Main Content
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Meta badges row
+                    // Badges row
                     HStack(spacing: 12) {
                         if !authorText.isEmpty {
                             HStack(spacing: 4) {
@@ -95,91 +97,168 @@ public struct ModDetailSheet: View {
                         }
                     }
 
-                    // Summary
-                    if !summaryText.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(loc("description_label"))
-                                .font(.headline)
-                            Text(summaryText)
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-
-                    // Latest Release Info
-                    if let latest = modInfo?.getLatestRelease(targetFactorioBranch: appState.effectiveFactorioVersion) {
+                    // Screenshots Gallery
+                    if let info = modInfo, !info.screenshots.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(loc("latest_release_label"))
+                            Text(loc("screenshots_title"))
                                 .font(.headline)
 
-                            HStack(spacing: 10) {
-                                VersionBadge(latest.version.raw)
-                                Text(loc("factorio_version_prefix", latest.factorioVersion))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                if !latest.releasedAt.isEmpty {
-                                    Text(loc("released_date_prefix", latest.releasedAt))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-
-                            // Dependencies
-                            if !latest.dependencies.isEmpty {
-                                Text(String(format: loc("dependencies_label"), latest.dependencies.count))
-                                    .font(.subheadline.bold())
-                                    .padding(.top, 4)
-
-                                VStack(alignment: .leading, spacing: 4) {
-                                    ForEach(latest.dependencies, id: \.self) { dep in
-                                        HStack(spacing: 6) {
-                                            DependencyBadge(type: dep.depType)
-                                            Text(dep.name)
-                                                .font(.system(size: 12, weight: .semibold))
-                                            if let op = dep.op, let v = dep.version {
-                                                Text("\(op) \(v.raw)")
-                                                    .font(.system(size: 11, design: .monospaced))
-                                                    .foregroundColor(.secondary)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(info.screenshots) { shot in
+                                        AsyncImage(url: URL(string: shot.thumbnail)) { phase in
+                                            switch phase {
+                                            case .success(let image):
+                                                image
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fill)
+                                            case .failure:
+                                                Color.secondary.opacity(0.1)
+                                                    .overlay(Image(systemName: "photo").foregroundColor(.secondary))
+                                            case .empty:
+                                                ProgressView()
+                                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                            @unknown default:
+                                                EmptyView()
                                             }
                                         }
-                                        .padding(.vertical, 2)
+                                        .frame(width: 220, height: 130)
+                                        .background(Color.secondary.opacity(0.08))
+                                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
+                                        .onTapGesture {
+                                            if let u = URL(string: shot.url) {
+                                                NSWorkspace.shared.open(u)
+                                            }
+                                        }
                                     }
                                 }
+                                .padding(.vertical, 2)
                             }
                         }
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
 
-                    // Local File info if installed
-                    if let local = localMod {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(loc("local_file_section"))
-                                .font(.headline)
+                    // Section tabs: Description, Changelog, Releases
+                    Picker("", selection: $activeTab) {
+                        Text(loc("description_tab")).tag(0)
+                        Text(loc("changelog_tab")).tag(1)
+                        Text(loc("releases_tab")).tag(2)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 380)
+                    .padding(.top, 4)
 
-                            HStack {
-                                Text(local.fileURL.lastPathComponent)
-                                    .font(.system(size: 11, design: .monospaced))
+                    // Tab Content
+                    if activeTab == 0 {
+                        // Description
+                        VStack(alignment: .leading, spacing: 10) {
+                            if let info = modInfo, !info.description.isEmpty {
+                                Text(info.description)
+                                    .font(.system(size: 13))
+                                    .textSelection(.enabled)
+                            } else if !summaryText.isEmpty {
+                                Text(summaryText)
+                                    .font(.system(size: 13))
+                                    .textSelection(.enabled)
+                            } else {
+                                Text(loc("no_full_description"))
+                                    .font(.subheadline)
                                     .foregroundColor(.secondary)
-                                Spacer()
-                                if local.fileSize > 0 {
-                                    Text(formatBytes(local.fileSize))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
                             }
                         }
-                        .padding(12)
+                        .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    } else if activeTab == 1 {
+                        // Changelog
+                        VStack(alignment: .leading, spacing: 8) {
+                            if let info = modInfo, !info.changelog.isEmpty {
+                                Text(info.changelog)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .textSelection(.enabled)
+                            } else {
+                                Text(loc("no_changelog"))
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    } else {
+                        // Releases & Dependencies
+                        VStack(alignment: .leading, spacing: 14) {
+                            if let latest = modInfo?.getLatestRelease(targetFactorioBranch: appState.effectiveFactorioVersion) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(loc("latest_release_label"))
+                                        .font(.headline)
+
+                                    HStack(spacing: 10) {
+                                        VersionBadge(latest.version.raw)
+                                        Text(loc("factorio_version_prefix", latest.factorioVersion))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+
+                                        if !latest.releasedAt.isEmpty {
+                                            Text(loc("released_date_prefix", latest.releasedAt))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+
+                                    if !latest.dependencies.isEmpty {
+                                        Text(String(format: loc("dependencies_label"), latest.dependencies.count))
+                                            .font(.subheadline.bold())
+                                            .padding(.top, 4)
+
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            ForEach(latest.dependencies, id: \.self) { dep in
+                                                HStack(spacing: 6) {
+                                                    DependencyBadge(type: dep.depType)
+                                                    Text(dep.name)
+                                                        .font(.system(size: 12, weight: .semibold))
+                                                    if let op = dep.op, let v = dep.version {
+                                                        Text("\(op) \(v.raw)")
+                                                            .font(.system(size: 11, design: .monospaced))
+                                                            .foregroundColor(.secondary)
+                                                    }
+                                                }
+                                                .padding(.vertical, 2)
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+
+                            if let local = localMod {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(loc("local_file_section"))
+                                        .font(.headline)
+
+                                    HStack {
+                                        Text(local.fileURL.lastPathComponent)
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundColor(.secondary)
+                                        Spacer()
+                                        if local.fileSize > 0 {
+                                            Text(formatBytes(local.fileSize))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+                        }
                     }
                 }
                 .padding(16)
@@ -239,6 +318,6 @@ public struct ModDetailSheet: View {
             .padding(16)
             .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(minWidth: 520, minHeight: 480)
+        .frame(minWidth: 640, minHeight: 520)
     }
 }

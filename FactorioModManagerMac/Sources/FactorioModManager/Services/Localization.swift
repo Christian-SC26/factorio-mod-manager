@@ -357,7 +357,7 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "tooltip_reveal_finder": "Reveal in Finder (⌘O)",
             "tooltip_delete_mod": "Delete Mod (⌫)",
             "recheck_updates_tooltip": "Re-check for updates",
-            "launch_factorio_tooltip": "Launch Factorio (⌥O)",
+            "launch_factorio_tooltip": "Launch Factorio (⌘R)",
 
             // Installed Mods Menu & Sheets additions
             "profile_active_item": "%@ (Active)",
@@ -389,6 +389,12 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "factorio_version_prefix": "Factorio: %@",
             "released_date_prefix": "Released: %@",
             "local_file_section": "Local File",
+            "description_tab": "Description",
+            "changelog_tab": "Changelog",
+            "releases_tab": "Releases & Dependencies",
+            "screenshots_title": "Screenshots",
+            "no_changelog": "No changelog provided for this mod.",
+            "no_full_description": "No detailed description provided.",
         ],
         .ru: [
             "app_name": "Factorio Mod Manager",
@@ -676,7 +682,7 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "tooltip_reveal_finder": "Показать в Finder (⌘O)",
             "tooltip_delete_mod": "Удалить мод (⌫)",
             "recheck_updates_tooltip": "Проверить обновления заново",
-            "launch_factorio_tooltip": "Запустить Factorio (⌥O)",
+            "launch_factorio_tooltip": "Запустить Factorio (⌘R)",
 
             // Installed Mods Menu & Sheets additions
             "profile_active_item": "%@ (Активен)",
@@ -708,6 +714,12 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
             "factorio_version_prefix": "Версия игры: %@",
             "released_date_prefix": "Дата выпуска: %@",
             "local_file_section": "Локальный файл",
+            "description_tab": "Описание",
+            "changelog_tab": "Ченджлог",
+            "releases_tab": "Релизы и зависимости",
+            "screenshots_title": "Скриншоты",
+            "no_changelog": "Автор не предоставил историю изменений.",
+            "no_full_description": "Подробное описание отсутствует.",
         ]
     ]
 }

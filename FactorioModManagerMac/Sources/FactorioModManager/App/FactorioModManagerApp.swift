@@ -31,7 +31,7 @@ struct FactorioModManagerApp: App {
     @StateObject private var locMgr = LocalizationManager.shared
 
     var body: some Scene {
-        WindowGroup("FMM") {
+        WindowGroup("Factorio Mod Manager") {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(locMgr)
@@ -57,7 +57,7 @@ struct FactorioModManagerApp: App {
                 Button("Launch Factorio") {
                     appState.launchFactorio()
                 }
-                .keyboardShortcut("o", modifiers: .option)
+                .keyboardShortcut("r", modifiers: .command)
 
                 Divider()
 
@@ -92,11 +92,6 @@ struct FactorioModManagerApp: App {
             }
 
             CommandGroup(after: .toolbar) {
-                Button("Refresh Mods") {
-                    appState.refreshAll()
-                }
-                .keyboardShortcut("r", modifiers: .command)
-
                 Button("Check for Updates") {
                     appState.selectedTab = .updates
                     Task { await appState.checkForUpdates() }
