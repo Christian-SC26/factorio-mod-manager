@@ -148,8 +148,10 @@ public final class AppState: ObservableObject {
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.syncModStatesFromDisk()
+                guard let self else { return }
+                let app = self
+                Task { @MainActor in
+                    app.syncModStatesFromDisk()
                 }
             }
         }
@@ -171,8 +173,10 @@ public final class AppState: ObservableObject {
         )
 
         source.setEventHandler { [weak self] in
+            guard let self else { return }
+            let app = self
             DispatchQueue.main.async {
-                self?.syncModStatesFromDisk()
+                app.syncModStatesFromDisk()
             }
         }
 

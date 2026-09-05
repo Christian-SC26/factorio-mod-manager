@@ -116,13 +116,14 @@ extension AppState {
             )
 
             _ = await downloader.downloadAll(mods: modsToDownload) { [weak self] p in
+                guard let self else { return }
+                let app = self
                 Task { @MainActor in
-                    guard let self = self else { return }
-                    if let idx = self.downloadProgressList.firstIndex(where: { $0.modName == p.modName }) {
-                        self.downloadProgressList[idx] = p
+                    if let idx = app.downloadProgressList.firstIndex(where: { $0.modName == p.modName }) {
+                        app.downloadProgressList[idx] = p
                     }
-                    let finished = self.downloadProgressList.filter { $0.isCompleted }.count
-                    self.directUpdateCurrentCount = finished
+                    let finished = app.downloadProgressList.filter { $0.isCompleted }.count
+                    app.directUpdateCurrentCount = finished
                 }
             }
             self.isDownloading = false

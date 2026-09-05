@@ -43,6 +43,7 @@ final class ModalBackdropNSView: NSView {
     }
 }
 
+@MainActor
 public final class DetailScrollViewCoordinator {
     public static let shared = DetailScrollViewCoordinator()
     public weak var detailScrollView: NSScrollView?

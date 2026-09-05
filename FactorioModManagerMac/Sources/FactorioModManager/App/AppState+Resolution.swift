@@ -21,8 +21,10 @@ extension AppState {
         )
 
         let result = await resolver.resolve(targets: targets) { [weak self] currentMod in
+            guard let self else { return }
+            let app = self
             Task { @MainActor in
-                self?.resolvingStatusText = "\(loc("resolving_mod")): \(currentMod)"
+                app.resolvingStatusText = "\(loc("resolving_mod")): \(currentMod)"
             }
         }
         self.currentResolutionResult = result
@@ -64,9 +66,11 @@ extension AppState {
             )
 
             _ = await downloader.downloadAll(mods: modsToDownload) { [weak self] p in
+                guard let self else { return }
+                let app = self
                 Task { @MainActor in
-                    if let idx = self?.downloadProgressList.firstIndex(where: { $0.modName == p.modName }) {
-                        self?.downloadProgressList[idx] = p
+                    if let idx = app.downloadProgressList.firstIndex(where: { $0.modName == p.modName }) {
+                        app.downloadProgressList[idx] = p
                     }
                 }
             }
