@@ -1,16 +1,3 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.part
-*.tmp
-.fmm_profiles/
-build/
-dist/
-*.egg-info/
-.venv/
-env/
-
 # macOS
 .DS_Store
 **/.DS_Store
@@ -29,6 +16,21 @@ DerivedData/
 **/*.xcworkspace
 xcuserdata/
 **/*.xcuserdata/
+
+# Temporary files
+*.part
+*.tmp
+.fmm_profiles/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+build/
+dist/
+*.egg-info/
+.venv/
+env/
 
 # Ignore markdown drafts / notes except README and LICENSE
 *.md

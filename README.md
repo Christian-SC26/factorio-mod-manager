@@ -1,166 +1,76 @@
-# Factorio Mod Manager (FMM)
+# Factorio Mod Manager (FMM) for macOS
 
-Fast, lightweight CLI and interactive mod manager for Factorio (2.1, 2.0, 1.1) with dependency resolution and mirror downloads.
+[![Release](https://img.shields.io/github/v/release/Christian-SC26/factorio-mod-manager?color=orange&label=Release)](https://github.com/Christian-SC26/factorio-mod-manager/releases)
+[![Platform](https://img.shields.io/badge/Platform-macOS%2013%2B-blue)](https://www.apple.com/macos/)
+[![Swift](https://img.shields.io/badge/Swift-5.9%2B-F05138)](https://swift.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Usage
+Быстрое и легковесное нативное приложение для macOS (Swift / SwiftUI) для управления модами **Factorio 2.1, 2.0 и 1.1** с автоматическим разрешением зависимостей, мгновенным переключением профилей и прямой загрузкой с облачного зеркала.
 
-Run `fmm` in your terminal  
+Fast, lightweight native macOS app (Swift / SwiftUI) for managing **Factorio (2.1, 2.0, 1.1)** mods with automatic dependency resolution, instant profile switching, and mirror downloads.
 
-## Installation
+---
 
-macOS / Linux / Steam Deck
+## Возможности / Features
 
-- One-line installation **(Recommended)**:
+- 🚀 **Прямая загрузка с зеркала**: Скачивание модов напрямую из облачного зеркала [re146.dev](https://re146.dev) без ввода логина и пароля от factorio.com.
+- ⚡ **Рекурсивное разрешение зависимостей**: Автоматический расчет графа обязательных, рекомендуемых (`+`) и опциональных (`?`) модов с детекцией конфликтов (`!`) и интерактивным деревом зависимостей.
+- ⏱ **Мгновенные профили (0.01s)**: Мгновенное переключение между целыми сборками (*Space Age*, *Krastorio 2*, *Pyanodons*, *SE*) без повторной загрузки файлов.
+- 🔍 **Поиск по порталу и авторам**: Поиск модов под Factorio 2.1 / 2.0 / 1.1, просмотр сборок конкретных авторов и массовая установка.
+- 📖 **Карточка мода с Markdown и галереей**: Отображение форматированного описания мода, истории версий (changelog) без лагов и полноэкранный просмотр скриншотов.
+- 🧩 **Умный подбор дополнений**: Сканирование активных модов и предложение совместимых опциональных аддонов.
+- 🔄 **Обновление в один клик**: Проверка обновлений всех установленных модов с показом изменений версий.
+- 📦 **Экспорт и импорт**: Сохранение сборок в файл JSON или список ссылок для легкой передачи друзьям.
+- ⌨️ **Управление с клавиатуры**: Полная навигация стрелками и Vim-клавишами (`J`/`K`), выделение модов (`Space`), запуск Factorio (`Cmd+R`). Работает корректно на любой раскладке клавиатуры.
+- 🌐 **Двуязычный интерфейс**: Полная локализация на русский и английский языки с мгновенным переключением в тулбаре.
 
-  ```bash
-  curl -fsSL https://raw.githubusercontent.com/Christian-SC26/factorio-mod-manager/main/install.sh | bash
-  ```
-  > Installs to `~/.local/share/factorio-mod-manager` and links `fmm` to `~/.local/bin/fmm`.  
+---
 
-- Homebrew (macOS / Linux):
+## Установка / Installation
 
-  ```bash
-  brew install https://raw.githubusercontent.com/Christian-SC26/factorio-mod-manager/main/Formula/fmm.rb
-  ```
+### Готовая сборка (Рекомендуется)
+1. Скачайте архив **`FMM-macOS.zip`** со страницы [**Releases**](https://github.com/Christian-SC26/factorio-mod-manager/releases).
+2. Распакуйте и переместите **`FMM.app`** в папку **«Программы»** (`/Applications`).
 
-Windows (PowerShell / CMD)
+> **Примечание при первом запуске**:  
+> Если macOS покажет предупреждение о неподписанном приложении: нажмите по `FMM.app` правой кнопкой мыши (или `Control + клик`) и выберите **«Открыть»**.
 
-- PowerShell one-line installer **(Recommended)**:
+---
 
-  ```powershell
-  irm https://raw.githubusercontent.com/Christian-SC26/factorio-mod-manager/main/install.ps1 | iex
-  ```
-  > Installs to `%LOCALAPPDATA%\factorio-mod-manager` and adds `fmm` to your user PATH.  
+### Сборка из исходников
 
-- Manual Windows installation:
-
-  1 - Download repository ZIP or clone:
-   ```cmd
-   git clone https://github.com/Christian-SC26/factorio-mod-manager.git %LOCALAPPDATA%\factorio-mod-manager
-   ```
-  2 - Run `fmm.cmd` directly or add folder to your PATH.
-
-Python pipx / pip (Cross-platform)
-
-  ```bash
-  # Using pipx (isolated environment)
-  pipx install git+https://github.com/Christian-SC26/factorio-mod-manager.git
-
-  # Using standard pip
-  pip install git+https://github.com/Christian-SC26/factorio-mod-manager.git
-  ```
-
-## Features
-
-- **Direct Mirror Downloads**: Downloads mods directly from cloud storage mirror without factorio.com account.  
-- **Instant Profile Switching**: Switch between whole modpacks (`space-age`, `pyanodons`, `krastorio2`, etc.) in 0.01s without re-downloading files.  
-- **Deep Dependency Resolution**: Recursively resolves required, recommended (+), load order (~), and optional (?) dependencies, with conflict detection (!).  
-- **Factorio 2.1 / 2.0 / 1.1 Support**: Automatically detects exact installed game version (e.g. 2.1.17, 2.0.x, 1.1.x) or defaults to latest 2.1 mod releases.  
-- **Full mod-list.json Management**: Auto-enables installed mods, cleans old versions, and checks for updates.  
-- **Export & Import**: Export modpacks to shareable JSON/text files to install anywhere.  
-- **Interactive TUI**: Convenient terminal menu structured into 4 visual categories with multi-selection, search, and language toggle (English / Russian).  
-- **Zero External Dependencies**: Pure Python 3.8+ using only standard library.  
-
-## Quick Start
-
-Run the interactive menu or use CLI commands:  
+Требуются macOS 13.0+ и установленные инструменты командной строки Xcode (`xcode-select --install`):
 
 ```bash
-# Launch interactive menu (press 'Q' to exit, 'L' to toggle language)
-fmm
-
-# Download a mod or modpack by portal URL with all dependencies
-fmm install https://mods.factorio.com/mod/space-exploration
-
-# Download by mod name
-fmm install Krastorio2
-
-# Download multiple mods at once (space-separated, glued URLs, or multiline paste)
-fmm install Krastorio2 flib alien-biomes
-
-# List installed mods
-fmm list
-
-# Check for updates
-fmm check
-
-# Update all installed mods
-fmm update
-
-# Browse & download optional mods for installed mods
-fmm optional
-
-# Browse and install mods by author / creator
-fmm author Earendel
-
-# Search mods by keyword in title or description (e.g. mulana, train, space)
-fmm search mulana
-fmm search train --v2
-
-# Switch language to English or Russian
-fmm lang en
-fmm lang ru
+git clone https://github.com/Christian-SC26/factorio-mod-manager.git
+cd factorio-mod-manager/FactorioModManagerMac
+./build_app.sh
 ```
 
-## Profiles & Quick Switching
+Собранное приложение появится в папке: `FactorioModManagerMac/FMM.app`.
 
-Profiles allow you to maintain multiple separate game setups simultaneously on the same machine:  
+---
 
-```bash
-# View saved profiles
-fmm profiles
+## Горячие клавиши / Keyboard Shortcuts
 
-# Switch to Pyanodons
-fmm switch pyanodons
+| Клавиша | Действие |
+|---|---|
+| `Cmd + R` | Запустить Factorio |
+| `↑` / `↓` или `K` / `J` | Навигация по списку модов |
+| `Space` | Выделить / снять выделение мода |
+| `Enter` | Открыть подробную информацию о моде |
+| `Esc` | Закрыть модальное окно / карточку |
+| `D` / `C` / `R` | Вкладки Description / Changelog / Releases в карточке мода |
 
-# Switch to Space Age
-fmm switch space-age
+---
 
-# Save current enabled mod set as a new profile
-fmm profile save my-pack
-```
+## Системные требования
 
-## Export & Import Modpacks
+- **ОС**: macOS 13.0 (Ventura) или новее (Apple Silicon & Intel).
+- **Игра**: Factorio 2.1, 2.0 или 1.1 (автоопределение установленной версии).
 
-Export your active mod list to a file to share with friends, and import on any computer:  
+---
 
-```bash
-# Export active mods to a file
-fmm export my_modpack.json
+## Лицензия / License
 
-# Import and download all missing mods with dependencies
-fmm import my_modpack.json
-```
-
-## CLI Reference
-
-```
-usage: fmm [-h] [-d MODS_DIR] [-v FACTORIO_VERSION] [-l {en,ru}]
-           {install,author,search,switch,profiles,profile,list,check,update,info,optional,enable,disable,remove,export,import,lang,interactive} ...
-
-Options:
-
-  -d, --dir PATH                Path to Factorio mods directory (auto-detected by default)
-                                
-  -v, --factorio-version VER    Target Factorio branch (e.g. 2.1, 2.0, 1.1)
-                                
-  -l, --lang {en,ru}            Interface language: en (English) or ru (Russian)
-                                
-
-Install Flags:
-
-  --no-recommended             Do not download recommended '+' dependencies
-                                
-  --optional                   Download optional '?' dependencies
-                                
-  -f, --force                  Force reinstall even if version matches
-                                
-  -y, --yes                    Automatically confirm download prompts
-                                
-  --no-clean                   Do not remove older versions of updated mods
-                                
-```
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Распространяется под лицензией [MIT](LICENSE).

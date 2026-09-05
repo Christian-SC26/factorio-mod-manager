@@ -1,105 +1,76 @@
-# Factorio Mod Manager for macOS (Native Swift & SwiftUI)
+# Factorio Mod Manager (FMM) for macOS
 
-Нативное macOS-приложение для управления модами Factorio (2.1, 2.0, 1.1) с рекурсивным разрешением зависимостей, поддержкой профилей, поиском на портале и прямой загрузкой с облачного зеркала [re146.dev](https://re146.dev).
+[![Release](https://img.shields.io/github/v/release/Christian-SC26/factorio-mod-manager?color=orange&label=Release)](https://github.com/Christian-SC26/factorio-mod-manager/releases)
+[![Platform](https://img.shields.io/badge/Platform-macOS%2013%2B-blue)](https://www.apple.com/macos/)
+[![Swift](https://img.shields.io/badge/Swift-5.9%2B-F05138)](https://swift.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+Быстрое и легковесное нативное приложение для macOS (Swift / SwiftUI) для управления модами **Factorio 2.1, 2.0 и 1.1** с автоматическим разрешением зависимостей, мгновенным переключением профилей и прямой загрузкой с облачного зеркала.
+
+Fast, lightweight native macOS app (Swift / SwiftUI) for managing **Factorio (2.1, 2.0, 1.1)** mods with automatic dependency resolution, instant profile switching, and mirror downloads.
 
 ---
 
 ## Возможности / Features
 
-- ⚡ **100% Native macOS & SwiftUI**: Создано с использованием SwiftUI, Swift Concurrency (`async/await`, Actors), адаптировано под Apple Human Interface Guidelines.
-- 🚀 **Прямая загрузка с зеркала**: Быстрая загрузка архивов модов без авторизации на `factorio.com`.
-- 🔄 **Рекурсивное разрешение зависимостей**:
-  - Обязательные зависимости
-  - Рекомендованные (`+`)
-  - Опциональные (`?`)
-  - Детекция конфликтов и несовместимостей (`!`)
-  - Интерактивное визуальное дерево зависимостей
-- ⏱ **Мгновенное переключение профилей**: Переключение между целыми сборками (`Space Age`, `Krastorio 2`, `Pyanodons` и т.д.) за 0.01 секунды.
-- 🔍 **Поиск по порталу и авторам**: Полнотекстовый поиск по порталу модов, фильтр для Factorio 2.x, просмотр и массовая загрузка модов выбранного автора.
-- 🧩 **Поиск опциональных модов**: Автоматическое сканирование установленных модов и предложение рекомендуемых аддонов.
-- 📦 **Экспорт и импорт сборок**: Экспорт активного набора в JSON или текстовый файл ссылок, импорт на любом другом компьютере.
-- 🔄 **Проверка и обновление**: Проверка обновлений всех установленных модов в 1 клик с показом различий версий.
-- 🌐 **Двуязычный интерфейс**: Полная поддержка русского и английского языков с мгновенным переключением.
+- 🚀 **Прямая загрузка с зеркала**: Скачивание модов напрямую из облачного зеркала [re146.dev](https://re146.dev) без ввода логина и пароля от factorio.com.
+- ⚡ **Рекурсивное разрешение зависимостей**: Автоматический расчет графа обязательных, рекомендуемых (`+`) и опциональных (`?`) модов с детекцией конфликтов (`!`) и интерактивным деревом зависимостей.
+- ⏱ **Мгновенные профили (0.01s)**: Мгновенное переключение между целыми сборками (*Space Age*, *Krastorio 2*, *Pyanodons*, *SE*) без повторной загрузки файлов.
+- 🔍 **Поиск по порталу и авторам**: Поиск модов под Factorio 2.1 / 2.0 / 1.1, просмотр сборок конкретных авторов и массовая установка.
+- 📖 **Карточка мода с Markdown и галереей**: Отображение форматированного описания мода, истории версий (changelog) без лагов и полноэкранный просмотр скриншотов.
+- 🧩 **Умный подбор дополнений**: Сканирование активных модов и предложение совместимых опциональных аддонов.
+- 🔄 **Обновление в один клик**: Проверка обновлений всех установленных модов с показом изменений версий.
+- 📦 **Экспорт и импорт**: Сохранение сборок в файл JSON или список ссылок для легкой передачи друзьям.
+- ⌨️ **Управление с клавиатуры**: Полная навигация стрелками и Vim-клавишами (`J`/`K`), выделение модов (`Space`), запуск Factorio (`Cmd+R`). Работает корректно на любой раскладке клавиатуры.
+- 🌐 **Двуязычный интерфейс**: Полная локализация на русский и английский языки с мгновенным переключением в тулбаре.
 
 ---
 
-## Запуск и сборка / Build & Run
+## Установка / Installation
 
-### 1. Запуск из терминала (Swift CLI / SwiftUI App)
+### Готовая сборка (Рекомендуется)
+1. Скачайте архив **`FMM-macOS.zip`** со страницы [**Releases**](https://github.com/Christian-SC26/factorio-mod-manager/releases).
+2. Распакуйте и переместите **`FMM.app`** в папку **«Программы»** (`/Applications`).
 
-```bash
-cd FactorioModManagerMac
-swift run
-```
-
-### 2. Открытие в Xcode
-
-```bash
-cd FactorioModManagerMac
-open Package.swift
-```
-*Либо откройте `Package.swift` прямо через меню `Xcode -> File -> Open...`.*
-
-### 3. Релизная сборка
-
-```bash
-cd FactorioModManagerMac
-swift build -c release
-```
-Исполняемый файл будет находиться в:
-`.build/release/FactorioModManagerMac`
-
-### 4. Запуск тестов
-
-```bash
-cd FactorioModManagerMac
-swift test
-```
+> **Примечание при первом запуске**:  
+> Если macOS покажет предупреждение о неподписанном приложении: нажмите по `FMM.app` правой кнопкой мыши (или `Control + клик`) и выберите **«Открыть»**.
 
 ---
 
-## Структура проекта
+### Сборка из исходников
 
+Требуются macOS 13.0+ и установленные инструменты командной строки Xcode (`xcode-select --install`):
+
+```bash
+git clone https://github.com/Christian-SC26/factorio-mod-manager.git
+cd factorio-mod-manager/FactorioModManagerMac
+./build_app.sh
 ```
-FactorioModManagerMac/
-├── Package.swift
-├── Sources/
-│   └── FactorioModManager/
-│       ├── App/
-│       │   ├── FactorioModManagerApp.swift   # Главная точка входа (@main)
-│       │   └── AppState.swift               # Центральный координатор состояния UI и сервисов
-│       ├── Models/
-│       │   ├── FactorioVersion.swift        # Модель семантической версии Factorio
-│       │   ├── Dependency.swift             # Модель и парсер зависимостей (!, +, ?, op ver)
-│       │   ├── ModInfo.swift                # Модели метаданных модов и релизов
-│       │   ├── LocalMod.swift               # Модель локального мода (zip / папка)
-│       │   └── Profile.swift                # Модель профиля сборок
-│       ├── Services/
-│       │   ├── ModPortalClient.swift        # Асинхронный клиент API re146 и mods.factorio.com
-│       │   ├── ModListManager.swift         # Управление папкой mods и mod-list.json
-│       │   ├── DependencyResolver.swift     # Движок разрешения графа зависимостей и конфликтов
-│       │   ├── ModDownloader.swift          # Загрузчик с прогрессом, контролем целостности и скоростью
-│       │   └── Localization.swift           # Локализация (RU / EN)
-│       └── Views/
-│           ├── ContentView.swift            # Корневой NavigationSplitView с тулбаром
-│           ├── SidebarView.swift            # Боковое меню разделов
-│           ├── InstalledModsView.swift      # Управление установленными модами (поиск, фильтры, удаление)
-│           ├── InstallModsView.swift        # Ввод ссылок/имен и запуск разрешения
-│           ├── ResolutionSheetView.swift    # Окно плана установки, дерева зависимостей и загрузки
-│           ├── UpdatesView.swift            # Центр проверки и установки обновлений
-│           ├── ProfilesView.swift           # Сохранение и быстрое переключение профилей
-│           ├── SearchPortalView.swift       # Онлайн-поиск модов на портале
-│           ├── AuthorBrowseView.swift       # Просмотр и загрузка модов по автору
-│           ├── OptionalModsView.swift       # Поиск и установка опциональных зависимостей
-│           ├── ExportImportView.swift       # Экспорт и импорт сборок (.json / .txt)
-│           ├── ModDetailSheet.swift         # Подробная карточка мода
-│           ├── SettingsView.swift           # Настройки папки, версии Factorio, языка
-│           └── Components/
-│               ├── BadgeView.swift          # Чипы статусов и версий
-│               ├── ProgressBarView.swift    # Индикатор прогресса загрузки
-│               └── DependencyTreeView.swift # Иерархическое дерево зависимостей
-└── Tests/
-    └── FactorioModManagerTests/
-        ├── FactorioVersionTests.swift
-        └── DependencyTests.swift
-```
+
+Собранное приложение появится в папке: `FactorioModManagerMac/FMM.app`.
+
+---
+
+## Горячие клавиши / Keyboard Shortcuts
+
+| Клавиша | Действие |
+|---|---|
+| `Cmd + R` | Запустить Factorio |
+| `↑` / `↓` или `K` / `J` | Навигация по списку модов |
+| `Space` | Выделить / снять выделение мода |
+| `Enter` | Открыть подробную информацию о моде |
+| `Esc` | Закрыть модальное окно / карточку |
+| `D` / `C` / `R` | Вкладки Description / Changelog / Releases в карточке мода |
+
+---
+
+## Системные требования
+
+- **ОС**: macOS 13.0 (Ventura) или новее (Apple Silicon & Intel).
+- **Игра**: Factorio 2.1, 2.0 или 1.1 (автоопределение установленной версии).
+
+---
+
+## Лицензия / License
+
+Распространяется под лицензией [MIT](LICENSE).
