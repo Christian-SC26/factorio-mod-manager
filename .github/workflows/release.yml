@@ -10,6 +10,8 @@ jobs:
   build:
     name: Build & Release FMM (macOS)
     runs-on: macos-14
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
