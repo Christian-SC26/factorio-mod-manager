@@ -20,6 +20,7 @@ xcuserdata/
 # Temporary files
 *.part
 *.tmp
+*.zip
 .fmm_profiles/
 
 # Python
