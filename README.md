@@ -81,7 +81,7 @@ cd factorio-mod-manager/FactorioModManagerMac
 open FMM.app
 ```
 
-The script builds for your Mac's own architecture, so this path works on Intel Macs. Run the tests with `swift test`.
+With the full Xcode installed, the script builds a universal app (Apple Silicon and Intel). With the Command Line Tools only, it builds for your Mac's own architecture, which also works on Intel. Run the tests with `swift test`.
 
 ## License
 
