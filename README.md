@@ -29,7 +29,7 @@ The in-game mod manager also installs dependencies, but it needs a factorio.com 
 
 ## Install
 
-1. Download `FMM-macOS.zip` from the [latest release](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest). One universal app runs on Apple Silicon and Intel Macs with macOS 13 or later.
+1. Download the archive for your Mac from the [latest release](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest): `FMM-macOS-AppleSilicon.zip` for M-series chips, `FMM-macOS-Intel.zip` for Intel. Both run on macOS 13 or later, and on macOS 26 or later they use the Liquid Glass design.
 2. Unzip it and drag `FMM.app` into Applications.
 3. Open it. The release build is signed with an Apple Developer ID certificate and notarized by Apple, so macOS opens it without warnings. Apple scanned this exact build for malware, and the notarization ticket is stapled to the app, so the check works offline too.
 
@@ -87,7 +87,7 @@ cd factorio-mod-manager/FactorioModManagerMac
 open FMM.app
 ```
 
-With the full Xcode installed, the script builds a universal app (Apple Silicon and Intel). With the Command Line Tools only, it builds for your Mac's own architecture, which also works on Intel. A build from source is signed ad-hoc and not notarized; macOS trusts it on the Mac that built it. To sign and notarize with your own Apple Developer account, set `FMM_SIGN_IDENTITY` to your Developer ID Application identity and `FMM_NOTARY_PROFILE` to a `notarytool` keychain profile. Run the tests with `swift test`.
+The script builds for your Mac's own architecture; set `FMM_ARCH=arm64` or `FMM_ARCH=x86_64` to build for the other one. A build from source is signed ad-hoc and not notarized; macOS trusts it on the Mac that built it. To sign and notarize with your own Apple Developer account, set `FMM_SIGN_IDENTITY` to your Developer ID Application identity and `FMM_NOTARY_PROFILE` to a `notarytool` keychain profile. Run the tests with `swift test`.
 
 ## License
 

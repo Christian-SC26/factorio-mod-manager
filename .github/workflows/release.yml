@@ -26,20 +26,24 @@ jobs:
         working-directory: FactorioModManagerMac
         run: swift test
 
-      - name: Build FMM App Bundle
+      - name: Build FMM App Bundles (Apple Silicon, Intel)
         env:
-          FMM_REQUIRE_UNIVERSAL: "1"
+          FMM_MIN_SDK: "26"
         run: |
           cd FactorioModManagerMac
           chmod +x build_app.sh
-          ./build_app.sh
-          zip -r ../FMM-macOS.zip FMM.app
+          FMM_ARCH=arm64 ./build_app.sh
+          ditto -c -k --keepParent FMM.app ../FMM-macOS-AppleSilicon.zip
+          FMM_ARCH=x86_64 ./build_app.sh
+          ditto -c -k --keepParent FMM.app ../FMM-macOS-Intel.zip
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: FMM-macOS.zip
+          files: |
+            FMM-macOS-AppleSilicon.zip
+            FMM-macOS-Intel.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

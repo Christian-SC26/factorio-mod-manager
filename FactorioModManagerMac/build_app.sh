@@ -4,20 +4,19 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
-UNIVERSAL_FLAGS=(-c release --arch arm64 --arch x86_64)
+# One architecture per build: arm64 (Apple Silicon) or x86_64 (Intel), this Mac's own by default.
+# The Xcode-style build systems (`--arch`, and the default since Swift 6.4) stamp the deployment target (13.0)
+# into the binary as its SDK version, and macOS then shows the pre-Liquid Glass design.
+ARCH="${FMM_ARCH:-$(uname -m)}"
+case "$ARCH" in
+    arm64|x86_64) ;;
+    *) echo "==> Unknown FMM_ARCH \"$ARCH\", use arm64 or x86_64." >&2; exit 1 ;;
+esac
+BUILD_FLAGS=(-c release --build-system native --triple "$ARCH-apple-macosx13.0")
 
-echo "==> Building Factorio Mod Manager (Release, universal: arm64 + x86_64)..."
-if swift build "${UNIVERSAL_FLAGS[@]}"; then
-    BIN_DIR="$(swift build "${UNIVERSAL_FLAGS[@]}" --show-bin-path)"
-elif [ "${FMM_REQUIRE_UNIVERSAL:-0}" = "1" ]; then
-    echo "==> Universal build failed and FMM_REQUIRE_UNIVERSAL=1, stopping." >&2
-    exit 1
-else
-    # Multi-arch builds need the full Xcode; Command Line Tools alone build for this Mac only
-    echo "==> Universal build unavailable, building for this Mac's architecture only..."
-    swift build -c release
-    BIN_DIR="$(swift build -c release --show-bin-path)"
-fi
+echo "==> Building Factorio Mod Manager (Release, $ARCH)..."
+swift build "${BUILD_FLAGS[@]}"
+BIN_DIR="$(swift build "${BUILD_FLAGS[@]}" --show-bin-path)"
 
 APP_NAME="FMM.app"
 APP_DIR="$DIR/$APP_NAME"
@@ -31,6 +30,14 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 cp "$BIN_DIR/FactorioModManagerMac" "$MACOS_DIR/FactorioModManagerMac"
 echo "==> Architectures: $(lipo -archs "$MACOS_DIR/FactorioModManagerMac")"
+
+# macOS turns on Liquid Glass only for binaries linked against SDK 26 or later
+SDK_VERSION="$(vtool -show-build "$MACOS_DIR/FactorioModManagerMac" | awk '$1 == "sdk" { print $2; exit }')"
+echo "==> Linked SDK: $SDK_VERSION"
+if [ -n "${FMM_MIN_SDK:-}" ] && [ "${SDK_VERSION%%.*}" -lt "$FMM_MIN_SDK" ]; then
+    echo "==> Linked SDK $SDK_VERSION is older than FMM_MIN_SDK=$FMM_MIN_SDK, stopping." >&2
+    exit 1
+fi
 
 if [ -f "$DIR/Resources/AppIcon.icns" ]; then
     cp "$DIR/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"

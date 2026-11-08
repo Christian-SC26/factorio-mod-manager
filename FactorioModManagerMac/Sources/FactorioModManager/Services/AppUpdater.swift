@@ -105,7 +105,12 @@ public enum AppUpdateError: LocalizedError, Equatable {
 /// Finds, downloads and verifies new FMM releases, then swaps the app bundle once FMM quits.
 public struct AppUpdater: Sendable {
     public static let latestReleaseURL = URL(string: "https://api.github.com/repos/Christian-SC26/factorio-mod-manager/releases/latest")!
-    public static let assetName = "FMM-macOS.zip"
+    /// Each architecture has its own archive, so an update keeps the build that runs on this Mac.
+    #if arch(arm64)
+    public static let assetName = "FMM-macOS-AppleSilicon.zip"
+    #else
+    public static let assetName = "FMM-macOS-Intel.zip"
+    #endif
 
     public let latestURL: URL
     public let assetName: String

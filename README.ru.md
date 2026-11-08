@@ -29,7 +29,7 @@
 
 ## Установка
 
-1. Скачайте `FMM-macOS.zip` со страницы [последнего релиза](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest). Одно универсальное приложение работает на Mac с Apple Silicon и Intel под macOS 13 или новее.
+1. Скачайте архив для своего Mac со страницы [последнего релиза](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest): `FMM-macOS-AppleSilicon.zip` для чипов серии M, `FMM-macOS-Intel.zip` для Intel. Обе сборки работают на macOS 13 или новее, а на macOS 26 и новее выглядят в стиле Liquid Glass.
 2. Распакуйте архив и перетащите `FMM.app` в папку «Программы».
 3. Запустите его. Релизная сборка подписана сертификатом Apple Developer ID и нотаризована Apple, поэтому macOS открывает её без предупреждений. Apple проверила на вредоносный код именно эту сборку, а подтверждение нотаризации прикреплено к приложению, так что проверка проходит и без интернета.
 
@@ -87,7 +87,7 @@ cd factorio-mod-manager/FactorioModManagerMac
 open FMM.app
 ```
 
-Если установлен полный Xcode, скрипт собирает универсальное приложение (Apple Silicon и Intel). С одними инструментами командной строки он собирает под архитектуру вашего Mac, и на Intel это тоже работает. Сборка из исходников подписывается ad-hoc и не нотаризуется; macOS доверяет ей на том Mac, где её собрали. Чтобы подписать и нотаризовать её своим аккаунтом Apple Developer, задайте `FMM_SIGN_IDENTITY` (ваш сертификат Developer ID Application) и `FMM_NOTARY_PROFILE` (профиль `notarytool` в связке ключей). Тесты запускаются командой `swift test`.
+Скрипт собирает под архитектуру вашего Mac; чтобы собрать под другую, задайте `FMM_ARCH=arm64` или `FMM_ARCH=x86_64`. Сборка из исходников подписывается ad-hoc и не нотаризуется; macOS доверяет ей на том Mac, где её собрали. Чтобы подписать и нотаризовать её своим аккаунтом Apple Developer, задайте `FMM_SIGN_IDENTITY` (ваш сертификат Developer ID Application) и `FMM_NOTARY_PROFILE` (профиль `notarytool` в связке ключей). Тесты запускаются командой `swift test`.
 
 ## Лицензия
 
