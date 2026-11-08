@@ -30,11 +30,7 @@ The in-game mod manager also installs dependencies, but it needs a factorio.com 
 
 1. Download `FMM-macOS.zip` from the [latest release](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest). One universal app runs on Apple Silicon and Intel Macs with macOS 13 or later.
 2. Unzip it and drag `FMM.app` into Applications.
-3. The app is not notarized, so macOS blocks the first launch. Open System Settings → Privacy & Security and click **Open Anyway**. Or run this in Terminal:
-
-   ```bash
-   xattr -dr com.apple.quarantine /Applications/FMM.app
-   ```
+3. Open it. The app is signed with a Developer ID and notarized by Apple, so macOS opens it without warnings.
 
 FMM looks for mods in `~/Library/Application Support/factorio/mods`. You can pick another folder in the app's settings.
 
