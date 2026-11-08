@@ -1,4 +1,4 @@
-<img src="FactorioModManagerMac/Resources/AppIcon.png" width="96" alt="Иконка Factorio Mod Manager">
+<p align="center"><img src="FactorioModManagerMac/Resources/AppIcon.png" width="96" alt="Иконка Factorio Mod Manager"></p>
 
 # Factorio Mod Manager для macOS
 
