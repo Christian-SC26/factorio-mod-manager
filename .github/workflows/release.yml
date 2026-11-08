@@ -21,6 +21,10 @@ jobs:
           xcodebuild -version
           swift --version
 
+      - name: Run tests
+        working-directory: FactorioModManagerMac
+        run: swift test
+
       - name: Build FMM App Bundle
         run: |
           cd FactorioModManagerMac
