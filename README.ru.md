@@ -6,7 +6,7 @@
 
 [![Release](https://img.shields.io/github/v/release/Christian-SC26/factorio-mod-manager?label=release)](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest)
 [![Release build](https://github.com/Christian-SC26/factorio-mod-manager/actions/workflows/release.yml/badge.svg)](https://github.com/Christian-SC26/factorio-mod-manager/actions/workflows/release.yml)
-[![macOS 13+ · Apple Silicon](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon-blue)](#установка)
+[![macOS 13+ · Apple Silicon & Intel](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon%20%26%20Intel-blue)](#установка)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Нативное приложение для macOS, которое ставит моды Factorio вместе со всеми зависимостями без входа в аккаунт factorio.com и переключает наборы модов в один клик.
@@ -24,11 +24,11 @@
 - **Список целиком.** Вставьте ссылки с портала, имена, `имя@1.2.3` или файл модпака, и FMM поставит всё за один раз.
 - **Профили.** Набор включённых модов сохраняется как профиль. Переключение профиля переписывает `mod-list.json` и ничего не скачивает заново.
 
-**Возьмите другой инструмент**, если у вас Windows или Linux, Mac на Intel и вы не хотите собирать из исходников, или вам нужны загрузки только с официального портала. Зеркало принадлежит третьей стороне: когда оно недоступно, FMM не может скачивать моды.
+**Возьмите другой инструмент**, если у вас Windows или Linux или вам нужны загрузки только с официального портала. Зеркало принадлежит третьей стороне: когда оно недоступно, FMM не может скачивать моды.
 
 ## Установка
 
-1. Скачайте `FMM-macOS.zip` со страницы [последнего релиза](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest). Сборка рассчитана на Apple Silicon и macOS 13 или новее.
+1. Скачайте `FMM-macOS.zip` со страницы [последнего релиза](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest). Одно универсальное приложение работает на Mac с Apple Silicon и Intel под macOS 13 или новее.
 2. Распакуйте архив и перетащите `FMM.app` в папку «Программы».
 3. Приложение не нотаризовано, поэтому при первом запуске macOS его заблокирует. Откройте «Системные настройки» → «Конфиденциальность и безопасность» и нажмите «Всё равно открыть». Или выполните в Терминале:
 
