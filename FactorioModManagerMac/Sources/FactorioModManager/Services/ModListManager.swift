@@ -42,8 +42,10 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
     public let modListJsonURL: URL
 
     private static let cacheLock = NSLock()
+    /// Keyed by full path: two mods folders may contain entries with the same file name
     private static var infoCache: [String: (Date, LocalModInfo)] = [:]
-    private static var cachedDetectedVersion: String? = nil
+    /// Keyed by mods folder path: each Factorio installation has its own game version
+    private static var cachedDetectedVersions: [String: String] = [:]
 
     public init(modsDirectory: URL? = nil) {
         let dir = modsDirectory ?? Self.defaultFactorioModsDir()
@@ -83,7 +85,7 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
     /// Detect installed Factorio version from logs or app bundles
     public func detectInstalledFactorioVersion() -> String {
         Self.cacheLock.lock()
-        if let cached = Self.cachedDetectedVersion {
+        if let cached = Self.cachedDetectedVersions[modsDirectory.path] {
             Self.cacheLock.unlock()
             return cached
         }
@@ -171,7 +173,7 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
 
     private func cacheDetectedVersion(_ ver: String) {
         Self.cacheLock.lock()
-        Self.cachedDetectedVersion = ver
+        Self.cachedDetectedVersions[modsDirectory.path] = ver
         Self.cacheLock.unlock()
     }
 
@@ -325,7 +327,7 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
 
             // Check in-memory metadata cache first (thread-safe)
             Self.cacheLock.lock()
-            let cached = Self.infoCache[filename]
+            let cached = Self.infoCache[entry.path]
             Self.cacheLock.unlock()
 
             if let cached = cached, cached.0 == modDate {
@@ -339,7 +341,7 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
                     modName = parsedInfo.name
                     versionStr = parsedInfo.version
                     Self.cacheLock.lock()
-                    Self.infoCache[filename] = (modDate, parsedInfo)
+                    Self.infoCache[entry.path] = (modDate, parsedInfo)
                     Self.cacheLock.unlock()
                 }
             }
@@ -521,23 +523,16 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let safeFilename = Self.safeProfileFilename(from: cleanName)
 
-        var targetURL = profilesDirectory.appendingPathComponent("\(safeFilename).json")
-        if !FileManager.default.fileExists(atPath: targetURL.path) {
-            let directURL = profilesDirectory.appendingPathComponent("\(cleanName).json")
-            if FileManager.default.fileExists(atPath: directURL.path) {
-                targetURL = directURL
-            } else if FileManager.default.fileExists(atPath: profilesDirectory.appendingPathComponent(cleanName).path) {
-                targetURL = profilesDirectory.appendingPathComponent(cleanName)
-            } else {
-                let all = listProfiles()
-                if let matched = all.first(where: { $0.name.localizedCaseInsensitiveCompare(cleanName) == .orderedSame || $0.filename == cleanName }) {
-                    let matchedFile = matched.filename ?? "\(Self.safeProfileFilename(from: matched.name)).json"
-                    targetURL = profilesDirectory.appendingPathComponent(matchedFile)
-                }
-            }
+        guard !cleanName.isEmpty else { return (false, [], []) }
+
+        var targetURL = ["\(safeFilename).json", "\(cleanName).json", cleanName]
+            .lazy.compactMap { self.profileFile(named: $0) }.first
+        if targetURL == nil,
+           let matched = listProfiles().first(where: { $0.name.localizedCaseInsensitiveCompare(cleanName) == .orderedSame || $0.filename == cleanName }) {
+            targetURL = profileFile(named: matched.filename ?? "\(Self.safeProfileFilename(from: matched.name)).json")
         }
 
-        guard FileManager.default.fileExists(atPath: targetURL.path),
+        guard let targetURL,
               let data = try? Data(contentsOf: targetURL),
               let profile = try? JSONDecoder().decode(Profile.self, from: data) else {
             return (false, [], [])
@@ -592,36 +587,42 @@ public final class ModListManager: ModListManaging, @unchecked Sendable {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let safeFilename = Self.safeProfileFilename(from: cleanName)
 
-        var candidateURLs: [URL] = []
+        var candidates: [String] = []
         if let fn = filename {
-            candidateURLs.append(profilesDirectory.appendingPathComponent(fn))
+            candidates.append(fn)
         }
-        candidateURLs.append(profilesDirectory.appendingPathComponent("\(safeFilename).json"))
-        candidateURLs.append(profilesDirectory.appendingPathComponent("\(cleanName).json"))
-        candidateURLs.append(profilesDirectory.appendingPathComponent(cleanName))
+        if !cleanName.isEmpty {
+            candidates += ["\(safeFilename).json", "\(cleanName).json", cleanName]
+        }
 
-        for targetURL in candidateURLs {
-            if FileManager.default.fileExists(atPath: targetURL.path) {
-                do {
-                    try FileManager.default.removeItem(at: targetURL)
-                    return true
-                } catch {}
+        for component in candidates {
+            if let targetURL = profileFile(named: component), (try? FileManager.default.removeItem(at: targetURL)) != nil {
+                return true
             }
         }
 
-        let all = listProfiles()
-        if let matched = all.first(where: { $0.name.localizedCaseInsensitiveCompare(cleanName) == .orderedSame || $0.filename == cleanName }) {
-            let matchedFile = matched.filename ?? "\(Self.safeProfileFilename(from: matched.name)).json"
-            let targetURL = profilesDirectory.appendingPathComponent(matchedFile)
-            if FileManager.default.fileExists(atPath: targetURL.path) {
-                do {
-                    try FileManager.default.removeItem(at: targetURL)
-                    return true
-                } catch {}
-            }
+        guard !cleanName.isEmpty else { return false }
+        if let matched = listProfiles().first(where: { $0.name.localizedCaseInsensitiveCompare(cleanName) == .orderedSame || $0.filename == cleanName }),
+           let targetURL = profileFile(named: matched.filename ?? "\(Self.safeProfileFilename(from: matched.name)).json"),
+           (try? FileManager.default.removeItem(at: targetURL)) != nil {
+            return true
         }
 
         return false
+    }
+
+    /// An existing profile file directly inside the profiles folder, or nil when `component` is blank,
+    /// names a folder, or would escape the profiles folder (".." or a path with "/").
+    private func profileFile(named component: String) -> URL? {
+        guard !component.isEmpty, component != ".", component != "..", !component.contains("/") else {
+            return nil
+        }
+        let url = profilesDirectory.appendingPathComponent(component, isDirectory: false)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), !isDirectory.boolValue else {
+            return nil
+        }
+        return url
     }
 
     // MARK: - Modpack Export & Import

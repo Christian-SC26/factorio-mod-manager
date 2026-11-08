@@ -25,65 +25,46 @@ public enum HTMLEntityDecoder {
     ]
 
     /// Unescape HTML entities from a string in pure Swift without loading WebKit or Cocoa text subsystem
+    /// Single pass: every entity is decoded exactly once, so "&amp;lt;" stays "&lt;".
     public static func unescape(_ text: String) -> String {
         guard text.contains("&") else { return text }
 
-        var result = text
-        // Fast path: replace most common named entities
-        for (entity, replacement) in namedEntities {
-            if result.contains(entity) {
-                result = result.replacingOccurrences(of: entity, with: replacement)
-            }
-        }
-
-        // Numeric entity replacement &#...; and &#x...;
-        guard result.contains("&#") else { return result }
-
         var output = ""
-        output.reserveCapacity(result.count)
-        var iterator = result.makeIterator()
+        output.reserveCapacity(text.count)
+        var index = text.startIndex
 
-        while let char = iterator.next() {
-            if char == "&" {
-                var buffer = "&"
-                var foundSemicolon = false
-
-                while let next = iterator.next() {
-                    buffer.append(next)
-                    if next == ";" {
-                        foundSemicolon = true
-                        break
-                    }
-                    if buffer.count > 10 {
-                        break
-                    }
-                }
-
-                if foundSemicolon && buffer.hasPrefix("&#") {
-                    let content = buffer.dropFirst(2).dropLast(1)
-                    if content.hasPrefix("x") || content.hasPrefix("X") {
-                        let hexStr = content.dropFirst()
-                        if let codePoint = UInt32(hexStr, radix: 16),
-                           let unicodeScalar = UnicodeScalar(codePoint) {
-                            output.append(Character(unicodeScalar))
-                            continue
-                        }
-                    } else {
-                        if let codePoint = UInt32(content, radix: 10),
-                           let unicodeScalar = UnicodeScalar(codePoint) {
-                            output.append(Character(unicodeScalar))
-                            continue
-                        }
-                    }
-                }
-
-                // If not parsed as entity, append buffer as raw text
-                output.append(buffer)
-            } else {
-                output.append(char)
+        while index < text.endIndex {
+            let char = text[index]
+            if char == "&",
+               let semicolon = text[index...].prefix(maxEntityLength).firstIndex(of: ";"),
+               let decoded = decode(text[index...semicolon]) {
+                output.append(decoded)
+                index = text.index(after: semicolon)
+                continue
             }
+            output.append(char)
+            index = text.index(after: index)
         }
 
         return output
+    }
+
+    /// Longest supported entity is "&#x10FFFF;" / "&#1114111;" (10 characters)
+    private static let maxEntityLength = 12
+
+    private static func decode(_ entity: Substring) -> String? {
+        if let named = namedEntities[String(entity)] {
+            return named
+        }
+        guard entity.hasPrefix("&#") else { return nil }
+        let body = entity.dropFirst(2).dropLast()
+        let codePoint: UInt32?
+        if body.first == "x" || body.first == "X" {
+            codePoint = UInt32(body.dropFirst(), radix: 16)
+        } else {
+            codePoint = UInt32(body, radix: 10)
+        }
+        guard let value = codePoint, let scalar = Unicode.Scalar(value) else { return nil }
+        return String(Character(scalar))
     }
 }

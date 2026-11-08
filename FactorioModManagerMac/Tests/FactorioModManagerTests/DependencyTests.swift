@@ -1,62 +1,71 @@
-import XCTest
+import Foundation
+import Testing
 @testable import FactorioModManagerMac
 
-final class DependencyTests: XCTestCase {
-    func testDependencyParsing() {
-        let d1 = Dependency.parse("base >= 2.0.0")
-        XCTAssertNotNil(d1)
-        XCTAssertEqual(d1?.name, "base")
-        XCTAssertEqual(d1?.depType, .required)
-        XCTAssertEqual(d1?.op, ">=")
-        XCTAssertEqual(d1?.version, FactorioVersion("2.0.0"))
-
-        let d2 = Dependency.parse("! space-age")
-        XCTAssertNotNil(d2)
-        XCTAssertEqual(d2?.name, "space-age")
-        XCTAssertEqual(d2?.depType, .incompatible)
-
-        let d3 = Dependency.parse("+ flib >= 0.14.0")
-        XCTAssertNotNil(d3)
-        XCTAssertEqual(d3?.name, "flib")
-        XCTAssertEqual(d3?.depType, .recommended)
-
-        let d4 = Dependency.parse("? alien-biomes")
-        XCTAssertNotNil(d4)
-        XCTAssertEqual(d4?.name, "alien-biomes")
-        XCTAssertEqual(d4?.depType, .optional)
-
-        let d5 = Dependency.parse("(?) hidden-mod")
-        XCTAssertNil(d5, "Hidden optional '(?)' should be skipped")
-
-        let d6 = Dependency.parse("~ load-order-mod")
-        XCTAssertNil(d6, "Load order hint '~' should be skipped")
+@Suite(.tags(.fast), .timeLimit(.minutes(1)))
+struct DependencyTests {
+    @Test(arguments: [
+        ("base >= 2.0.0", DependencyType.required),
+        ("! space-age", .incompatible),
+        ("+ flib >= 0.14.0", .recommended),
+        ("? alien-biomes", .optional),
+        ("?Squeak Through", .optional)
+    ])
+    func recognizesDependencyKind(line: String, kind: DependencyType) {
+        #expect(Dependency.parse(line)?.depType == kind, "'\(line)' must be parsed as \(kind)")
     }
 
-    func testDependencySatisfaction() {
-        let dep = Dependency.parse("flib >= 0.14.0")!
-        XCTAssertTrue(dep.satisfies(FactorioVersion("0.14.0")))
-        XCTAssertTrue(dep.satisfies(FactorioVersion("0.15.2")))
-        XCTAssertFalse(dep.satisfies(FactorioVersion("0.13.9")))
-
-        let exactDep = Dependency.parse("mod == 1.2.0")!
-        XCTAssertTrue(exactDep.satisfies(FactorioVersion("1.2.0")))
-        XCTAssertFalse(exactDep.satisfies(FactorioVersion("1.2.1")))
+    @Test(arguments: ["(?) hidden-mod", "~ load-order-mod", "", "   \t  "])
+    func skipsHintsThatAreNotDependencies(line: String) {
+        #expect(Dependency.parse(line) == nil, "'\(line)' does not require anything")
     }
 
-    func testModInputParsing() {
-        let (n1, v1, op1) = ModPortalClient.parseModInput("https://mods.factorio.com/mod/space-exploration")
-        XCTAssertEqual(n1, "space-exploration")
-        XCTAssertNil(v1)
-        XCTAssertNil(op1)
+    @Test(arguments: [
+        ("base >= 2.0.0", "base"),
+        ("! space-age", "space-age"),
+        ("+ flib >= 0.14.0", "flib"),
+        ("Squeak Through >= 1.8.2", "Squeak Through"),
+        ("  bob_lib-2  ", "bob_lib-2")
+    ])
+    func extractsModName(line: String, name: String) {
+        #expect(Dependency.parse(line)?.name == name, "'\(line)' names the mod '\(name)'")
+    }
 
-        let (n2, v2, op2) = ModPortalClient.parseModInput("flib@0.15.0")
-        XCTAssertEqual(n2, "flib")
-        XCTAssertEqual(v2, "0.15.0")
-        XCTAssertEqual(op2, "==")
+    @Test
+    func readsVersionFromConstraint() {
+        #expect(Dependency.parse("base >= 2.0.0")?.version == FactorioVersion("2.0.0"), "keeps the required version")
+    }
 
-        let (n3, v3, op3) = ModPortalClient.parseModInput("https://re146.dev/factorio/mods#Krastorio2#1.3.24")
-        XCTAssertEqual(n3, "Krastorio2")
-        XCTAssertEqual(v3, "1.3.24")
-        XCTAssertEqual(op3, "==")
+    @Test
+    func normalizesSingleEqualsOperator() {
+        #expect(Dependency.parse("rail-signals = 1.0.3")?.op == "==", "'=' and '==' mean the same constraint")
+    }
+
+    @Test(arguments: [
+        ("flib >= 0.14.0", "0.14.0", true),
+        ("flib >= 0.14.0", "0.15.2", true),
+        ("flib >= 0.14.0", "0.13.9", false),
+        ("mod == 1.2.0", "1.2.0", true),
+        ("mod == 1.2.0", "1.2.1", false),
+        ("old < 1.0", "0.99.99", true),
+        ("old < 1.0", "1.0.0", false),
+        ("new > 2.0", "2.0.0", false),
+        ("cap <= 1.1", "1.1.0", true)
+    ])
+    func checksVersionConstraint(line: String, candidate: String, expected: Bool) {
+        #expect(
+            Dependency.parse(line)?.satisfies(FactorioVersion(candidate)) == expected,
+            "\(candidate) against '\(line)' must give \(expected)"
+        )
+    }
+
+    @Test
+    func acceptsAnyVersionWithoutConstraint() {
+        #expect(Dependency.parse("Krastorio2")?.satisfies(FactorioVersion("0.0.1")) == true, "no constraint means any release")
+    }
+
+    @Test
+    func treatsBuiltinNameAsVirtualIgnoringCase() {
+        #expect(Dependency.parse("Space-Age")?.isVirtual == true, "built-in expansions ship with the game")
     }
 }

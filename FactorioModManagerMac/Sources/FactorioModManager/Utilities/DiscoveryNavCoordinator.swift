@@ -57,7 +57,8 @@ public final class DiscoveryNavCoordinator: ObservableObject {
     }
 
     public func toggleSelectAll(items: [String]) {
-        if selectedModNames.count == items.count {
+        // Compare contents, not counts: the selection may still hold items from a previous search
+        if Set(items).isSubset(of: selectedModNames) {
             selectedModNames.removeAll()
         } else {
             selectedModNames = Set(items)

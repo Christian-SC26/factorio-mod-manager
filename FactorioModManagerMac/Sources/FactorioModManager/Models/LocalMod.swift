@@ -134,7 +134,10 @@ public struct LocalMod: Identifiable, Hashable, Sendable {
     public func portalAuthorURL(portalOwner: String?) -> URL? {
         let username = (portalOwner != nil && !portalOwner!.isEmpty) ? portalOwner! : primaryAuthor
         guard !username.isEmpty, username != "—" else { return nil }
-        let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? username
+        // The user name is a single path segment, so "/" must be escaped too
+        var segmentAllowed = CharacterSet.urlPathAllowed
+        segmentAllowed.remove("/")
+        let encoded = username.addingPercentEncoding(withAllowedCharacters: segmentAllowed) ?? username
         return URL(string: "https://mods.factorio.com/user/\(encoded)")
     }
 

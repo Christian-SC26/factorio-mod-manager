@@ -229,6 +229,10 @@ public actor DependencyResolver {
                 if !depCheck.satisfies(existing.release.version) {
                     if let newRel = existing.info.findRelease(versionReq: vReq, op: oper, targetFactorioBranch: targetFactorioBranch) {
                         existing.release = newRel
+                        // The installed copy was judged against the old release; re-judge it
+                        if let installed = existing.installedVersion, !forceReinstall, existing.action != .conflict {
+                            existing.action = installed >= newRel.version ? .keep : .update
+                        }
                     } else {
                         warnings.append("Version conflict for '\(modName)': requires \(oper) \(vReq) (for \(parent ?? "root")), but release \(existing.release.version) is selected")
                     }

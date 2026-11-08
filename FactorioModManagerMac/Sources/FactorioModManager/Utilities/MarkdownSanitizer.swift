@@ -7,7 +7,7 @@ public enum MarkdownSanitizer {
         var text = HTMLEntityDecoder.unescape(input)
 
         // Convert common HTML formatting to Markdown equivalents
-        text = text.replacingOccurrences(of: "<br\\s*/?>", with: "\n\n", options: .regularExpression)
+        text = text.replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n\n", options: .regularExpression)
         text = text.replacingOccurrences(of: "</p>", with: "\n\n", options: .caseInsensitive)
         text = text.replacingOccurrences(of: "<p>", with: "", options: .caseInsensitive)
         text = text.replacingOccurrences(of: "</div>", with: "\n", options: .caseInsensitive)

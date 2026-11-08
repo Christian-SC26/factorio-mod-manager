@@ -97,7 +97,11 @@ public struct FactorioVersion: Comparable, Hashable, CustomStringConvertible, Co
     }
 
     public func hash(into hasher: inout Hasher) {
-        let padded = parts + Array(repeating: 0, count: max(0, 3 - parts.count))
-        hasher.combine(padded)
+        // Must agree with ==, which pads with zeros: "1.2.3" == "1.2.3.0" == "1.2.3.0.0"
+        var significant = parts
+        while significant.count > 1, significant.last == 0 {
+            significant.removeLast()
+        }
+        hasher.combine(significant)
     }
 }

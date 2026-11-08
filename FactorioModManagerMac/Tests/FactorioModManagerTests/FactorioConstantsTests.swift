@@ -1,34 +1,34 @@
-import XCTest
+import Foundation
+import Testing
 @testable import FactorioModManagerMac
 
-final class FactorioConstantsTests: XCTestCase {
-    func testOfficialModsIdentification() {
-        XCTAssertTrue(FactorioConstants.isOfficialMod("base"))
-        XCTAssertTrue(FactorioConstants.isOfficialMod("Base"))
-        XCTAssertTrue(FactorioConstants.isOfficialMod("space-age"))
-        XCTAssertTrue(FactorioConstants.isOfficialMod("quality"))
-        XCTAssertTrue(FactorioConstants.isOfficialMod("elevated-rails"))
-        XCTAssertTrue(FactorioConstants.isOfficialMod("recycler"))
-
-        XCTAssertFalse(FactorioConstants.isOfficialMod("Krastorio2"))
-        XCTAssertFalse(FactorioConstants.isOfficialMod("space-exploration"))
-        XCTAssertFalse(FactorioConstants.isOfficialMod("flib"))
+@Suite(.tags(.fast), .timeLimit(.minutes(1)))
+struct FactorioConstantsTests {
+    @Test(arguments: ["base", "Base", "space-age", "QUALITY", "elevated-rails", "recycler"])
+    func recognizesOfficialMod(name: String) {
+        #expect(FactorioConstants.isOfficialMod(name), "'\(name)' is shipped by Wube")
     }
 
-    func testVirtualBuiltins() {
-        XCTAssertTrue(FactorioConstants.isVirtualBuiltin("base"))
-        XCTAssertTrue(FactorioConstants.isVirtualBuiltin("core"))
-        XCTAssertTrue(FactorioConstants.isVirtualBuiltin("space-age"))
-
-        XCTAssertFalse(FactorioConstants.isVirtualBuiltin("alien-biomes"))
+    @Test(arguments: ["Krastorio2", "space-exploration", "flib", "base-extended", ""])
+    func rejectsCommunityMod(name: String) {
+        #expect(!FactorioConstants.isOfficialMod(name), "'\(name)' is not an official mod")
     }
 
-    func testOfficialExpansionsCount() {
-        XCTAssertEqual(FactorioConstants.officialExpansions.count, 4)
-        let names = FactorioConstants.officialExpansions.map(\.name)
-        XCTAssertTrue(names.contains("space-age"))
-        XCTAssertTrue(names.contains("quality"))
-        XCTAssertTrue(names.contains("elevated-rails"))
-        XCTAssertTrue(names.contains("recycler"))
+    @Test(arguments: ["base", "core", "space-age", "Recycler"])
+    func recognizesVirtualBuiltin(name: String) {
+        #expect(FactorioConstants.isVirtualBuiltin(name), "'\(name)' is never downloaded from the portal")
+    }
+
+    @Test
+    func rejectsCommunityModAsBuiltin() {
+        #expect(!FactorioConstants.isVirtualBuiltin("alien-biomes"), "community mods must be downloaded")
+    }
+
+    @Test
+    func listsEveryExpansionAsOfficial() {
+        #expect(
+            Set(FactorioConstants.officialExpansions.map(\.name)) == ["space-age", "quality", "elevated-rails", "recycler"],
+            "the UI shows exactly the four Space Age expansions"
+        )
     }
 }

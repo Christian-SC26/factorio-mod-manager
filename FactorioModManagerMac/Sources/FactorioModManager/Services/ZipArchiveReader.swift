@@ -92,16 +92,16 @@ public enum ZipArchiveReader {
             let fnStart = cursor + 46
             if fnStart + filenameLen <= cdBytes.count {
                 let fnData = Data(cdBytes[fnStart..<(fnStart + filenameLen)])
-                if let filename = String(data: fnData, encoding: .utf8), filename.hasSuffix("info.json") {
-                    if let rawJsonData = extractLocalFile(
-                        fileHandle: fileHandle,
-                        localHeaderOffset: UInt64(localHeaderOffset),
-                        compressionMethod: compressionMethod,
-                        compressedSize: Int(compressedSize),
-                        uncompressedSize: Int(uncompressedSize)
-                    ) {
-                        return try? JSONDecoder().decode(LocalModInfo.self, from: rawJsonData)
-                    }
+                if let filename = String(data: fnData, encoding: .utf8), isModInfoJson(filename),
+                   let rawJsonData = extractLocalFile(
+                       fileHandle: fileHandle,
+                       localHeaderOffset: UInt64(localHeaderOffset),
+                       compressionMethod: compressionMethod,
+                       compressedSize: Int(compressedSize),
+                       uncompressedSize: Int(uncompressedSize)
+                   ),
+                   let info = try? JSONDecoder().decode(LocalModInfo.self, from: rawJsonData) {
+                    return info
                 }
             }
 
@@ -109,6 +109,13 @@ public enum ZipArchiveReader {
         }
 
         return nil
+    }
+
+    /// A mod's metadata is "info.json" at the archive root or inside its single top-level folder;
+    /// files like "locale/extra-info.json" or nested "info.json" files are not it.
+    private static func isModInfoJson(_ path: String) -> Bool {
+        let components = path.split(separator: "/", omittingEmptySubsequences: true)
+        return components.last == "info.json" && components.count <= 2
     }
 
     private static func extractLocalFile(

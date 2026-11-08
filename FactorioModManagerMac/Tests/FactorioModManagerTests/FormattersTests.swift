@@ -1,42 +1,66 @@
-import XCTest
+import Foundation
+import Testing
 @testable import FactorioModManagerMac
 
-final class FormattersTests: XCTestCase {
-    func testFormatBytes() {
-        XCTAssertEqual(Formatters.formatBytes(500), "500 B")
-        XCTAssertEqual(Formatters.formatBytes(1024), "1.0 KB")
-        XCTAssertEqual(Formatters.formatBytes(1536), "1.5 KB")
-        XCTAssertEqual(Formatters.formatBytes(1024 * 1024), "1.0 MB")
-        XCTAssertEqual(Formatters.formatBytes(25 * 1024 * 1024), "25.0 MB")
-        XCTAssertEqual(Formatters.formatBytes(1024 * 1024 * 1024), "1.00 GB")
+@Suite(.tags(.fast), .timeLimit(.minutes(1)))
+struct FormattersTests {
+    @Test(arguments: [
+        (500, "500 B"),
+        (1_023, "1023 B"),
+        (1_024, "1.0 KB"),
+        (1_536, "1.5 KB"),
+        (1_048_576, "1.0 MB"),
+        (26_214_400, "25.0 MB"),
+        (1_073_741_824, "1.00 GB")
+    ] as [(Int64, String)])
+    func formatsByteSizes(size: Int64, text: String) {
+        #expect(Formatters.formatBytes(size) == text, "\(size) bytes must read as \(text)")
     }
 
-    func testFormatDownloads() {
-        XCTAssertEqual(Formatters.formatDownloads(42), "42")
-        XCTAssertEqual(Formatters.formatDownloads(999), "999")
-        XCTAssertEqual(Formatters.formatDownloads(1_500), "1.5k")
-        XCTAssertEqual(Formatters.formatDownloads(45_300), "45.3k")
-        XCTAssertEqual(Formatters.formatDownloads(1_200_000), "1.2M")
-        XCTAssertEqual(Formatters.formatDownloads(25_000_000), "25.0M")
+    @Test(arguments: [1_048_575, 1_073_741_000] as [Int64])
+    func neverShowsThousandTwentyFourOfUnit(size: Int64) {
+        #expect(!Formatters.formatBytes(size).hasPrefix("1024"), "a rounded value of 1024 belongs to the next unit")
     }
 
-    func testIsValidHumanTitle() {
-        XCTAssertFalse(Formatters.isValidHumanTitle("."))
-        XCTAssertFalse(Formatters.isValidHumanTitle("..."))
-        XCTAssertFalse(Formatters.isValidHumanTitle("   .   "))
-        XCTAssertFalse(Formatters.isValidHumanTitle(""))
-        XCTAssertFalse(Formatters.isValidHumanTitle(" - "))
-        XCTAssertTrue(Formatters.isValidHumanTitle("Maraxsis"))
-        XCTAssertTrue(Formatters.isValidHumanTitle("Factorissimo 2"))
-        XCTAssertTrue(Formatters.isValidHumanTitle("A."))
+    @Test(arguments: [
+        (0, "0"),
+        (42, "42"),
+        (999, "999"),
+        (1_000, "1.0k"),
+        (1_500, "1.5k"),
+        (45_300, "45.3k"),
+        (1_200_000, "1.2M"),
+        (25_000_000, "25.0M")
+    ])
+    func formatsDownloadCounts(count: Int, text: String) {
+        #expect(Formatters.formatDownloads(count) == text, "\(count) downloads must read as \(text)")
     }
 
-    func testFormatModNameAsTitle() {
-        XCTAssertEqual(Formatters.formatModNameAsTitle("maraxsis"), "Maraxsis")
-        XCTAssertEqual(Formatters.formatModNameAsTitle("factorissimo-2-notnotmelon"), "Factorissimo 2 Notnotmelon")
-        XCTAssertEqual(Formatters.formatModNameAsTitle("space_exploration"), "Space Exploration")
-        XCTAssertEqual(Formatters.formatModNameAsTitle("se-space-exploration"), "SE Space Exploration")
-        XCTAssertEqual(Formatters.formatModNameAsTitle("custom_gui_hud"), "Custom GUI HUD")
-        XCTAssertEqual(Formatters.formatModNameAsTitle("hd-textures-2d"), "HD Textures 2D")
+    @Test(arguments: [999_950, 999_999])
+    func neverShowsThousandKilo(count: Int) {
+        #expect(!Formatters.formatDownloads(count).hasPrefix("1000"), "a rounded thousand 'k' is one million")
+    }
+
+    @Test(arguments: [
+        ("maraxsis", "Maraxsis"),
+        ("factorissimo-2-notnotmelon", "Factorissimo 2 Notnotmelon"),
+        ("space_exploration", "Space Exploration"),
+        ("se-space-exploration", "SE Space Exploration"),
+        ("custom_gui_hud", "Custom GUI HUD"),
+        ("hd-textures-2d", "HD Textures 2D"),
+        ("--__--", "")
+    ])
+    func titlesModNames(name: String, title: String) {
+        #expect(Formatters.formatModNameAsTitle(name) == title, "'\(name)' must read as '\(title)'")
+    }
+
+    @Test(arguments: [".", "...", "   .   ", "", " - ", "\n\t"])
+    func rejectsPunctuationOnlyTitles(title: String) {
+        #expect(!Formatters.isValidHumanTitle(title), "'\(title)' has nothing to read")
+    }
+
+    @Test(arguments: ["Maraxsis", "Factorissimo 2", "A.", "Космос", "李"])
+    func acceptsTitlesWithLetters(title: String) {
+        #expect(Formatters.isValidHumanTitle(title), "'\(title)' is readable")
     }
 }

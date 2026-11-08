@@ -59,7 +59,9 @@ public actor ModPortalClient: ModPortalClientProtocol {
             let range = NSRange(location: 0, length: raw.utf16.count)
             if let match = RegexHelper.portalUrl.firstMatch(in: raw, options: [], range: range),
                let nameRange = Range(match.range(at: 1), in: raw) {
-                let modName = String(raw[nameRange])
+                // Links copied from a browser encode spaces etc. ("Squeak%20Through")
+                let encodedName = String(raw[nameRange])
+                let modName = encodedName.removingPercentEncoding ?? encodedName
 
                 var ver: String? = nil
                 if let vMatch = RegexHelper.portalDownloadVersion.firstMatch(in: raw, options: [], range: range),

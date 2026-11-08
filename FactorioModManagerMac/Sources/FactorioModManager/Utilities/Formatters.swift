@@ -11,21 +11,29 @@ public enum Formatters {
 
     /// Format byte sizes in human-readable notation (B, KB, MB, GB)
     public static func formatBytes(_ size: Int64) -> String {
-        let doubleSize = Double(size)
-        if doubleSize < 1024.0 {
+        if size < 1024 {
             return "\(size) B"
-        } else if doubleSize < 1024.0 * 1024.0 {
-            return String(format: "%.1f KB", doubleSize / 1024.0)
-        } else if doubleSize < 1024.0 * 1024.0 * 1024.0 {
-            return String(format: "%.1f MB", doubleSize / (1024.0 * 1024.0))
-        } else {
-            return String(format: "%.2f GB", doubleSize / (1024.0 * 1024.0 * 1024.0))
         }
+        // Promote to the next unit when rounding would print "1024.0 KB" / "1024.0 MB"
+        let units: [(name: String, digits: Int)] = [("KB", 1), ("MB", 1), ("GB", 2)]
+        var value = Double(size) / 1024.0
+        var unit = 0
+        while unit < units.count - 1, rounded(value, digits: units[unit].digits) >= 1024.0 {
+            value /= 1024.0
+            unit += 1
+        }
+        return String(format: "%.\(units[unit].digits)f \(units[unit].name)", value)
+    }
+
+    private static func rounded(_ value: Double, digits: Int) -> Double {
+        let scale = pow(10.0, Double(digits))
+        return (value * scale).rounded() / scale
     }
 
     /// Format download counts in compact notation (e.g. 1.2M, 45.3k, 120)
     public static func formatDownloads(_ count: Int) -> String {
-        if count >= 1_000_000 {
+        // 999_950 would round to "1000.0k", so it is shown as "1.0M"
+        if count >= 999_950 {
             return String(format: "%.1fM", Double(count) / 1_000_000.0)
         } else if count >= 1_000 {
             return String(format: "%.1fk", Double(count) / 1_000.0)

@@ -31,6 +31,8 @@ public enum KeyCodeHelper {
     public static let kVK_ANSI_J: UInt16 = 0x26 // 38
     public static let kVK_ANSI_K: UInt16 = 0x28 // 40
     public static let kVK_ANSI_Slash: UInt16 = 0x2C // 44
+    public static let kVK_ANSI_N: UInt16 = 0x2D // 45
+    public static let kVK_ANSI_M: UInt16 = 0x2E // 46
 
     public static let kVK_Return: UInt16 = 0x24 // 36
     public static let kVK_Tab: UInt16 = 0x30 // 48
@@ -58,6 +60,8 @@ public enum KeyCodeHelper {
         case kVK_ANSI_J: return "j"
         case kVK_ANSI_K: return "k"
         case kVK_ANSI_L: return "l"
+        case kVK_ANSI_M: return "m"
+        case kVK_ANSI_N: return "n"
         case kVK_ANSI_O: return "o"
         case kVK_ANSI_P: return "p"
         case kVK_ANSI_Q: return "q"

@@ -1,36 +1,69 @@
-import XCTest
+import Foundation
+import Testing
 @testable import FactorioModManagerMac
 
-final class FactorioVersionTests: XCTestCase {
-    func testVersionParsing() {
-        let v1 = FactorioVersion("2.1.17")
-        XCTAssertEqual(v1.parts, [2, 1, 17])
-        XCTAssertEqual(v1.raw, "2.1.17")
-
-        let v2 = FactorioVersion("1.1")
-        XCTAssertEqual(v2.parts, [1, 1])
-
-        let v3 = FactorioVersion("0.17.2-1")
-        XCTAssertEqual(v3.parts, [0, 17, 2])
+@Suite(.tags(.fast), .timeLimit(.minutes(1)))
+struct FactorioVersionTests {
+    @Test(arguments: [
+        ("2.0.28", "2.1.0"),
+        ("1.1.80", "2.0.0"),
+        ("1.1.5", "1.1.10"),
+        ("0.17.79", "0.18"),
+        ("2.0", "2.0.1"),
+        ("2.0", "2.0.0.1")
+    ])
+    func ordersOlderVersionBeforeNewer(older: String, newer: String) {
+        #expect(FactorioVersion(older) < FactorioVersion(newer), "\(older) must sort before \(newer)")
     }
 
-    func testVersionComparison() {
-        XCTAssertTrue(FactorioVersion("2.1.0") > FactorioVersion("2.0.28"))
-        XCTAssertTrue(FactorioVersion("2.0.0") > FactorioVersion("1.1.80"))
-        XCTAssertTrue(FactorioVersion("1.1.80") == FactorioVersion("1.1.80"))
-        XCTAssertTrue(FactorioVersion("2.0") == FactorioVersion("2.0.0"))
-        XCTAssertTrue(FactorioVersion("2.0.1") >= FactorioVersion("2.0"))
-        XCTAssertTrue(FactorioVersion("1.1.5") < FactorioVersion("1.1.10"))
+    @Test(arguments: [("2.0", "2.0.0"), ("1.1.80", "1.1.80"), ("3", "3.0.0.0"), (" 1.2.3\n", "1.2.3")])
+    func treatsTrailingZerosAsSameVersion(left: String, right: String) {
+        #expect(FactorioVersion(left) == FactorioVersion(right), "\(left) and \(right) name the same release")
     }
 
-    func testMajorMinorCompatibility() {
-        let v = FactorioVersion("2.1.17")
-        XCTAssertTrue(v.isCompatibleMajorMinor("2.1"))
-        XCTAssertFalse(v.isCompatibleMajorMinor("2.0"))
-        XCTAssertFalse(v.isCompatibleMajorMinor("1.1"))
+    @Test
+    func hashesEqualVersionsIdentically() {
+        #expect(
+            FactorioVersion("1.2.3.0").hashValue == FactorioVersion("1.2.3").hashValue,
+            "versions that compare as equal must land in the same Set/Dictionary bucket"
+        )
+    }
 
-        let v2 = FactorioVersion("2.0.32")
-        XCTAssertTrue(v2.isCompatibleMajorMinor("2.0"))
-        XCTAssertFalse(v2.isCompatibleMajorMinor("2.1"))
+    @Test
+    func dropsBuildSuffixFromParts() {
+        #expect(FactorioVersion("0.17.2-1").parts == [0, 17, 2], "the '-1' build suffix is not a version part")
+    }
+
+    @Test
+    func keepsRawTextForDisplay() {
+        let raw = "2.1.17"
+        #expect(FactorioVersion(raw).raw == raw, "shows the version exactly as the mod author wrote it")
+    }
+
+    @Test(arguments: [
+        ("2.1.17", "2.1", true),
+        ("2.1.17", "2.0", false),
+        ("2.1.17", "1.1", false),
+        ("2.0.32", "2.0", true),
+        ("2.0.32", "2.1", false),
+        ("2.0.32", "2", true)
+    ])
+    func matchesMajorMinorBranch(version: String, branch: String, expected: Bool) {
+        #expect(
+            FactorioVersion(version).isCompatibleMajorMinor(branch) == expected,
+            "\(version) on branch \(branch) must give \(expected)"
+        )
+    }
+
+    @Test
+    func separatesGameGenerations() {
+        #expect(!FactorioVersion("1.1.110").isCompatibleGeneration("2.0.28"), "1.x mods do not run on Factorio 2.x")
+    }
+
+    @Test
+    func survivesJsonRoundTripWithRawText() throws {
+        let raw = "2.0.28-1"
+        let decoded = try JSONDecoder().decode(FactorioVersion.self, from: JSONEncoder().encode(FactorioVersion(raw)))
+        #expect(decoded.raw == raw, "encodes the version as its original string")
     }
 }
