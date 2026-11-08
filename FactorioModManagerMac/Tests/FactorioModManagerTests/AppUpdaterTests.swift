@@ -73,7 +73,7 @@ struct AppUpdaterTests {
 
     @Test
     func readsLatestReleaseFromServer() async throws {
-        let body = Data(#"{"tag_name":"v7.0.3","body":null,"html_url":"https://example.com/r","assets":[{"name":"FMM-macOS.zip","browser_download_url":"https://example.com/a.zip"}]}"#.utf8)
+        let body = Data(#"{"tag_name":"v7.0.3","body":null,"html_url":"https://example.com/r","assets":[{"name":"\#(AppUpdater.assetName)","browser_download_url":"https://example.com/a.zip"}]}"#.utf8)
         let server = try await FkHttpServer(status: 200, body: body)
         defer { server.close() }
         let release = try await AppUpdater(latestURL: server.url, bundleIdentifier: Self.identifier, requiredTeam: nil).latestRelease()
