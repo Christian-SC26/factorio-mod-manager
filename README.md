@@ -7,6 +7,7 @@
 [![Release](https://img.shields.io/github/v/release/Christian-SC26/factorio-mod-manager?label=release)](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest)
 [![Release build](https://github.com/Christian-SC26/factorio-mod-manager/actions/workflows/release.yml/badge.svg)](https://github.com/Christian-SC26/factorio-mod-manager/actions/workflows/release.yml)
 [![macOS 13+ · Apple Silicon & Intel](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon%20%26%20Intel-blue)](#install)
+[![Notarized by Apple](https://img.shields.io/badge/notarized-Apple-black?logo=apple)](#install)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A native macOS app that installs Factorio mods with all their dependencies, needs no factorio.com login, and switches between mod sets in one click.
@@ -30,7 +31,15 @@ The in-game mod manager also installs dependencies, but it needs a factorio.com 
 
 1. Download `FMM-macOS.zip` from the [latest release](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest). One universal app runs on Apple Silicon and Intel Macs with macOS 13 or later.
 2. Unzip it and drag `FMM.app` into Applications.
-3. Open it. The app is signed with a Developer ID and notarized by Apple, so macOS opens it without warnings.
+3. Open it. The release build is signed with an Apple Developer ID certificate and notarized by Apple, so macOS opens it without warnings. Apple scanned this exact build for malware, and the notarization ticket is stapled to the app, so the check works offline too.
+
+   To verify a downloaded copy yourself:
+
+   ```bash
+   spctl -a -v /Applications/FMM.app
+   ```
+
+   The output should contain `accepted` and `source=Notarized Developer ID`.
 
 FMM looks for mods in `~/Library/Application Support/factorio/mods`. You can pick another folder in the app's settings.
 
@@ -77,7 +86,7 @@ cd factorio-mod-manager/FactorioModManagerMac
 open FMM.app
 ```
 
-With the full Xcode installed, the script builds a universal app (Apple Silicon and Intel). With the Command Line Tools only, it builds for your Mac's own architecture, which also works on Intel. Run the tests with `swift test`.
+With the full Xcode installed, the script builds a universal app (Apple Silicon and Intel). With the Command Line Tools only, it builds for your Mac's own architecture, which also works on Intel. A build from source is signed ad-hoc and not notarized; macOS trusts it on the Mac that built it. To sign and notarize with your own Apple Developer account, set `FMM_SIGN_IDENTITY` to your Developer ID Application identity and `FMM_NOTARY_PROFILE` to a `notarytool` keychain profile. Run the tests with `swift test`.
 
 ## License
 

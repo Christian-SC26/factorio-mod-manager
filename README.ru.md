@@ -7,6 +7,7 @@
 [![Release](https://img.shields.io/github/v/release/Christian-SC26/factorio-mod-manager?label=release)](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest)
 [![Release build](https://github.com/Christian-SC26/factorio-mod-manager/actions/workflows/release.yml/badge.svg)](https://github.com/Christian-SC26/factorio-mod-manager/actions/workflows/release.yml)
 [![macOS 13+ · Apple Silicon & Intel](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon%20%26%20Intel-blue)](#установка)
+[![Notarized by Apple](https://img.shields.io/badge/notarized-Apple-black?logo=apple)](#установка)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Нативное приложение для macOS, которое ставит моды Factorio вместе со всеми зависимостями без входа в аккаунт factorio.com и переключает наборы модов в один клик.
@@ -30,7 +31,15 @@
 
 1. Скачайте `FMM-macOS.zip` со страницы [последнего релиза](https://github.com/Christian-SC26/factorio-mod-manager/releases/latest). Одно универсальное приложение работает на Mac с Apple Silicon и Intel под macOS 13 или новее.
 2. Распакуйте архив и перетащите `FMM.app` в папку «Программы».
-3. Запустите его. Приложение подписано сертификатом Developer ID и нотаризовано Apple, поэтому macOS открывает его без предупреждений.
+3. Запустите его. Релизная сборка подписана сертификатом Apple Developer ID и нотаризована Apple, поэтому macOS открывает её без предупреждений. Apple проверила на вредоносный код именно эту сборку, а подтверждение нотаризации прикреплено к приложению, так что проверка проходит и без интернета.
+
+   Проверить скачанную копию можно самому:
+
+   ```bash
+   spctl -a -v /Applications/FMM.app
+   ```
+
+   В выводе должны быть `accepted` и `source=Notarized Developer ID`.
 
 FMM ищет моды в `~/Library/Application Support/factorio/mods`. Другую папку можно выбрать в настройках приложения.
 
@@ -77,7 +86,7 @@ cd factorio-mod-manager/FactorioModManagerMac
 open FMM.app
 ```
 
-Если установлен полный Xcode, скрипт собирает универсальное приложение (Apple Silicon и Intel). С одними инструментами командной строки он собирает под архитектуру вашего Mac, и на Intel это тоже работает. Тесты запускаются командой `swift test`.
+Если установлен полный Xcode, скрипт собирает универсальное приложение (Apple Silicon и Intel). С одними инструментами командной строки он собирает под архитектуру вашего Mac, и на Intel это тоже работает. Сборка из исходников подписывается ad-hoc и не нотаризуется; macOS доверяет ей на том Mac, где её собрали. Чтобы подписать и нотаризовать её своим аккаунтом Apple Developer, задайте `FMM_SIGN_IDENTITY` (ваш сертификат Developer ID Application) и `FMM_NOTARY_PROFILE` (профиль `notarytool` в связке ключей). Тесты запускаются командой `swift test`.
 
 ## Лицензия
 
