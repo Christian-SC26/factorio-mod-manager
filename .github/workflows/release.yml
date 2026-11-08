@@ -27,6 +27,8 @@ jobs:
         run: swift test
 
       - name: Build FMM App Bundle
+        env:
+          FMM_REQUIRE_UNIVERSAL: "1"
         run: |
           cd FactorioModManagerMac
           chmod +x build_app.sh
