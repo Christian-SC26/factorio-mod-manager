@@ -71,5 +71,24 @@ cat <<EOF > "$CONTENTS_DIR/Info.plist"
 </plist>
 EOF
 
+if [ -n "${FMM_SIGN_IDENTITY:-}" ]; then
+    echo "==> Signing with \"$FMM_SIGN_IDENTITY\" (hardened runtime)..."
+    codesign --force --options runtime --timestamp --sign "$FMM_SIGN_IDENTITY" "$APP_DIR"
+else
+    echo "==> FMM_SIGN_IDENTITY not set, signing ad-hoc..."
+    codesign --force --sign - "$APP_DIR"
+fi
+codesign --verify --strict "$APP_DIR"
+
+if [ -n "${FMM_NOTARY_PROFILE:-}" ]; then
+    echo "==> Notarizing with keychain profile \"$FMM_NOTARY_PROFILE\"..."
+    ZIP="$DIR/FMM-notarize.zip"
+    ditto -c -k --keepParent "$APP_DIR" "$ZIP"
+    xcrun notarytool submit "$ZIP" --keychain-profile "$FMM_NOTARY_PROFILE" --wait
+    rm -f "$ZIP"
+    xcrun stapler staple "$APP_DIR"
+    spctl -a -vv -t exec "$APP_DIR"
+fi
+
 echo "==> Application bundle created at: $APP_DIR"
 echo "==> You can run it with: open '$APP_DIR'"
