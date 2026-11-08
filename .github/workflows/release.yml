@@ -10,6 +10,7 @@ jobs:
   build:
     name: Build & Release FMM (macOS)
     runs-on: macos-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
