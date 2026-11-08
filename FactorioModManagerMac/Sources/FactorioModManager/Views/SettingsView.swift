@@ -1,9 +1,11 @@
 import SwiftUI
 import AppKit
+import MarkdownUI
 
 public struct SettingsView: View {
     @ObservedObject var appState: AppState
     @ObservedObject var locMgr = LocalizationManager.shared
+    @ObservedObject var updates = AppUpdateManager.shared
     @State private var selectedVersionOption: String = "auto"
 
     private func chooseCustomModsDir() {
@@ -15,6 +17,94 @@ public struct SettingsView: View {
 
         if openPanel.runModal() == .OK, let url = openPanel.url {
             appState.setModsDirectory(url)
+        }
+    }
+
+    @ViewBuilder
+    private var appUpdateSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Button {
+                    Task { await updates.check() }
+                } label: {
+                    Label(loc("app_update_check_button"), systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(updates.isBusy)
+                .fixedSize(horizontal: true, vertical: false)
+
+                appUpdateStatus
+
+                Spacer()
+            }
+
+            Toggle(loc("app_update_auto_check"), isOn: $updates.checkAutomatically)
+                .font(.caption)
+
+            if let release = updates.available {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(loc("app_update_available", release.version.description))
+                        .fontWeight(.semibold)
+
+                    if !release.notes.isEmpty {
+                        ScrollView {
+                            Markdown(release.notes)
+                                .markdownTheme(.gitHub)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxHeight: 180)
+                    }
+
+                    if let blocker = updates.installBlocker {
+                        Text(loc(blocker))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    HStack(spacing: 10) {
+                        Button {
+                            Task { await updates.install() }
+                        } label: {
+                            Label(loc("app_update_install_button"), systemImage: "arrow.down.circle")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(updates.isBusy || updates.installBlocker != nil)
+                        .fixedSize(horizontal: true, vertical: false)
+
+                        Link(loc("app_update_release_page"), destination: release.pageURL)
+                            .font(.caption)
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.accentColor.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var appUpdateStatus: some View {
+        switch updates.status {
+        case .idle:
+            EmptyView()
+        case .checking, .downloading, .installing:
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(loc(updates.status == .checking ? "app_update_checking"
+                    : updates.status == .downloading ? "app_update_downloading" : "app_update_installing"))
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
+        case .upToDate:
+            Label(loc("app_update_up_to_date"), systemImage: "checkmark.circle")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        case .failed(let message):
+            Label(loc("app_update_failed", message), systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundColor(.orange)
+                .textSelection(.enabled)
         }
     }
 
@@ -173,10 +263,11 @@ public struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Factorio Mod Manager")
                             .font(.system(size: 14, weight: .bold))
-                        Text(loc("version_label"))
+                        Text(loc("version_label", updates.currentVersion?.description ?? loc("version_dev")))
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
+
+
                         Link(destination: URL(string: "https://github.com/Christian-SC26/factorio-mod-manager")!) {
                             HStack(spacing: 5) {
                                 Image(systemName: "link")
@@ -186,6 +277,11 @@ public struct SettingsView: View {
                             }
                         }
                         .buttonStyle(.link)
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        appUpdateSection
                     }
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)

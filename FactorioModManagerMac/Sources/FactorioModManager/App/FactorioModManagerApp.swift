@@ -4,6 +4,7 @@ import AppKit
 public final class AppDelegate: NSObject, NSApplicationDelegate {
     public func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        Task { @MainActor in AppUpdateManager.shared.checkAtLaunch() }
     }
 
     public func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -32,6 +33,13 @@ struct FactorioModManagerApp: App {
         .defaultSize(width: 1020, height: 680)
         .commands {
             SidebarCommands()
+
+            CommandGroup(after: .appInfo) {
+                Button("Check for FMM Updates...") {
+                    appState.selectedTab = .settings
+                    Task { await AppUpdateManager.shared.check() }
+                }
+            }
 
             CommandGroup(replacing: .appSettings) {
                 Button("Settings...") {

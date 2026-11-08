@@ -3,6 +3,7 @@ import SwiftUI
 public struct SidebarView: View {
     @ObservedObject var appState: AppState
     @ObservedObject var locMgr = LocalizationManager.shared
+    @ObservedObject var updates = AppUpdateManager.shared
 
     public var body: some View {
         List(selection: $appState.selectedTab) {
@@ -129,6 +130,7 @@ public struct SidebarView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                .badge(updates.available.map { Text($0.version.description) })
             }
         }
         .listStyle(.sidebar)
