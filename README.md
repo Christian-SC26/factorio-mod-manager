@@ -50,6 +50,7 @@ FMM looks for mods in `~/Library/Application Support/factorio/mods`. You can pic
 - Mod page with description, changelog and screenshots.
 - Suggestions for optional add-ons to the mods you have.
 - Update check across all installed mods.
+- Updates itself: Settings → About finds a new release, checks its signature and relaunches into it.
 - Modpack export and import as JSON or as a text file of links.
 - Release selection for your game version (2.1, 2.0 or 1.1), detected from the Factorio log.
 - English and Russian interface.
