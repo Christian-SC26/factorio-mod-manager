@@ -11,6 +11,8 @@
 
 A native macOS app that installs Factorio mods with all their dependencies, needs no factorio.com login, and switches between mod sets in one click.
 
+![Installed mods table: built-in expansions on top, twelve community mods below, two of them disabled and two showing available updates](docs/screenshots/installed.png)
+
 **Status:** actively developed by a single maintainer. CI runs the full test suite before it builds a release, and a single failing test stops the release.
 
 ## Why FMM
@@ -46,6 +48,12 @@ FMM looks for mods in `~/Library/Application Support/factorio/mods`. You can pic
 - Modpack export and import as JSON or as a text file of links.
 - Release selection for your game version (2.1, 2.0 or 1.1), detected from the Factorio log.
 - English and Russian interface.
+
+| Mod page | Updates |
+|---|---|
+| ![Mod page for Project Cybersyn with screenshots, description, changelog and releases tabs](docs/screenshots/details.png) | ![Updates tab listing Todo List and Factorio Library with old and new versions](docs/screenshots/updates.png) |
+| **Profiles** | **Portal search** |
+| ![Profiles tab with two saved profiles and their mods](docs/screenshots/profiles.png) | ![Portal search showing recently updated mods for Factorio 2.1 with install buttons](docs/screenshots/search.png) |
 
 ## Keyboard shortcuts
 
