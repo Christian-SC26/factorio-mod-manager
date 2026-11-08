@@ -9,15 +9,17 @@ on:
 jobs:
   build:
     name: Build & Release FMM (macOS)
-    runs-on: macos-14
+    runs-on: macos-latest
     permissions:
       contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode.app
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
 
       - name: Build FMM App Bundle
         run: |
